@@ -1,8 +1,13 @@
 export default function AboutPage() {
   return (
-    <main style={{ padding: 24, fontFamily: "system-ui, sans-serif" }}>
-      <h1 style={{ fontSize: 28, marginBottom: 8 }}>About</h1>
-      <p>Learn more about Eagle Gymnastics Academy.</p>
-    </main>
+    <>
+      <h1 className="text-2xl font-semibold mb-4">
+        About / Where to find us
+      </h1>
+
+      <p className="text-gray-700 leading-relaxed">
+        Content coming soon.
+      </p>
+    </>
   );
 }
