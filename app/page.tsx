@@ -1,99 +1,124 @@
 import Image from "next/image";
+import ReviewsSlider from "./components/ReviewsSlider";
 
-const images = [
-  { src: "/brand/placeholderImg/test1.png", alt: "Gymnastics class" },
-  { src: "/brand/placeholderImg/test2.png", alt: "Coach helping gymnast" },
-  { src: "/brand/placeholderImg/test3.png", alt: "Gym equipment" },
-  { src: "/brand/placeholderImg/test.png", alt: "Gymnastics practice" },
+const sections = [
+  {
+    title: "CLASSES",
+    copy: "Founded by an experienced former squad gymnast, the club offers a safe, well-equipped environment for both recreational and competitive gymnastics, with a strong sense of community at its heart.",
+    cta: "View Timetable",
+    href: "/timetable",
+    image: "/brand/placeholderImg/test3.png",
+    tone: "bg-[#f7e9ff] text-[#2E2A33]",
+  },
+  {
+    title: "COMPETITION",
+    copy: "The Competition group, is for gymnasts who would like to compete at  floor and vault with the opportunity to progress into 4 piece competitions on the Bars, Beam, Floor and Vault. This section is invite only, once in the group there are many fun opportunities to take part in competitions, training days with other clubs and also a weekend training at Inverclyde national sports centre.",
+    cta: "BOOK NOW",
+    href: "/contact",
+    image: "/brand/placeholderImg/test2.png",
+    tone: "bg-[#e9f6ff] text-[#2E2A33]",
+  },
+  {
+    title: "PRE-SCHOOL CLASSES",
+    copy: "These classes are aimed at developing social and practical skills such as balance, co-ordination, strength & flexibility. They also enable children to develop creativity while interacting with other children in a fun, safe environment.",
+    cta: "OUR PATHWAY",
+    href: "/team",
+    image: "/brand/placeholderImg/test4.png",
+    tone: "bg-[#ffe8f4] text-[#2E2A33]",
+  },
+  {
+    title: "MEMBERS",
+    copy: "Exclusive video library and technique tips to help gymnasts practise safely at home.",
+    cta: "VIEW RESOURCES",
+    href: "/members",
+    image: "/brand/placeholderImg/test1.png",
+    tone: "bg-[#f3e7ff] text-[#2E2A33]",
+  },
 ];
 
 export default function Home() {
   return (
-    <section className="mx-auto max-w-6xl px-6 py-12 text-lg leading-relaxed text-gray-800">
-      <div className="grid gap-12 lg:grid-cols-[1.05fr_0.95fr] lg:items-start">
-        <div>
-          <div className="mb-6">
-            <svg
-              viewBox="0 0 800 200"
-              className="h-24 w-full"
-              aria-label="Welcome!"
-              role="img"
-            >
-              <defs>
-                <linearGradient id="welcomeGradient" x1="0" y1="0" x2="1" y2="0">
-                  <stop offset="0%" stopColor="#ff5fb1" />
-                  <stop offset="50%" stopColor="#8f4bd6" />
-                  <stop offset="100%" stopColor="#6c35c3" />
-                </linearGradient>
-              </defs>
-              <text
-                x="50%"
-                y="55%"
-                textAnchor="middle"
-                dominantBaseline="middle"
-                fontSize="120"
-                fontWeight="800"
-                fill="url(#welcomeGradient)"
-                stroke="#ffffff"
-                strokeWidth="6"
-                paintOrder="stroke"
-                style={{
-                  fontFamily:
-                    '"Baloo 2", "Comic Sans MS", "Comic Neue", cursive, sans-serif',
-                }}
+    <main className="w-full">
+      <section className="relative w-full bg-[#faf7fb] px-6 pb-12 pt-2 -mt-12">
+        <div className="pointer-events-none absolute inset-0">
+          <span className="absolute left-[8%] top-[18%] text-3xl text-[#6c35c3]/40">
+            ★
+          </span>
+          <span className="absolute left-[18%] top-[55%] text-2xl text-[#f7c948]/50">
+            ★
+          </span>
+          <span className="absolute right-[15%] top-[22%] text-4xl text-[#6c35c3]/35">
+            ★
+          </span>
+          <span className="absolute right-[8%] top-[60%] text-2xl text-[#f7c948]/50">
+            ★
+          </span>
+        </div>
+        <div className="relative mx-auto max-w-3xl text-center text-[#2E2A33]">
+          <h2 className="text-3xl font-extrabold tracking-wide sm:text-4xl">
+            Build confidence, strength, and a love of movement
+          </h2>
+          <p className="mt-4 text-base sm:text-lg">
+            Our gymnastics classes are a positive, supportive space for young people of all ages and abilities. From beginners taking their first steps to more experienced gymnasts building skills and confidence, every class is designed to help each individual progress at their own pace.
+          </p>
+        </div>
+      </section>
+      {sections.map((section, index) => {
+        const isEven = index % 2 === 0;
+        return (
+          <div key={section.title}>
+            <section className="grid min-h-[48vh] w-full grid-cols-1 md:grid-cols-2">
+              <div
+                className={[
+                  "relative min-h-[240px] md:min-h-full",
+                  isEven ? "order-1" : "order-2 md:order-2",
+                ].join(" ")}
               >
-                Welcome!
-              </text>
-            </svg>
-          </div>
-          <p>
-            Are you looking for a sport that's exciting, confidence-boosting,
-            and full of fun?
-          </p>
-          <p className="mt-6">
-            Welcome to Eagle, Paisley's West End gymnastics club – right here in
-            the old St Mirren Social Club at 11 Knox Street. We're easy to reach
-            by public transport, with our own parking right next to the
-            building.
-          </p>
-          <p className="mt-6">
-            Founded by former squad gymnast and experienced coach Hazel Watt,
-            who's been inspiring young athletes in Renfrewshire since 2001, our
-            club is all about combining energy, discipline, and friendship.
-            We're a big family where everyone – from total beginners to
-            competition-ready gymnasts – feels at home.
-          </p>
-          <p className="mt-6">
-            Our purpose-built gym is packed with Olympic-standard equipment,
-            giving children the chance to train like the champions they see on
-            TV, in a safe and supportive environment.
-          </p>
-          <p className="mt-6">
-            Whether your child wants to tumble for fun or shine on the
-            competition floor, we have something for them.
-          </p>
-        </div>
+                <Image
+                  src={section.image}
+                  alt={section.title}
+                  fill
+                  className="object-cover"
+                  sizes="(max-width: 768px) 100vw, 50vw"
+                  priority={index === 0}
+                />
+              </div>
+              <div
+                className={[
+                  "flex items-center",
+                  section.tone,
+                  isEven ? "order-2" : "order-1 md:order-1",
+                ].join(" ")}
+              >
+                <div className="w-full px-8 py-10 sm:px-12 lg:px-16">
+                  <h2 className="text-3xl font-extrabold tracking-wide sm:text-4xl">
+                    {section.title}
+                  </h2>
+                  <p className="mt-4 max-w-md text-base leading-relaxed sm:text-lg">
+                    {section.copy}
+                  </p>
+                  <a
+                    href={section.href}
+                    className="mt-6 inline-flex items-center justify-center rounded-full border border-[#2E2A33] px-6 py-3 text-sm font-semibold tracking-wide transition hover:-translate-y-0.5 hover:bg-[#2E2A33] hover:text-white"
+                  >
+                    {section.cta}
+                  </a>
+                </div>
+              </div>
+            </section>
 
-        <div className="grid gap-4 sm:grid-cols-2 lg:gap-5">
-          {images.map((image, index) => (
-            <div
-              key={image.src}
-              className={[
-                "relative overflow-hidden rounded-3xl border border-[#6c35c3]/10 bg-white/70 shadow-sm",
-                index === 0 ? "sm:col-span-2 aspect-[16/9]" : "aspect-[4/3]",
-              ].join(" ")}
-            >
-              <Image
-                src={image.src}
-                alt={image.alt}
-                fill
-                className="object-cover"
-                sizes="(max-width: 1024px) 100vw, 40vw"
-              />
-            </div>
-          ))}
-        </div>
-      </div>
-    </section>
+            {index === 1 ? (
+              <section className="w-full bg-[#f3ecf7] px-6 py-16 text-center">
+                <div className="mx-auto max-w-3xl">
+                  <div>
+                    <ReviewsSlider />
+                  </div>
+                </div>
+              </section>
+            ) : null}
+          </div>
+        );
+      })}
+    </main>
   );
 }

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Baloo_2, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import Nav from "./components/Nav";
+import BannerSlideshow from "./components/BannerSlideshow";
 
 export const metadata: Metadata = {
   title: "Eagle Gymnastics Academy",
@@ -27,9 +28,20 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${geistSans.variable} ${geistMono.variable}`}>
-      <body className="min-h-screen bg-[#f7f2ff] text-gray-900 antialiased">
-        <div className="sticky top-0 z-50 border-b-[5px] border-[#6c35c3] bg-[#f7f2ff]/95 backdrop-blur">
+    <html
+      lang="en"
+      className={`${geistSans.variable} ${geistMono.variable}`}
+      style={{ backgroundColor: "#faf7fb" }}
+    >
+      <body
+        className="min-h-screen overflow-x-hidden bg-[#faf7fb] text-[#2E2A33] antialiased"
+        style={{ backgroundColor: "#faf7fb" }}
+      >
+        <div
+          className="min-h-screen bg-[#faf7fb]"
+          style={{ backgroundColor: "#faf7fb" }}
+        >
+          <div className="sticky top-0 z-50 border-b-[2px] border-[#6c35c3] bg-[#faf7fb]/95 backdrop-blur">
           <div className="relative">
             <div className="bg-[#6c35c3] text-white">
               <div className="flex w-full items-center gap-4 px-3 py-2 text-base font-semibold tracking-wide">
@@ -100,9 +112,25 @@ export default function RootLayout({
               </div>
             </header>
 
-            <div className="absolute -bottom-6 left-5 z-10 translate-y-10">
-              <Link href="/" aria-label="Eagle Gymnastics Academy home">
-                <div className="flex h-40 w-40 items-center justify-center rounded-full bg-[#f7f2ff] transition-all duration-300 hover:scale-125 hover:border-4 hover:border-[#6c35c3]">
+              <div className="absolute -bottom-6 left-5 z-10 translate-y-10">
+              <Link href="/" aria-label="Multi-Sport home">
+                <div className="relative h-40 w-40 transition-all duration-300 hover:scale-125">
+                  <span className="absolute left-[5px] top-0 h-full w-full rounded-full border-2 border-[#6e2ac0] bg-[#faf7fb] transition-all duration-300 hover:border-2 hover:border-[#6c35c3]" />
+                  <div className="relative flex h-full w-full items-center justify-center overflow-hidden rounded-full">
+                    <Image
+                      src="/brand/logo2.png"
+                      alt="Multi-Sport"
+                      width={400}
+                      height={400}
+                      className="h-32 w-auto scale-150 object-contain sm:h-36"
+                    />
+                  </div>
+                </div>
+              </Link>
+              </div>
+              <div className="absolute -bottom-6 right-5 z-10 translate-y-10">
+                <Link href="/" aria-label="Eagle Gymnastics Academy home">
+                  <div className="flex h-40 w-40 items-center justify-center rounded-full border-2 border-[#6e2ac0] bg-[#faf7fb] transition-all duration-300 hover:scale-125 hover:border-2 hover:border-[#6c35c3]">
                   <Image
                     src="/brand/Logo.png"
                     alt="Eagle Gymnastics Academy"
@@ -117,22 +145,34 @@ export default function RootLayout({
           </div>
         </div>
 
-        <div className="relative">
-          <section
-            className="h-[28rem] w-full overflow-hidden bg-center bg-cover bg-fixed"
-            style={{ backgroundImage: "url('/brand/banner.png')" }}
-            aria-label="Eagle Gymnastics Academy banner"
-          />
+          <div className="relative pb-12">
+            <BannerSlideshow />
+            <div className="group absolute inset-0 flex items-center justify-center">
+              <img
+                src="/brand/overlay.png"
+              alt=""
+              className="slogan-bounce h-auto w-[20%] pointer-events-auto group-hover:animate-[slogan-wobble_500ms_ease-in-out]"
+            />
+          </div>
+          <div className="absolute inset-0 flex items-end justify-center pb-1.5">
+            <a href="/book" className="block">
+              <img
+                src="/brand/bookbutton.png"
+                alt="Book Now"
+                className="h-48 w-auto transition-transform duration-200 hover:scale-105"
+              />
+            </a>
+          </div>
           <svg
-            className="pointer-events-none absolute -bottom-[94px] left-0 h-16 w-full"
+            className="pointer-events-none absolute bottom-6 left-0 z-20 h-10 w-full"
             viewBox="0 0 1440 80"
             preserveAspectRatio="none"
             aria-hidden="true"
           >
             <defs>
               <linearGradient id="bannerWaveTop" x1="0" y1="0" x2="1" y2="0">
-                <stop offset="0%" stopColor="#e55dbe" />
-                <stop offset="100%" stopColor="#c04aa1" />
+                <stop offset="0%" stopColor="#e3bbe9" />
+                <stop offset="100%" stopColor="#e3bbe9" />
               </linearGradient>
             </defs>
             <path
@@ -141,31 +181,14 @@ export default function RootLayout({
             />
           </svg>
 
-          <svg
-            className="pointer-events-none absolute -bottom-[70px] left-0 h-24 w-full"
-            viewBox="0 0 1440 120"
-            preserveAspectRatio="none"
-            aria-hidden="true"
-          >
-            <defs>
-              <linearGradient id="bannerWave" x1="0" y1="0" x2="1" y2="0">
-                <stop offset="0%" stopColor="#6c35c3" />
-                <stop offset="100%" stopColor="#4f2598" />
-              </linearGradient>
-            </defs>
-            <path
-              d="M0,15 C240,-10 480,50 720,15 C960,-10 1200,50 1440,15 L1440,105 C1200,130 960,70 720,105 C480,130 240,70 0,105 Z"
-              fill="url(#bannerWave)"
-            />
-          </svg>
         </div>
 
-        <main className="mx-auto mt-20 max-w-5xl px-6 py-8">
-          {children}
-        </main>
+          <main className="mt-0 w-full px-0 py-4">
+            {children}
+          </main>
 
-        <footer className="border-t border-black/5">
-          <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-center gap-4 px-6 py-6 text-sm font-semibold text-[#2a0c4f]/80 sm:justify-between">
+          <footer className="border-t border-black/5">
+            <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-center gap-4 px-6 py-6 text-sm font-semibold text-[#2a0c4f]/80 sm:justify-between">
             <div className="flex flex-wrap items-center justify-center gap-2">
               <span>Call:</span>
               <a
@@ -223,8 +246,9 @@ export default function RootLayout({
                 className="h-5 w-5"
               />
             </span>
-          </div>
-        </footer>
+            </div>
+          </footer>
+        </div>
       </body>
     </html>
   );

@@ -64,12 +64,12 @@ const filters = [
   { key: "invite", label: "Invite only" },
 ];
 
-const typeStyles: Record<string, string> = {
-  recreational: "bg-[#ffe3f4] text-[#8a2d63]",
-  development: "bg-[#e3f0ff] text-[#2a4a7a]",
-  competition: "bg-[#e9ddff] text-[#4a267a]",
-  invite: "bg-[#6c35c3] text-white",
-};
+  const typeStyles: Record<string, string> = {
+    recreational: "bg-[#ffe3f4] text-[#8a2d63]",
+    development: "bg-[#e3f0ff] text-[#2a4a7a]",
+    competition: "bg-[#e9ddff] text-[#4a267a]",
+    invite: "bg-[#f1e8ff] text-[#4a267a]",
+  };
 
 const getType = (title: string) => {
   const lower = title.toLowerCase();
@@ -159,11 +159,11 @@ export default function TimetablePage() {
                         </div>
                         <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-[#2a0c4f]/80">
                           <span>{session.age}</span>
-                          {isInvite ? (
-                            <span className="rounded-full bg-[#6c35c3] px-2 py-0.5 font-semibold text-white">
-                              Invite only
-                            </span>
-                          ) : null}
+                            {isInvite ? (
+                              <span className="rounded-full bg-[#f1e8ff] px-2 py-0.5 font-semibold text-[#4a267a]">
+                                Invite only
+                              </span>
+                            ) : null}
                         </div>
                       </div>
                     );

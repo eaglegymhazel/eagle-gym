@@ -8,7 +8,8 @@ const links = [
   { href: "/team", label: "Team" },
   { href: "/news", label: "Competition News" },
   { href: "/timetable", label: "Timetable" },
-  { href: "/Badge", label: "Badge" },
+  { href: "/badge", label: "Badge" },
+  { href: "/members", label: "Members" },
   { href: "/contact", label: "Contact" },
 ];
 
@@ -19,7 +20,7 @@ export default function Nav() {
     <nav className="border-b border-black/5">
       <div className="mx-auto max-w-5xl px-6 py-4">
         <div
-          className="flex flex-wrap items-center justify-center gap-x-3 gap-y-3 text-[#7436e6]"
+          className="flex flex-wrap items-center justify-center gap-x-3 gap-y-3 text-[#143271]"
           style={{
             fontFamily:
               '"Baloo 2", "Comic Sans MS", "Comic Neue", cursive, sans-serif',
@@ -37,9 +38,9 @@ export default function Nav() {
                 className={[
                   "relative z-0 px-3 py-2 text-xl font-bold tracking-wide sm:text-2xl",
                   "transition-all duration-300",
-                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#7436e6] focus-visible:ring-offset-2 focus-visible:ring-offset-[#f7f2ff]",
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#143271] focus-visible:ring-offset-2 focus-visible:ring-offset-[#faf7fb]",
                   "hover:-translate-y-1 hover:scale-110 hover:text-[#de59b6]",
-                  isActive ? "text-[#5a22cf]" : "text-[#7436e6]",
+                  isActive ? "text-[#143271]" : "text-[#143271]",
                 ].join(" ")}
                 aria-current={isActive ? "page" : undefined}
               >

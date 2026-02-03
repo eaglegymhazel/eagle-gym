@@ -86,10 +86,10 @@ export default function TeamPage() {
               />
             </div>
             <div className="mt-4">
-              <h2 className="text-lg font-semibold text-[#2a0c4f]">
+              <h2 className="text-lg font-semibold text-[#2E2A33]">
                 {coach.name}
               </h2>
-              <p className="text-sm font-semibold text-[#7436e6]">
+              <p className="text-sm font-semibold text-[#2E2A33]">
                 {coach.role}
               </p>
               <p className="mt-2 text-sm text-[#2a0c4f]/75">{coach.bio}</p>
