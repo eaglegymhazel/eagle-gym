@@ -43,6 +43,10 @@ export default function BannerSlideshow() {
         ].join(" ")}
         style={{ backgroundImage: `url('${banners[nextIndex]}')` }}
       />
+      <div
+        className="absolute inset-0 pointer-events-none"
+        style={{ backgroundColor: "rgba(0, 0, 0, 0.15)" }}
+      />
     </section>
   );
 }

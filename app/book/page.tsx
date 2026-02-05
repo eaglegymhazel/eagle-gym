@@ -16,7 +16,7 @@ export default function BookPage() {
   return (
     <section className="relative min-h-[80vh] w-full">
       <div className="pointer-events-none absolute inset-0">
-        <div className="h-1/2 w-full bg-[#111827]" />
+        <div className="h-1/2 w-full bg-[#6e2ac0]" />
         <div className="h-1/2 w-full bg-[#faf7fb]" />
       </div>
       <div className="relative w-full bg-[#faf7fb] px-6 pb-8 pt-0.5">
@@ -63,7 +63,7 @@ export default function BookPage() {
           </div>
         </div>
 
-        <div className="relative flex items-center justify-center bg-[#111827] px-10 py-16 md:py-20 md:rounded-bl-[15rem]">
+        <div className="relative flex items-center justify-center bg-[#6e2ac0] px-10 py-16 md:py-20 md:rounded-bl-[15rem]">
           <div
             className="w-full max-w-md text-left text-white"
             style={{ color: "#ffffff" }}

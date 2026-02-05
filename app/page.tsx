@@ -39,28 +39,24 @@ const sections = [
 export default function Home() {
   return (
     <main className="w-full">
-      <section className="relative w-full bg-[#faf7fb] px-6 pb-12 pt-2 -mt-12">
-        <div className="pointer-events-none absolute inset-0">
-          <span className="absolute left-[8%] top-[18%] text-3xl text-[#6c35c3]/40">
-            ★
-          </span>
-          <span className="absolute left-[18%] top-[55%] text-2xl text-[#f7c948]/50">
-            ★
-          </span>
-          <span className="absolute right-[15%] top-[22%] text-4xl text-[#6c35c3]/35">
-            ★
-          </span>
-          <span className="absolute right-[8%] top-[60%] text-2xl text-[#f7c948]/50">
-            ★
-          </span>
-        </div>
-        <div className="relative mx-auto max-w-3xl text-center text-[#2E2A33]">
-          <h2 className="text-3xl font-extrabold tracking-wide sm:text-4xl">
-            Build confidence, strength, and a love of movement
-          </h2>
-          <p className="mt-4 text-base sm:text-lg">
-            Our gymnastics classes are a positive, supportive space for young people of all ages and abilities. From beginners taking their first steps to more experienced gymnasts building skills and confidence, every class is designed to help each individual progress at their own pace.
-          </p>
+      <section className="w-full bg-[#f7f4fb]">
+        <div className="mx-auto max-w-6xl px-4 pt-[40px] pb-[40px] sm:px-6 md:pt-[40px] md:pb-[40px]">
+          <div className="grid grid-cols-1 items-start gap-8 md:grid-cols-[2fr_3fr] md:gap-12">
+            <div className="text-left text-[#2E2A33]">
+              <div className="mb-4 h-[3px] w-12 rounded-full bg-[#6c35c3]" />
+              <h2 className="text-[clamp(32px,3vw,44px)] font-extrabold tracking-[-0.02em] leading-[1.1]">
+                Build confidence, strength, and a love of movement
+              </h2>
+              <p className="mt-3 text-sm font-semi-bold uppercase tracking-[0.06em] text-[#2E2A33]/70">
+                A supportive space for every gymnast to grow and progress.
+              </p>
+            </div>
+            <div className="text-left mt-[24px]">
+              <p className="max-w-[60ch] text-[16px] leading-[1.6] text-[#2E2A33]/75 sm:text-[17px]">
+                Our gymnastics classes are a positive, supportive space for young people of all ages and abilities. From beginners taking their first steps to more experienced gymnasts building skills and confidence, every class is designed to help each individual progress at their own pace.
+              </p>
+            </div>
+          </div>
         </div>
       </section>
       {sections.map((section, index) => {
