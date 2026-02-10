@@ -1,76 +1,85 @@
-'use client'
+import { Suspense } from 'react'
+import AccountDetailsPanel from '@/app/account/_panels/AccountDetailsPanel'
+import LogoutButton from '@/app/account/_components/LogoutButton'
+import styles from '@/app/account/account.module.css'
 
-import { useEffect, useState } from 'react'
-import { supabase } from '@/lib/supabaseClient'
+
+function PanelSkeleton() {
+  return (
+    <div className={styles.skeleton}>
+      <div className={styles.skeletonRow} />
+      <div className={styles.skeletonRow} />
+      <div className={styles.skeletonRow} />
+      <div className={styles.skeletonRow} />
+      <div className={styles.skeletonRow} />
+    </div>
+  )
+}
 
 export default function AccountPage() {
-  const [result, setResult] = useState('Loading…')
-
-  useEffect(() => {
-    const run = async () => {
-      const { data: userRes, error: userErr } = await supabase.auth.getUser()
-      if (userErr) {
-        setResult(`Error: ${userErr.message}`)
-        return
-      }
-
-      if (!userRes.user) {
-        setResult('Not logged in')
-        return
-      }
-
-      const user = userRes.user
-
-      // 1) Try to fetch existing web_accounts row
-      const { data: existing, error: fetchError } = await supabase
-        .from('web_accounts')
-        .select('email, full_name')
-        .eq('auth_user_id', user.id)
-        .maybeSingle()
-
-      if (fetchError) {
-        setResult(`Error: ${fetchError.message}`)
-        return
-      }
-
-      // 2) If none exists, create it (first login / first visit)
-      if (!existing) {
-        const { error: insertError } = await supabase
-          .from('web_accounts')
-          .insert({
-            auth_user_id: user.id,
-            email: user.email,
-          })
-
-        if (insertError) {
-          setResult(`Error: ${insertError.message}`)
-          return
-        }
-
-        setResult(`Account created for ${user.email}`)
-        return
-      }
-
-      // 3) Show existing account email
-      setResult(`Account email: ${existing.email}`)
-    }
-
-    run()
-  }, [])
-
-  const logout = async () => {
-    await supabase.auth.signOut()
-    window.location.href = '/login'
-  }
 
   return (
-    <div style={{ padding: 24 }}>
-      <h1>My account</h1>
-      <p>{result}</p>
+    <div className={styles.page}>
+      <header className={styles.pageHeader}>
+        <h1>Account</h1>
+        <p className={styles.subheading}>
+          Manage your details and family profiles
+        </p>
+      </header>
 
-      <button onClick={logout} style={{ padding: '8px 12px', marginTop: 12 }}>
-        Log out
-      </button>
+      <div className={styles.settings}>
+        <nav className={styles.settingsNav} aria-label="Account sections">
+          <ul>
+            <li>
+              <span
+                className={`${styles.navItem} ${styles.navItemActive}`}
+                aria-current="page"
+              >
+                Account details
+              </span>
+            </li>
+            <li>
+              <span className={`${styles.navItem} ${styles.navItemDisabled}`}>
+                Children
+              </span>
+            </li>
+            <li>
+              <span className={`${styles.navItem} ${styles.navItemDisabled}`}>
+                Bookings
+              </span>
+            </li>
+            <li>
+              <span className={`${styles.navItem} ${styles.navItemDisabled}`}>
+                Membership
+              </span>
+            </li>
+            <li>
+              <span className={`${styles.navItem} ${styles.navItemDisabled}`}>
+                Security
+              </span>
+            </li>
+          </ul>
+        </nav>
+
+        <section className={styles.settingsContent}>
+          <div className={styles.card}>
+            <div className={styles.cardHeader}>
+              <div>
+                <h2>Account Details</h2>
+              </div>
+              <button className={styles.ghost} disabled>
+                Edit (Coming soon)
+              </button>
+            </div>
+
+            <Suspense fallback={<PanelSkeleton />}>
+              <AccountDetailsPanel />
+            </Suspense>
+          </div>
+
+          <LogoutButton />
+        </section>
+      </div>
     </div>
   )
 }
