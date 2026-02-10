@@ -1,6 +1,7 @@
+import Link from 'next/link'
 import { Suspense } from 'react'
 import AccountDetailsPanel from '@/app/account/_panels/AccountDetailsPanel'
-import LogoutButton from '@/app/account/_components/LogoutButton'
+import ChildrenPanel from '@/app/account/_panels/ChildrenPanel'
 import styles from '@/app/account/account.module.css'
 
 
@@ -16,7 +17,13 @@ function PanelSkeleton() {
   )
 }
 
-export default function AccountPage() {
+type AccountPageProps = {
+  searchParams?: Promise<{ tab?: string }>
+}
+
+export default async function AccountPage({ searchParams }: AccountPageProps) {
+  const resolvedParams = searchParams ? await searchParams : undefined
+  const tab = resolvedParams?.tab === 'children' ? 'children' : 'details'
 
   return (
     <div className={styles.page}>
@@ -31,32 +38,26 @@ export default function AccountPage() {
         <nav className={styles.settingsNav} aria-label="Account sections">
           <ul>
             <li>
-              <span
-                className={`${styles.navItem} ${styles.navItemActive}`}
-                aria-current="page"
+              <Link
+                className={`${styles.navItem} ${
+                  tab === 'details' ? styles.navItemActive : ''
+                }`}
+                aria-current={tab === 'details' ? 'page' : undefined}
+                href="/account?tab=details"
               >
                 Account details
-              </span>
+              </Link>
             </li>
             <li>
-              <span className={`${styles.navItem} ${styles.navItemDisabled}`}>
+              <Link
+                className={`${styles.navItem} ${
+                  tab === 'children' ? styles.navItemActive : ''
+                }`}
+                aria-current={tab === 'children' ? 'page' : undefined}
+                href="/account?tab=children"
+              >
                 Children
-              </span>
-            </li>
-            <li>
-              <span className={`${styles.navItem} ${styles.navItemDisabled}`}>
-                Bookings
-              </span>
-            </li>
-            <li>
-              <span className={`${styles.navItem} ${styles.navItemDisabled}`}>
-                Membership
-              </span>
-            </li>
-            <li>
-              <span className={`${styles.navItem} ${styles.navItemDisabled}`}>
-                Security
-              </span>
+              </Link>
             </li>
           </ul>
         </nav>
@@ -65,19 +66,19 @@ export default function AccountPage() {
           <div className={styles.card}>
             <div className={styles.cardHeader}>
               <div>
-                <h2>Account Details</h2>
+                <h2>{tab === 'children' ? 'Children' : 'Account Details'}</h2>
               </div>
-              <button className={styles.ghost} disabled>
-                Edit (Coming soon)
-              </button>
+              {tab === 'children' ? null : (
+                <button className={styles.ghost} disabled>
+                  Edit (Coming soon)
+                </button>
+              )}
             </div>
 
             <Suspense fallback={<PanelSkeleton />}>
-              <AccountDetailsPanel />
+              {tab === 'children' ? <ChildrenPanel /> : <AccountDetailsPanel />}
             </Suspense>
           </div>
-
-          <LogoutButton />
         </section>
       </div>
     </div>
