@@ -51,6 +51,27 @@ body {
   small {
     @apply text-xs text-[#2E2A33]/60;
   }
+
+  label {
+    @apply block text-sm font-medium leading-5 text-slate-700 mb-2;
+    color: #334155 !important;
+    font-weight: 500 !important;
+  }
+
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="tel"],
+  input[type="search"],
+  textarea {
+    @apply w-full rounded-xl border border-[#cfc6de] bg-white px-4 py-3.5 text-sm text-[#2E2A33] placeholder:text-[#2E2A33]/55 transition duration-200 focus:border-[#6c35c3]/60 focus:outline-none focus:ring-2 focus:ring-[#6c35c3]/25;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply inline-flex w-full items-center justify-center rounded-xl bg-gradient-to-b from-[#6f3bc9] via-[#6c35c3] to-[#5f2eb6] px-6 py-3 text-sm font-semibold uppercase tracking-[0.16em] !text-white shadow-[0_3px_8px_rgba(108,53,195,0.16)] transition-all duration-200 hover:-translate-y-0.5 hover:from-[#6a35c1] hover:via-[#6030b8] hover:to-[#5529a6] hover:shadow-[0_4px_10px_rgba(108,53,195,0.18)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6c35c3]/40 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-100;
+  }
 }
 
 main,
@@ -58,6 +79,11 @@ main *,
 footer,
 footer * {
   color: var(--foreground) !important;
+}
+
+.btn-primary,
+.btn-primary * {
+  color: #fff !important;
 }
 
 .marquee-track {

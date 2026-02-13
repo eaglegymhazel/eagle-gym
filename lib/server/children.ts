@@ -1,6 +1,7 @@
 import 'server-only'
 
 import { createServerClient } from '@supabase/ssr'
+import { cache } from 'react'
 
 export type ChildSummary = {
   id: string
@@ -9,9 +10,8 @@ export type ChildSummary = {
   dateOfBirth: string | null
 }
 
-export async function getChildrenForAccount(
-  accountId: string
-): Promise<ChildSummary[]> {
+export const getChildrenForAccount = cache(
+  async (accountId: string): Promise<ChildSummary[]> => {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
@@ -40,4 +40,5 @@ export async function getChildrenForAccount(
     lastName: child.lastName ?? null,
     dateOfBirth: child.dateOfBirth ?? null,
   }))
-}
+  }
+)

@@ -1,6 +1,7 @@
 import 'server-only'
 
 import { createServerClient } from '@supabase/ssr'
+import { cache } from 'react'
 
 export type MedicalInformationRow = {
   childId: string
@@ -15,53 +16,66 @@ export type MedicalInformationRow = {
   surgeryTelephone: string | null
 }
 
+const getMedicalInfoForChildrenCached = cache(
+  async (childIdsKey: string): Promise<Record<string, MedicalInformationRow>> => {
+    if (!childIdsKey) {
+      return {}
+    }
+
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+    const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+    const serviceRole = createServerClient(
+      supabaseUrl!,
+      supabaseServiceRoleKey!,
+      {
+        cookies: {
+          getAll() {
+            return []
+          },
+          setAll() {},
+        },
+      }
+    )
+
+    const childIds = childIdsKey.split(',')
+
+    const { data, error } = await serviceRole
+      .from('MedicalInformation')
+      .select(
+        'childId,medicalConditions,medications,disabilities,behaviouralConditions,allergies,dietaryNeeds,doctorName,surgeryAddress,surgeryTelephone'
+      )
+      .in('childId', childIds)
+
+    if (error) {
+      throw new Error(error.message)
+    }
+
+    const map: Record<string, MedicalInformationRow> = {}
+    ;(data ?? []).forEach((row) => {
+      if (!map[row.childId]) {
+        map[row.childId] = {
+          childId: row.childId,
+          medicalConditions: row.medicalConditions ?? null,
+          medications: row.medications ?? null,
+          disabilities: row.disabilities ?? null,
+          behaviouralConditions: row.behaviouralConditions ?? null,
+          allergies: row.allergies ?? null,
+          dietaryNeeds: row.dietaryNeeds ?? null,
+          doctorName: row.doctorName ?? null,
+          surgeryAddress: row.surgeryAddress ?? null,
+          surgeryTelephone: row.surgeryTelephone ?? null,
+        }
+      }
+    })
+
+    return map
+  }
+)
+
 export async function getMedicalInfoForChildren(
   childIds: string[]
 ): Promise<Record<string, MedicalInformationRow>> {
-  if (!childIds.length) {
-    return {}
-  }
-
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-
-  const serviceRole = createServerClient(supabaseUrl!, supabaseServiceRoleKey!, {
-    cookies: {
-      getAll() {
-        return []
-      },
-      setAll() {},
-    },
-  })
-
-  const { data, error } = await serviceRole
-    .from('MedicalInformation')
-    .select(
-      'childId,medicalConditions,medications,disabilities,behaviouralConditions,allergies,dietaryNeeds,doctorName,surgeryAddress,surgeryTelephone'
-    )
-    .in('childId', childIds)
-
-  if (error) {
-    throw new Error(error.message)
-  }
-
-  const map: Record<string, MedicalInformationRow> = {}
-  ;(data ?? []).forEach((row) => {
-    if (!map[row.childId]) {
-      map[row.childId] = {
-        childId: row.childId,
-        medicalConditions: row.medicalConditions ?? null,
-        medications: row.medications ?? null,
-        disabilities: row.disabilities ?? null,
-        behaviouralConditions: row.behaviouralConditions ?? null,
-        allergies: row.allergies ?? null,
-        dietaryNeeds: row.dietaryNeeds ?? null,
-        doctorName: row.doctorName ?? null,
-        surgeryAddress: row.surgeryAddress ?? null,
-        surgeryTelephone: row.surgeryTelephone ?? null,
-      }
-    }
-  })
-
-  return map
+  const key = childIds.slice().sort().join(',')
+  return getMedicalInfoForChildrenCached(key)
 }

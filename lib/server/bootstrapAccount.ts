@@ -1,6 +1,7 @@
 import 'server-only'
 
 import { headers } from 'next/headers'
+import { cache } from 'react'
 import { createServerClient } from '@supabase/ssr'
 
 export type BootstrapAccountResult =
@@ -19,7 +20,8 @@ export type BootstrapAccountResult =
       }
     }
 
-export async function getBootstrapAccount(): Promise<BootstrapAccountResult> {
+export const getBootstrapAccount = cache(
+  async (): Promise<BootstrapAccountResult> => {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
   const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -67,7 +69,21 @@ export async function getBootstrapAccount(): Promise<BootstrapAccountResult> {
     return { status: 'unauthorized' }
   }
 
-  const email = data.user.email
+  let email = data.user.email
+
+  if (
+    process.env.NODE_ENV === 'development' &&
+    process.env.DEV_IMPERSONATE_EMAIL
+  ) {
+    email = process.env.DEV_IMPERSONATE_EMAIL
+  }
+
+  if (
+    process.env.NODE_ENV === 'production' &&
+    process.env.DEV_IMPERSONATE_EMAIL
+  ) {
+    throw new Error('DEV_IMPERSONATE_EMAIL must not be set in production')
+  }
 
   const serviceRole = createServerClient(supabaseUrl!, supabaseServiceRoleKey!, {
     cookies: {
@@ -106,4 +122,5 @@ export async function getBootstrapAccount(): Promise<BootstrapAccountResult> {
       accAddress: account.accAddress ?? null,
     },
   }
-}
+  }
+)
