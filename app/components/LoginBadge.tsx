@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { useAuth } from "./auth/AuthProvider";
@@ -60,7 +61,7 @@ export default function LoginBadge() {
     return (
       <Link
         href={href}
-        className="inline-flex items-center gap-2 whitespace-nowrap underline-offset-4 hover:underline"
+        className="inline-flex items-center gap-2 whitespace-nowrap text-[#312643] underline-offset-4 hover:underline"
         aria-label="Go to login"
       >
         <svg
@@ -99,7 +100,7 @@ export default function LoginBadge() {
     >
       <button
         type="button"
-        className="inline-flex h-9 max-w-[220px] items-center gap-2 rounded-full bg-white/10 px-3 text-sm font-semibold text-white/90 backdrop-blur transition hover:bg-white/15 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+        className="inline-flex h-9 max-w-[220px] items-center gap-2 rounded-full border border-[#d4c7e6] bg-white px-3 text-sm font-semibold text-[#2f2442] shadow-[0_6px_14px_-12px_rgba(33,24,50,0.45)] transition hover:border-[#c6b7dd] hover:bg-[#faf8fd] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6c35c3]/35"
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={() => setOpen((prev) => !prev)}
@@ -111,7 +112,7 @@ export default function LoginBadge() {
           aria-hidden="true"
           viewBox="0 0 24 24"
           className={[
-            "h-4 w-4 text-white/80 transition-transform duration-150",
+            "h-4 w-4 text-[#6a5a86] transition-transform duration-150",
             open ? "rotate-180" : "rotate-0",
           ].join(" ")}
           fill="none"
@@ -133,10 +134,20 @@ export default function LoginBadge() {
         ].join(" ")}
         role="menu"
       >
-        <div className="overflow-hidden rounded-2xl border border-slate-200/70 bg-white shadow-[0_18px_40px_rgba(0,0,0,0.12)]">
-          <div className="px-4 pt-3 pb-2 text-xs text-slate-500">
+        <div className="relative overflow-hidden rounded-2xl border border-[#ddd3eb] bg-white shadow-[0_16px_34px_-20px_rgba(31,20,50,0.45)]">
+          {open ? (
+            <Image
+              src="/brand/ringdeco.png"
+              alt=""
+              width={128}
+              height={128}
+              aria-hidden="true"
+              className="pointer-events-none absolute -top-[14px] -right-[30px] h-16 w-auto opacity-85"
+            />
+          ) : null}
+          <div className="px-4 pt-3 pb-2 text-xs text-[#7a6b93]">
             <div>Signed in as</div>
-            <div className="truncate text-sm font-semibold text-slate-900">
+            <div className="truncate text-sm font-semibold text-[#241b35]">
               {truncatedLabel}
             </div>
           </div>
@@ -144,13 +155,13 @@ export default function LoginBadge() {
             <li>
               <Link
                 href="/account"
-                className="flex min-h-[40px] items-center gap-3 px-4 py-2.5 text-sm font-medium text-slate-800 hover:bg-slate-50 focus-visible:outline-none focus-visible:bg-slate-50 focus-visible:ring-2 focus-visible:ring-purple-500/40"
+                className="flex min-h-[40px] items-center gap-3 px-4 py-2.5 text-sm font-medium text-[#302545] hover:bg-[#f7f3fc] focus-visible:outline-none focus-visible:bg-[#f7f3fc] focus-visible:ring-2 focus-visible:ring-[#6c35c3]/35"
                 role="menuitem"
               >
                 <svg
                   aria-hidden="true"
                   viewBox="0 0 24 24"
-                  className="h-4 w-4 text-slate-500"
+                  className="h-4 w-4 text-[#77658f]"
                   fill="none"
                   stroke="currentColor"
                   strokeWidth="2"
@@ -163,7 +174,7 @@ export default function LoginBadge() {
                 <span>Account</span>
               </Link>
             </li>
-            <li className="my-2 border-t border-slate-100" />
+            <li className="my-2 border-t border-[#eee7f6]" />
             <li>
               <button
                 type="button"
@@ -178,14 +189,14 @@ export default function LoginBadge() {
                     setLogoutLoading(false);
                   }
                 }}
-                className="flex min-h-[40px] w-full items-center gap-3 px-4 py-2.5 text-left text-sm font-medium text-rose-600 hover:bg-rose-50 focus-visible:outline-none focus-visible:bg-rose-50 focus-visible:ring-2 focus-visible:ring-purple-500/40 disabled:cursor-not-allowed disabled:opacity-60"
+                className="flex min-h-[40px] w-full items-center gap-3 px-4 py-2.5 text-left text-sm font-medium text-[#c5315a] hover:bg-[#fff2f6] focus-visible:outline-none focus-visible:bg-[#fff2f6] focus-visible:ring-2 focus-visible:ring-[#6c35c3]/35 disabled:cursor-not-allowed disabled:opacity-60"
                 role="menuitem"
                 disabled={logoutLoading}
               >
                 <svg
                   aria-hidden="true"
                   viewBox="0 0 24 24"
-                  className="h-4 w-4 text-rose-600"
+                  className="h-4 w-4 text-[#c5315a]"
                   fill="none"
                   stroke="currentColor"
                   strokeWidth="2"

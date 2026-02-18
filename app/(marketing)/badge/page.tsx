@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import MarketingPageIntro from "@/app/components/marketing/MarketingPageIntro";
 
 type Badge = {
   id: string;
@@ -46,21 +47,17 @@ export default function BadgePage() {
   const [expanded, setExpanded] = useState<Record<string, boolean>>(() =>
     Object.fromEntries(badges.map((badge) => [badge.id, false]))
   );
-  const [progress, setProgress] = useState<Record<string, boolean[]>>(
-    createEmptyState()
-  );
-
-  useEffect(() => {
+  const [progress, setProgress] = useState<Record<string, boolean[]>>(() => {
+    if (typeof window === "undefined") return createEmptyState();
     const stored = window.localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      try {
-        const parsed = JSON.parse(stored) as Record<string, boolean[]>;
-        setProgress({ ...createEmptyState(), ...parsed });
-      } catch {
-        setProgress(createEmptyState());
-      }
+    if (!stored) return createEmptyState();
+    try {
+      const parsed = JSON.parse(stored) as Record<string, boolean[]>;
+      return { ...createEmptyState(), ...parsed };
+    } catch {
+      return createEmptyState();
     }
-  }, []);
+  });
 
   useEffect(() => {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(progress));
@@ -95,14 +92,11 @@ export default function BadgePage() {
 
   return (
     <section className="mx-auto w-full max-w-6xl px-6 py-10">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-[#2a0c4f]">
-          Badge Progress Tracker
-        </h1>
-        <p className="mt-2 text-lg text-[#2a0c4f]/80">
-          Track progress toward each badge by checking off completed skills.
-        </p>
-      </div>
+      <MarketingPageIntro
+        eyebrow="Members Progress"
+        title="Badge Progress Tracker"
+        description="Track progress toward each badge by checking off completed skills."
+      />
 
       <div className="space-y-6">
         {badges.map((badge) => {

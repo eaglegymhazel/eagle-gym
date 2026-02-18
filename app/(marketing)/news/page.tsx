@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { getExcerpt, newsPosts } from "./data";
+import MarketingPageIntro from "@/app/components/marketing/MarketingPageIntro";
 
 const PAGE_SIZE = 6;
 
@@ -53,12 +54,12 @@ export default function NewsPage() {
 
   return (
     <main className="mx-auto w-full max-w-5xl px-6 py-10">
-      <header className="space-y-3">
-        <h1>Club News</h1>
-        <p className="text-lg text-[#2E2A33]/70">
-          Updates, results, announcements, and events
-        </p>
-        <div className="mt-4 flex flex-col gap-3 md:flex-row md:items-center">
+      <MarketingPageIntro
+        eyebrow="Latest Updates"
+        title="Club News"
+        description="Updates, results, announcements, and events."
+      >
+        <div className="flex flex-col gap-3 md:flex-row md:items-center">
           <input
             type="search"
             value={query}
@@ -113,7 +114,7 @@ export default function NewsPage() {
             ) : null}
           </div>
         </div>
-      </header>
+      </MarketingPageIntro>
 
       <section className="mt-8 flex flex-col gap-8">
         {groupedPosts.map((group) => (

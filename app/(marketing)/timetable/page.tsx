@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import MarketingPageIntro from "@/app/components/marketing/MarketingPageIntro";
 
 const timetable = [
   {
@@ -98,12 +99,11 @@ export default function TimetablePage() {
 
   return (
     <section className="w-full px-6 py-10">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-[#2a0c4f]">Timetable</h1>
-        <p className="mt-2 text-lg text-[#2a0c4f]/80">
-          Weekly classes and sessions. Invite-only classes are noted.
-        </p>
-      </div>
+      <MarketingPageIntro
+        eyebrow="Weekly Schedule"
+        title="Timetable"
+        description="Weekly classes and sessions. Invite-only classes are noted."
+      />
 
       <div className="mb-6 flex flex-wrap gap-3">
         {filters.map((filter) => {

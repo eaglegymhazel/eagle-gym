@@ -225,34 +225,12 @@ export default function AccountShell() {
                     <button type="button" className={styles.editButton}>
                       Add Child
                     </button>
-                    <button
-                      type="button"
-                      className={styles.infoIcon}
-                      aria-label="Add child info"
-                    >
-                      i
-                    </button>
-                    <span className={styles.infoTooltip} role="tooltip">
-                      Add a new child to your account so you can manage their
-                      details and book them into classes under this account.
-                    </span>
                   </div>
                 ) : (
                   <div className={styles.headerAction}>
                     <button type="button" className={styles.editButton}>
                       Edit
                     </button>
-                    <button
-                      type="button"
-                      className={styles.infoIcon}
-                      aria-label="Edit account details info"
-                    >
-                      i
-                    </button>
-                    <span className={styles.infoTooltip} role="tooltip">
-                      Update your contact information and emergency telephone
-                      number.
-                    </span>
                   </div>
                 )}
               </div>

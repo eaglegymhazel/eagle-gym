@@ -1,15 +1,13 @@
+import MarketingPageIntro from "@/app/components/marketing/MarketingPageIntro";
+
 export default function AboutPage() {
   return (
     <main className="mx-auto w-full max-w-5xl px-6 py-10">
-      <header className="space-y-4">
-        <h1>About Eagle Gymnastics Academy</h1>
-        <p className="text-lg text-[#2E2A33]/70">
-          We are a child-focused gymnastics academy where confidence, safety,
-          and steady progress come first. Our coaches create a positive
-          environment that helps gymnasts build strong foundations at their own
-          pace.
-        </p>
-      </header>
+      <MarketingPageIntro
+        eyebrow="About Us"
+        title="About Eagle Gymnastics Academy"
+        description="We are a child-focused gymnastics academy where confidence, safety, and steady progress come first. Our coaches create a positive environment that helps gymnasts build strong foundations at their own pace."
+      />
 
       <section className="mt-12 space-y-3">
         <h2>A Clear Pathway for Every Gymnast</h2>

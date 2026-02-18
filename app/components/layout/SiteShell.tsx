@@ -15,68 +15,28 @@ export default function SiteShell({
     >
       <div className="sticky top-0 z-50 bg-[#faf7fb]/95 backdrop-blur">
         <div className="relative">
-          <div className="bg-[#6c35c3] text-white">
-            <div className="flex w-full items-center gap-4 px-3 py-2 text-base font-semibold tracking-wide">
-              <div className="relative flex-1 overflow-hidden">
-                <div className="marquee-track" aria-hidden="true">
-                  <div className="marquee-group pr-8">
-                    <span>
-                      &bull; Welcome to the New Eagle Gymnastics Academy
-                      Website! &bull;
-                    </span>
-                    <span>
-                      &bull; Welcome to the New Eagle Gymnastics Academy
-                      Website! &bull;
-                    </span>
-                    <span>
-                      &bull; Welcome to the New Eagle Gymnastics Academy
-                      Website! &bull;
-                    </span>
-                    <span>
-                      &bull; Welcome to the New Eagle Gymnastics Academy
-                      Website! &bull;
-                    </span>
-                  </div>
-                  <div className="marquee-group pr-8">
-                    <span>
-                      &bull; Welcome to the New Eagle Gymnastics Academy
-                      Website! &bull;
-                    </span>
-                    <span>
-                      &bull; Welcome to the New Eagle Gymnastics Academy
-                      Website! &bull;
-                    </span>
-                    <span>
-                      &bull; Welcome to the New Eagle Gymnastics Academy
-                      Website! &bull;
-                    </span>
-                    <span>
-                      &bull; Welcome to the New Eagle Gymnastics Academy
-                      Website! &bull;
-                    </span>
-                  </div>
-                </div>
-              </div>
-              <LoginBadge />
-            </div>
-          </div>
-
-          <header className="pt-2">
-            <div className="mx-auto max-w-5xl px-6">
-              <div className="mt-2">
+          <div className="flex w-full items-center gap-4 px-3 py-2">
+            <div className="flex-1">
+              <div className="mx-auto max-w-5xl px-6">
                 <Nav />
               </div>
             </div>
-          </header>
+            <div className="hidden shrink-0 md:block">
+              <LoginBadge />
+            </div>
+          </div>
+          <div className="flex justify-end px-6 pb-2 md:hidden">
+            <LoginBadge />
+          </div>
 
-            <div className="absolute -bottom-6 left-5 z-10 translate-y-[124px]">
+            <div className="absolute -bottom-8 left-1 z-10 translate-y-[12px] sm:-bottom-9 sm:left-3 sm:translate-y-[26px] lg:left-6 lg:translate-y-[22px]">
             <Link href="/" aria-label="Eagle Gymnastics Academy home">
               <Image
                 src="/brand/logo_v8.png"
                 alt="Eagle Gymnastics Academy"
-                width={1000}
-                height={1024}
-                  className="h-[14.5rem] w-auto max-w-none object-contain drop-shadow-[0_18px_30px_rgba(0,0,0,0.35)] transition-transform duration-200 hover:scale-110 sm:h-[17rem]"
+                width={180}
+                height={184}
+                  className="w-[7.25rem] max-w-none object-contain drop-shadow-[0_14px_22px_rgba(0,0,0,0.28)] transition-transform duration-200 hover:scale-105 sm:w-[8.75rem] lg:w-[9.75rem]"
                 priority
               />
             </Link>

@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 const links = [
   { href: "/about", label: "About" },
@@ -13,13 +15,46 @@ const links = [
   { href: "/members", label: "Members" },
   { href: "/contact", label: "Contact" },
 ];
+const mobileLinks = [{ href: "/", label: "Home" }, ...links];
 
 export default function Nav() {
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
+  const navRef = useRef<HTMLElement | null>(null);
+  const drawerRef = useRef<HTMLElement | null>(null);
+  const reduceMotion = useReducedMotion();
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handlePointerDownOutside = (event: MouseEvent | TouchEvent) => {
+      const target = event.target as Node;
+      const clickedInsideNav = !!navRef.current?.contains(target);
+      const clickedInsideDrawer = !!drawerRef.current?.contains(target);
+      if (!clickedInsideNav && !clickedInsideDrawer) {
+        setIsOpen(false);
+      }
+    };
+
+    const handleWindowScroll = () => {
+      setIsOpen(false);
+    };
+
+    document.addEventListener("mousedown", handlePointerDownOutside);
+    document.addEventListener("touchstart", handlePointerDownOutside, {
+      passive: true,
+    });
+    window.addEventListener("scroll", handleWindowScroll, { passive: true });
+
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDownOutside);
+      document.removeEventListener("touchstart", handlePointerDownOutside);
+      window.removeEventListener("scroll", handleWindowScroll);
+    };
+  }, [isOpen]);
 
   return (
-    <nav className="border-b border-[#6c35c3]/20">
+    <nav ref={navRef} className="relative border-b border-[#6c35c3]/20">
       <div className="mx-auto flex h-[50px] max-w-5xl items-center justify-center px-4 md:h-[58px] md:px-6">
         <div
           className="flex w-full items-center justify-center text-[#143271]"
@@ -42,7 +77,7 @@ export default function Nav() {
                   key={link.href}
                   href={link.href}
                   className={[
-                    "relative px-1 py-1 text-[20px] font-semibold tracking-[-0.01em]",
+                    "relative px-1 py-1 text-[16px] font-semibold uppercase tracking-[0.06em]",
                     "transition-colors duration-200",
                     "after:absolute after:left-1/2 after:bottom-[-9px] after:h-[2px] after:w-0 after:-translate-x-1/2 after:rounded-full after:bg-[#6c35c3] after:opacity-0 after:transition-[width,opacity] after:duration-200",
                     "hover:text-[#6c35c3] hover:after:w-[calc(100%+14px)] hover:after:opacity-100",
@@ -93,39 +128,90 @@ export default function Nav() {
         </button>
       </div>
 
-      {isOpen ? (
-        <div className="border-t border-black/5 bg-[#faf7fb] md:hidden">
-          <div className="mx-auto max-w-5xl px-4 py-3">
-            <div className="flex flex-col gap-2">
-              {links.map((link) => {
-                const isActive =
-                  link.href === "/"
-                    ? pathname === "/"
-                    : pathname?.startsWith(link.href);
-                return (
-                  <Link
-                    key={link.href}
-                    href={link.href}
+      {typeof window !== "undefined"
+        ? createPortal(
+            <AnimatePresence>
+              {isOpen ? (
+                <div className="fixed inset-0 z-[90] md:hidden" aria-hidden={false}>
+                  <motion.button
+                    type="button"
                     onClick={() => setIsOpen(false)}
-                    className={[
-                      "relative rounded-md px-3 py-3 text-[19px] font-semibold tracking-[-0.01em]",
-                      "transition-colors duration-200",
-                      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6c35c3] focus-visible:ring-offset-2 focus-visible:ring-offset-[#faf7fb]",
-                      isActive
-                        ? "text-[#6c35c3] after:absolute after:left-1/2 after:bottom-[-9px] after:h-[2px] after:w-[calc(100%+14px)] after:-translate-x-1/2 after:rounded-full after:bg-[#6c35c3] after:opacity-100"
-                        : "text-[#143271]",
-                      "hover:text-[#6c35c3]",
-                    ].join(" ")}
-                    aria-current={isActive ? "page" : undefined}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: reduceMotion ? 0.1 : 0.18 }}
+                    className="absolute inset-0 bg-[#120a22]/40 backdrop-blur-[1px]"
+                    aria-label="Close navigation menu"
+                  />
+
+                  <motion.aside
+                    ref={drawerRef}
+                    initial={reduceMotion ? { opacity: 0 } : { x: "100%" }}
+                    animate={reduceMotion ? { opacity: 1 } : { x: 0 }}
+                    exit={reduceMotion ? { opacity: 0 } : { x: "100%" }}
+                    transition={{
+                      duration: reduceMotion ? 0.12 : 0.24,
+                      ease: "easeOut",
+                    }}
+                    className="absolute top-0 right-0 flex h-full w-[82vw] max-w-[340px] flex-col bg-[#6c35c3] px-6 pb-7 pt-6 shadow-[-24px_0_42px_-24px_rgba(15,10,30,0.55)]"
+                    role="dialog"
+                    aria-modal="true"
+                    aria-label="Navigation menu"
                   >
-                    {link.label}
-                  </Link>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-      ) : null}
+                    <div className="mb-5 flex justify-end">
+                      <button
+                        type="button"
+                        onClick={() => setIsOpen(false)}
+                        className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/25 text-white transition hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+                        aria-label="Close navigation menu"
+                      >
+                        <svg
+                          viewBox="0 0 24 24"
+                          className="h-5 w-5"
+                          aria-hidden="true"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                        >
+                          <path d="M6 6l12 12" />
+                          <path d="M18 6l-12 12" />
+                        </svg>
+                      </button>
+                    </div>
+
+                    <div className="flex flex-col gap-1">
+                      {mobileLinks.map((link) => {
+                        const isActive =
+                          link.href === "/"
+                            ? pathname === "/"
+                            : pathname?.startsWith(link.href);
+                        return (
+                          <Link
+                            key={link.href}
+                            href={link.href}
+                            onClick={() => setIsOpen(false)}
+                            className={[
+                              "rounded-lg px-3 py-3 text-lg font-semibold tracking-[0.06em] uppercase transition",
+                              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80",
+                              isActive
+                                ? "bg-white/15 text-white"
+                                : "text-white/95 hover:bg-white/10",
+                            ].join(" ")}
+                            aria-current={isActive ? "page" : undefined}
+                          >
+                            {link.label}
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  </motion.aside>
+                </div>
+              ) : null}
+            </AnimatePresence>,
+            document.body,
+          )
+        : null}
     </nav>
   );
 }

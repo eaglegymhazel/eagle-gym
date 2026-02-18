@@ -74,16 +74,13 @@ body {
   }
 }
 
-main,
-main *,
-footer,
-footer * {
-  color: var(--foreground) !important;
-}
-
 .btn-primary,
 .btn-primary * {
   color: #fff !important;
+}
+
+.hero-title-purple {
+  color: #6c35c3 !important;
 }
 
 .marquee-track {
