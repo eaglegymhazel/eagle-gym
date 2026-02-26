@@ -1,5 +1,8 @@
-﻿import Image from "next/image";
+"use client";
+
+import { useEffect, useRef, useState } from "react";
 import ReviewsSlider from "../components/ReviewsSlider";
+import HomeSectionsCarousel from "./HomeSectionsCarousel";
 
 const sections = [
   {
@@ -36,7 +39,56 @@ const sections = [
   },
 ];
 
+const AUTO_ADVANCE_MS = 5000;
+const INTERACTION_PAUSE_MS = 20000;
+
 export default function Home() {
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [isPaused, setIsPaused] = useState(false);
+  const pauseTimeoutRef = useRef<number | null>(null);
+
+  const goToIndex = (target: number) => {
+    const nextIndex = (target + sections.length) % sections.length;
+    setActiveIndex(nextIndex);
+  };
+
+  const markInteracted = () => {
+    setIsPaused(true);
+    if (pauseTimeoutRef.current !== null) {
+      window.clearTimeout(pauseTimeoutRef.current);
+    }
+    pauseTimeoutRef.current = window.setTimeout(() => {
+      setIsPaused(false);
+      pauseTimeoutRef.current = null;
+    }, INTERACTION_PAUSE_MS);
+  };
+
+  const previous = () => {
+    markInteracted();
+    goToIndex(activeIndex - 1);
+  };
+
+  const next = () => {
+    markInteracted();
+    goToIndex(activeIndex + 1);
+  };
+
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      if (isPaused) return;
+      setActiveIndex((prev) => (prev === sections.length - 1 ? 0 : prev + 1));
+    }, AUTO_ADVANCE_MS);
+    return () => window.clearInterval(interval);
+  }, [isPaused]);
+
+  useEffect(() => {
+    return () => {
+      if (pauseTimeoutRef.current !== null) {
+        window.clearTimeout(pauseTimeoutRef.current);
+      }
+    };
+  }, []);
+
   return (
     <main className="w-full">
       <section className="w-full bg-[#f7f4fb]">
@@ -59,62 +111,51 @@ export default function Home() {
           </div>
         </div>
       </section>
-      {sections.map((section, index) => {
-        const isEven = index % 2 === 0;
-        return (
-          <div key={section.title}>
-            <section className="grid min-h-[48vh] w-full grid-cols-1 md:grid-cols-2">
-              <div
-                className={[
-                  "relative min-h-[240px] md:min-h-full",
-                  isEven ? "order-1" : "order-2 md:order-2",
-                ].join(" ")}
-              >
-                <Image
-                  src={section.image}
-                  alt={section.title}
-                  fill
-                  className="object-cover"
-                  sizes="(max-width: 768px) 100vw, 50vw"
-                  priority={index === 0}
-                />
-              </div>
-              <div
-                className={[
-                  "flex items-center",
-                  section.tone,
-                  isEven ? "order-2" : "order-1 md:order-1",
-                ].join(" ")}
-              >
-                <div className="w-full px-8 py-10 sm:px-12 lg:px-16">
-                  <h2 className="text-3xl font-extrabold tracking-wide sm:text-4xl">
-                    {section.title}
-                  </h2>
-                  <p className="mt-4 max-w-md text-base leading-relaxed sm:text-lg">
-                    {section.copy}
-                  </p>
-                  <a
-                    href={section.href}
-                    className="mt-6 inline-flex items-center justify-center rounded-full border border-[#2E2A33] px-6 py-3 text-sm font-semibold tracking-wide transition hover:-translate-y-0.5 hover:bg-[#2E2A33] hover:text-white"
-                  >
-                    {section.cta}
-                  </a>
-                </div>
-              </div>
-            </section>
 
-            {index === 1 ? (
-              <section className="w-full bg-[#f3ecf7] px-6 py-16 text-center">
-                <div className="mx-auto max-w-3xl">
-                  <div>
-                    <ReviewsSlider />
-                  </div>
-                </div>
-              </section>
-            ) : null}
+      <section className="w-full bg-[#f7f4fb]">
+        <div className="mx-auto flex max-w-6xl flex-col items-center gap-3 px-4 pb-4 sm:px-6">
+          <div className="h-px w-full bg-gradient-to-r from-transparent via-[#6c35c3]/28 to-transparent" />
+          <div className="flex items-center gap-2">
+            {sections.map((section, index) => {
+              const isActive = index === activeIndex;
+              return (
+                <button
+                  key={`dot-${section.title}`}
+                  type="button"
+                  aria-label={`Go to ${section.title}`}
+                  aria-current={isActive ? "true" : undefined}
+                  onClick={() => {
+                    markInteracted();
+                    goToIndex(index);
+                  }}
+                  className={[
+                    "h-2.5 w-2.5 rounded-full border transition",
+                    isActive
+                      ? "border-[#6c35c3] bg-[#6c35c3]"
+                      : "border-[#6c35c3]/35 bg-white/75 hover:bg-white",
+                  ].join(" ")}
+                />
+              );
+            })}
           </div>
-        );
-      })}
+        </div>
+      </section>
+
+      <HomeSectionsCarousel
+        sections={sections}
+        activeIndex={activeIndex}
+        onPrevious={previous}
+        onNext={next}
+        onInteract={markInteracted}
+      />
+
+      <section className="w-full bg-[#f3ecf7] px-6 py-16 text-center">
+        <div className="mx-auto max-w-3xl">
+          <div>
+            <ReviewsSlider />
+          </div>
+        </div>
+      </section>
     </main>
   );
 }

@@ -1,6 +1,6 @@
 import { DAY_SHORT, formatTime } from "../utils";
 import type { SelectedClassDetail } from "../types";
-import { ChevronDown } from "lucide-react";
+import { ArrowRight, ChevronDown } from "lucide-react";
 
 type SelectionTrayProps = {
   selectedCount: number;
@@ -31,26 +31,52 @@ export default function SelectionTray({
       <div className="mx-auto w-full max-w-5xl">
         <div className="bg-[linear-gradient(180deg,_#ffffff_0%,_#f7f3fb_100%)] p-1 shadow-[0_10px_22px_-20px_rgba(57,33,102,0.44)]">
           <div className="flex items-center gap-1.5">
+            <div className="min-w-0 flex-1 rounded-xl bg-white px-3 py-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)]">
+              {selectedCount > 0 && (
+                <p className="truncate text-sm font-bold text-[#2a203c]">
+                  Class selection
+                </p>
+              )}
+              {previewItems.length > 0 && (
+                <div className="mt-0.5 flex flex-wrap items-center gap-1">
+                  {previewItems.map((item) => (
+                    <span
+                      key={item.id}
+                      className="inline-flex max-w-[145px] items-center rounded-full bg-[#f6f1ff] px-2 py-0.5 text-[10px] font-semibold text-[#5b2ca7]"
+                    >
+                      <span className="truncate">
+                        {(DAY_SHORT[item.weekday] ?? item.weekday)} {formatTime(item.startTime)}
+                      </span>
+                    </span>
+                  ))}
+                  {previewRemaining > 0 && (
+                    <span className="text-[10px] font-semibold text-[#6e5894]">+{previewRemaining}</span>
+                  )}
+                </div>
+              )}
+            </div>
+
             <button
               type="button"
               onClick={onToggleExpanded}
               disabled={!canExpand}
-              className="min-w-0 flex-1 rounded-xl bg-white px-3 py-1.5 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.9)]"
+              className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[#e2d6f3] bg-white text-[#634193] transition hover:bg-[#f8f4ff] disabled:cursor-not-allowed disabled:opacity-45"
               aria-expanded={expandedOpen}
               aria-label="Toggle selected classes tray"
             >
-              {selectedCount > 0 && (
-                <p className="truncate text-sm font-bold text-[#2a203c]">
-                  {selectedCount} {selectedCount === 1 ? "class" : "classes"} selected
-                </p>
-              )}
+              <ChevronDown
+                className={`h-3.5 w-3.5 transition-transform duration-180 motion-reduce:transition-none ${
+                  expandedOpen ? "rotate-180" : ""
+                }`}
+                aria-hidden="true"
+              />
             </button>
 
             <button
               type="button"
               onClick={onClear}
               disabled={selectedCount === 0}
-              className="inline-flex h-8 items-center justify-center rounded-full px-3 text-xs font-bold text-[#5b2ca7] transition hover:bg-white/60 disabled:cursor-not-allowed disabled:opacity-45"
+              className="inline-flex h-8 items-center justify-center rounded-full px-2 text-xs font-medium text-[#7b7391] transition hover:text-[#5f5776] disabled:cursor-not-allowed disabled:opacity-40"
             >
               Clear
             </button>
@@ -59,42 +85,16 @@ export default function SelectionTray({
               type="button"
               onClick={onContinue}
               disabled={selectedCount === 0}
-              className="inline-flex h-8 items-center justify-center gap-1 rounded-full bg-[#6c35c3] px-3.5 text-xs font-bold !text-white shadow-[0_10px_20px_-12px_rgba(69,34,124,0.78)] transition hover:bg-[#5b2ca7] disabled:cursor-not-allowed disabled:opacity-50 disabled:!text-white [&>*]:!text-white"
+              className="inline-flex h-9 items-center justify-center gap-1 rounded-full bg-[#6c35c3] px-4 text-xs font-bold !text-white shadow-[0_12px_24px_-12px_rgba(69,34,124,0.78)] transition hover:bg-[#5b2ca7] disabled:cursor-not-allowed disabled:opacity-50 disabled:!text-white [&>*]:!text-white"
             >
-              {expanded ? "Continue" : "Review Selections"}
-              <ChevronDown
-                className={`h-3.5 w-3.5 transition-transform duration-180 motion-reduce:transition-none ${
-                  expandedOpen ? "rotate-180" : "rotate-[-90deg]"
-                }`}
-                aria-hidden="true"
-              />
+              {selectedCount === 0
+                ? "Select classes to review"
+                : `Review ${selectedCount} ${
+                    selectedCount === 1 ? "selection" : "selections"
+                  }`}
+              <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
             </button>
           </div>
-          {!expanded && previewItems.length > 0 && (
-            <div className="mt-0.5 flex flex-wrap items-center gap-1 px-2 pb-0.5">
-              {previewItems.map((item) => (
-                <span
-                  key={item.id}
-                  className="inline-flex max-w-[140px] items-center gap-1 rounded-full bg-white/75 px-2 py-0.5 text-[10px] font-semibold text-[#5b2ca7]"
-                >
-                  <span className="truncate">
-                    {(DAY_SHORT[item.weekday] ?? item.weekday)} {formatTime(item.startTime)}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => onRemove(item.id)}
-                    className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full text-[10px] leading-none text-[#6a45a8] hover:bg-[#e8dbfb]"
-                    aria-label={`Remove ${item.name}`}
-                  >
-                    {"\u00D7"}
-                  </button>
-                </span>
-              ))}
-              {previewRemaining > 0 && (
-                <span className="text-[10px] font-semibold text-[#6e5894]">+{previewRemaining}</span>
-              )}
-            </div>
-          )}
         </div>
 
         <div

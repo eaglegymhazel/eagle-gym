@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
 import { AlertCircle, ArrowLeft, Trash2 } from "lucide-react";
 import { DAY_SHORT, formatTime, getAvailabilityState } from "../utils";
 import { getReviewValidation } from "./validation";
@@ -29,10 +28,14 @@ type ReviewClientProps = {
 };
 
 function badgeStyles(spotsLeft: number | null, unavailable: boolean): string {
-  if (unavailable || (spotsLeft != null && spotsLeft <= 0)) {
+  const availability = getAvailabilityState(spotsLeft);
+  if (unavailable || availability.variant === "full") {
     return "bg-[#ffe8eb] text-[#9f2338] border-[#f3b3bf]";
   }
-  if (spotsLeft != null && spotsLeft <= 5) {
+  if (availability.variant === "critical") {
+    return "bg-[#ffe8eb] text-[#9f2338] border-[#f3b3bf]";
+  }
+  if (availability.variant === "low") {
     return "bg-[#fff3df] text-[#9a5b08] border-[#f0d2a3]";
   }
   return "bg-[#e9f7ec] text-[#256a38] border-[#b8e2c1]";
@@ -46,9 +49,9 @@ export default function ReviewClient({
   hasDuplicateSelections,
   showDebug,
 }: ReviewClientProps) {
-  const router = useRouter();
   const [items, setItems] = useState<ReviewClassItem[]>(initialItems);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [checkoutError, setCheckoutError] = useState<string | null>(null);
 
   const validation = useMemo(
     () =>
@@ -80,46 +83,90 @@ export default function ReviewClient({
     setItems((prev) => prev.filter((item) => item.id !== classId));
   };
 
-  const handleContinue = () => {
+  const handleContinue = async () => {
     if (!validation.canContinue || isSubmitting) return;
     setIsSubmitting(true);
-    const intentId =
-      typeof crypto !== "undefined" && "randomUUID" in crypto
-        ? crypto.randomUUID()
-        : `intent-${Date.now()}`;
-    const classIdsParam = encodeURIComponent(selectedClassIds.join(","));
-    router.push(
-      `/book/recreational/confirm?childId=${encodeURIComponent(
-        childId
-      )}&classIds=${classIdsParam}&intentId=${encodeURIComponent(intentId)}`
-    );
+    setCheckoutError(null);
+    try {
+      const response = await fetch("/api/checkout/recreational", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ classIds: selectedClassIds }),
+      });
+
+      const data = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        setCheckoutError(
+          (data && typeof data.error === "string" && data.error) || "Checkout failed"
+        );
+        setIsSubmitting(false);
+        return;
+      }
+
+      const checkoutUrl = data && typeof data.url === "string" ? data.url : null;
+      if (!checkoutUrl) {
+        setCheckoutError("Checkout failed");
+        setIsSubmitting(false);
+        return;
+      }
+
+      window.location.href = checkoutUrl;
+    } catch {
+      setCheckoutError("Checkout failed");
+      setIsSubmitting(false);
+    }
   };
 
   return (
-    <section className="w-full bg-[#faf7fb] px-4 pb-12 pt-8 sm:px-6 sm:pt-10">
-      <div className="mx-auto w-full max-w-[1040px] space-y-6">
-        <div className="rounded-2xl border border-[#e7dcf6] bg-white p-5 shadow-[0_18px_35px_-28px_rgba(43,29,63,0.5)] sm:p-6">
-          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#6e2ac0]">
-            Review & Confirm
+    <section className="relative w-full overflow-hidden bg-[#faf7fb] px-4 pb-12 pt-4 sm:px-6 sm:pt-6">
+      <div className="pointer-events-none absolute inset-0 hidden lg:block">
+        <div className="absolute inset-y-0 left-0 right-[calc(50%+32rem)]">
+          <div className="absolute inset-y-[7%] left-2 w-px bg-[#6c35c3]/22" />
+          <div className="absolute inset-y-[15%] left-6 w-px bg-[#6c35c3]/10" />
+          <div className="absolute inset-y-[10%] left-12 w-[2px] bg-[#6c35c3]/18" />
+          <div className="absolute inset-y-[20%] left-[74px] w-px bg-[#6c35c3]/8" />
+        </div>
+        <div className="absolute inset-y-0 left-[calc(50%+32rem)] right-0">
+          <div className="absolute inset-y-[8%] right-2 w-px bg-[#6c35c3]/20" />
+          <div className="absolute inset-y-[13%] right-7 w-[2px] bg-[#6c35c3]/26" />
+          <div className="absolute inset-y-[22%] right-12 w-px bg-[#6c35c3]/9" />
+        </div>
+      </div>
+
+      <div className="relative z-10 mx-auto w-full max-w-[1040px] space-y-5 sm:space-y-6">
+        <header className="space-y-2">
+          <div className="px-0.5 py-0.5">
+            <div className="inline-flex items-center rounded-full border border-[#6c35c3]/25 bg-white/85 px-4 py-1.5 text-sm font-semibold uppercase tracking-[0.18em] text-[#2a203c]/70 shadow-[0_12px_28px_-18px_rgba(31,26,37,0.5)] backdrop-blur">
+              Booking for{" "}
+              <span className="ml-1 font-bold text-[#2a203c]">
+                {childName || "selected child"}
+              </span>
+            </div>
+          </div>
+          <p className="pl-4 text-sm font-semibold text-[#2a203c]">
+            Class type: <span className="font-bold">Recreational</span>
           </p>
-          <h1 className="mt-2 text-2xl font-black tracking-tight text-[#1f1a25] sm:text-3xl">
-            Recreational booking review
-          </h1>
-          <p className="mt-2 text-sm text-[#2E2A33]/75 sm:text-base">
-            Booking for <span className="font-semibold text-[#2E2A33]">{childName || "Selected child"}</span>
+          <p className="pl-4 text-sm font-semibold text-[#2a203c]">
+            Stage: <span className="font-bold">Review and confirm</span>
           </p>
+          <div className="pt-1">
+            <div className="h-[0.5px] w-full bg-black/20" />
+          </div>
           {showDebug ? (
-            <details className="mt-3 rounded-xl border border-dashed border-[#d9c8f1] bg-[#fcf9ff] px-3 py-2 text-xs text-[#5f4a82]">
+            <details className="rounded-xl border border-dashed border-[#d9c8f1] bg-[#fcf9ff] px-3 py-2 text-xs text-[#5f4a82]">
               <summary className="cursor-pointer font-semibold">Debug details</summary>
               <p className="mt-2 break-all">childId: {childId}</p>
             </details>
           ) : null}
-        </div>
+        </header>
 
         <div className="flex items-center justify-between gap-4">
           <a
             href={backHref}
-            className="inline-flex items-center gap-2 text-sm font-semibold text-[#6e2ac0] hover:underline"
+            className="inline-flex items-center gap-2 rounded-full border border-[#d8c7f4] bg-white px-4 py-2 text-sm font-semibold text-[#5b2ca7] transition hover:bg-[#faf6ff]"
           >
             <ArrowLeft className="h-4 w-4" aria-hidden="true" />
             Back to class selection
@@ -145,11 +192,19 @@ export default function ReviewClient({
             </div>
           </div>
         ) : null}
+        {checkoutError ? (
+          <div className="rounded-2xl border border-[#f2c7cf] bg-[#fff4f6] p-4 text-sm text-[#7a2334]">
+            <div className="flex items-start gap-2">
+              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+              <p className="font-semibold">{checkoutError}</p>
+            </div>
+          </div>
+        ) : null}
 
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
           <div className="space-y-4">
             {items.length === 0 ? (
-              <div className="rounded-2xl border border-[#e8ddf8] bg-white p-6 text-center shadow-[0_14px_30px_-24px_rgba(42,32,60,0.42)]">
+              <div className="rounded-2xl border border-[#e7e1f1] bg-white p-6 text-center shadow-[0_10px_24px_-20px_rgba(34,24,56,0.36)]">
                 <p className="text-base font-semibold text-[#2E2A33]">
                   No classes selected.
                 </p>
@@ -161,12 +216,19 @@ export default function ReviewClient({
                   item.isUnavailable || item.spotsLeft === 0
                     ? "No longer available"
                     : availability.label;
+                const isDisplayClass = item.name.toLowerCase().includes("display");
 
                 return (
                   <article
                     key={item.id}
-                    className="rounded-2xl border border-[#e8ddf8] bg-white p-4 shadow-[0_14px_30px_-24px_rgba(42,32,60,0.42)] sm:p-5"
+                    className="relative rounded-2xl border border-[#e7e1f1] bg-white p-4 shadow-[0_10px_24px_-20px_rgba(34,24,56,0.36)] transition-[border-color,box-shadow,transform] duration-200 hover:-translate-y-[1px] hover:border-[#d4c5ea] hover:shadow-[0_14px_30px_-18px_rgba(46,28,76,0.38)] sm:p-5"
                   >
+                    {isDisplayClass ? (
+                      <span
+                        aria-hidden="true"
+                        className="pointer-events-none absolute left-0 top-0 h-8 w-8 bg-[#facc15] [clip-path:polygon(0_0,100%_0,0_100%)]"
+                      />
+                    ) : null}
                     <div className="flex flex-wrap items-start justify-between gap-4">
                       <div className="space-y-2">
                         <p className="text-sm font-semibold uppercase tracking-[0.08em] text-[#6e2ac0]">
@@ -175,6 +237,11 @@ export default function ReviewClient({
                         <h2 className="text-xl font-bold tracking-tight text-[#1f1a25]">
                           {item.name}
                         </h2>
+                        {isDisplayClass ? (
+                          <span className="inline-flex items-center rounded-full border border-[#f4d978] bg-[#fff8dc] px-2 py-0.5 text-[10px] font-semibold text-[#6a4a00]">
+                            Display class · Special pricing
+                          </span>
+                        ) : null}
                         <p className="text-sm text-[#2E2A33]/75">
                           {item.startTime && item.endTime
                             ? `${formatTime(item.startTime)}-${formatTime(item.endTime)}`
@@ -193,7 +260,7 @@ export default function ReviewClient({
                       <button
                         type="button"
                         onClick={() => handleRemove(item.id)}
-                        className="inline-flex items-center gap-1.5 rounded-full border border-[#d9c8f1] px-3 py-1.5 text-xs font-semibold text-[#5a2ca4] transition hover:bg-[#f6f0ff]"
+                        className="inline-flex items-center gap-1.5 rounded-full border border-[#d4c7e6] bg-white px-3 py-1.5 text-xs font-semibold text-[#4c3f62] transition hover:border-[#c4b3dc] hover:bg-[#f7f4fb]"
                       >
                         <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
                         Remove
@@ -206,7 +273,7 @@ export default function ReviewClient({
           </div>
 
           <aside className="lg:sticky lg:top-28 lg:self-start">
-            <div className="rounded-2xl border border-[#e8ddf8] bg-white p-5 shadow-[0_14px_30px_-24px_rgba(42,32,60,0.42)]">
+            <div className="rounded-2xl border border-[#e7e1f1] bg-white p-5 shadow-[0_10px_24px_-20px_rgba(34,24,56,0.36)]">
               <h2 className="text-lg font-black text-[#1f1a25]">Summary</h2>
               <dl className="mt-4 space-y-3 text-sm">
                 <div className="flex items-center justify-between">
@@ -223,7 +290,7 @@ export default function ReviewClient({
                   type="button"
                   onClick={handleContinue}
                   disabled={!validation.canContinue || isSubmitting}
-                  className="inline-flex h-11 items-center justify-center rounded-full bg-[#6e2ac0] px-5 text-sm font-semibold text-white !text-white transition hover:bg-[#6325ad] disabled:cursor-not-allowed disabled:bg-[#c5addf] disabled:!text-white"
+                  className="inline-flex h-11 items-center justify-center rounded-full bg-[#6c35c3] px-5 text-sm font-semibold text-white !text-white shadow-[0_12px_24px_-12px_rgba(69,34,124,0.78)] transition hover:bg-[#5b2ca7] disabled:cursor-not-allowed disabled:bg-[#c5addf] disabled:!text-white"
                 >
                   {isSubmitting ? "Continuing..." : "Confirm Booking"}
                 </button>
@@ -235,6 +302,3 @@ export default function ReviewClient({
     </section>
   );
 }
-
-
-

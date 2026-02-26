@@ -1,12 +1,17 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { logAuthValidation } from '@/lib/authValidationDebug'
 import { supabase } from '@/lib/supabaseClient'
 
 export default function TestMePage() {
   const [result, setResult] = useState('Loading…')
 
   useEffect(() => {
+    logAuthValidation({
+      method: 'getUser',
+      source: 'app/(marketing)/test-me/page.tsx',
+    })
     supabase.auth.getUser().then(({ data, error }) => {
       if (error) {
         setResult(`Error: ${error.message}`)

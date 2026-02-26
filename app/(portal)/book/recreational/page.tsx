@@ -1,6 +1,7 @@
-import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { createClient } from "@supabase/supabase-js";
+import { getBookingContext } from "@/lib/server/bookingContext";
+import { getRecreationalClasses, type RecreationalClassRow } from "@/lib/server/classes";
+import { getActiveBookingCountsForClassIds } from "@/lib/server/availability";
 import RecreationalClassesClient, {
   type WeekdayGroup,
 } from "./RecreationalClassesClient";
@@ -9,26 +10,6 @@ type SearchParams = {
   childId?: string;
   classIds?: string;
 };
-
-type BootstrappedChild = {
-  id: string;
-  firstName: string | null;
-  lastName: string | null;
-  dateOfBirth: string | null;
-};
-
-interface ClassRow {
-  id: string;
-  name: string | null;
-  weekday: string | number | null;
-  startTime: string | null;
-  endTime: string | null;
-  durationMinutes: number | null;
-  minAge: number | string | null;
-  maxAge: number | string | null;
-  capacity: number | null;
-  isCompetitionClass: boolean | null;
-}
 
 const WEEKDAY_ORDER = [
   "Monday",
@@ -138,6 +119,13 @@ function isEligibleForAge(item: ClassRow, childAge: number | null): boolean {
   return min <= childAge && childAge <= max;
 }
 
+function getAgeGroupLabel(childAge: number | null): string {
+  if (childAge == null) return "Age unavailable";
+  if (childAge <= 3) return "18 months to 3 years";
+  if (childAge <= 7) return "4 to 7 years";
+  return "8 to 18 years";
+}
+
 export default async function RecreationalBookingPage({
   searchParams,
 }: {
@@ -153,44 +141,12 @@ export default async function RecreationalBookingPage({
     redirect("/book");
   }
 
-  const headersList = headers();
-  const resolvedHeaders =
-    typeof (headersList as unknown as Promise<Headers>).then === "function"
-      ? await (headersList as Promise<Headers>)
-      : (headersList as Headers);
-  const cookieHeader =
-    typeof (resolvedHeaders as Headers).get === "function"
-      ? resolvedHeaders.get("cookie") ?? ""
-      : "";
-  const host =
-    typeof (resolvedHeaders as Headers).get === "function"
-      ? resolvedHeaders.get("x-forwarded-host") ??
-        resolvedHeaders.get("host") ??
-        "localhost:3000"
-      : "localhost:3000";
-  const proto =
-    typeof (resolvedHeaders as Headers).get === "function"
-      ? resolvedHeaders.get("x-forwarded-proto") ?? "http"
-      : "http";
-  const baseUrl = `${proto}://${host}`;
-
-  const bootstrapRes = await fetch(`${baseUrl}/api/account/bootstrap`, {
-    method: "POST",
-    headers: { cookie: cookieHeader },
-    cache: "no-store",
-  });
-
-  if (bootstrapRes.status === 401) {
-    redirect("/login");
-  }
-  if (!bootstrapRes.ok) {
+  const bookingContext = await getBookingContext();
+  if (bookingContext.status !== "existing") {
     redirect("/book");
   }
-
-  const bootstrap = await bootstrapRes.json();
-  const children: BootstrappedChild[] = Array.isArray(bootstrap?.children)
-    ? bootstrap.children
-    : [];
+  const rows = await getRecreationalClasses();
+  const children = bookingContext.children;
   const child = children.find((item) => item.id === childId);
   if (!child?.id) {
     redirect("/book");
@@ -198,54 +154,15 @@ export default async function RecreationalBookingPage({
 
   const childName = `${child.firstName ?? ""} ${child.lastName ?? ""}`.trim();
   const childAge = computeAge(child.dateOfBirth ?? null);
+  const ageGroupLabel = getAgeGroupLabel(childAge);
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!supabaseUrl || !supabaseServiceRoleKey) {
-    throw new Error("Supabase environment variables are not configured.");
-  }
-
-  const admin = createClient(supabaseUrl, supabaseServiceRoleKey, {
-    auth: {
-      persistSession: false,
-      autoRefreshToken: false,
-    },
-  });
-
-  const { data, error } = await admin
-    .from("Classes")
-    .select(
-      "id,name:className,weekday,startTime,endTime,durationMinutes,minAge:ageMin,maxAge:ageMax,capacity,isCompetitionClass"
-    )
-    .eq("isCompetitionClass", false);
-
-  if (error) {
-    throw new Error(error.message);
-  }
-
-  const rows = (data ?? []) as ClassRow[];
-  const eligible = rows.filter((item) => isEligibleForAge(item, childAge));
-  const ageBandLabel = childAge != null ? `Age ${childAge}` : "Age unknown";
+  const eligible = (rows as RecreationalClassRow[]).filter((item) =>
+    isEligibleForAge(item, childAge)
+  );
   const eligibleClassIds = eligible.map((item) => item.id);
-
-  const bookingCountsByClassId = new Map<string, number>();
-  if (eligibleClassIds.length > 0) {
-    const { data: activeBookings, error: activeBookingsError } = await admin
-      .from("Bookings")
-      .select("classId")
-      .in("classId", eligibleClassIds)
-      .eq("status", "active");
-
-    if (activeBookingsError) {
-      throw new Error(activeBookingsError.message);
-    }
-
-    (activeBookings ?? []).forEach((row: { classId: string | null }) => {
-      if (!row.classId) return;
-      const current = bookingCountsByClassId.get(row.classId) ?? 0;
-      bookingCountsByClassId.set(row.classId, current + 1);
-    });
-  }
+  const bookingCountsByClassId = await getActiveBookingCountsForClassIds(
+    eligibleClassIds
+  );
 
   const groupedMap = new Map<string, WeekdayGroup["classes"]>();
   WEEKDAY_ORDER.forEach((day) => {
@@ -287,12 +204,25 @@ export default async function RecreationalBookingPage({
   })).filter((group) => group.classes.length > 0);
 
   return (
-    <section className="relative w-full overflow-hidden bg-[#faf7fb] px-4 pb-8 pt-8 sm:px-6 sm:pb-10 sm:pt-10">
-      <div className="mx-auto w-full max-w-5xl">
+    <section className="relative w-full overflow-hidden bg-[#faf7fb] px-4 pb-8 pt-4 sm:px-6 sm:pb-10 sm:pt-6">
+      <div className="pointer-events-none absolute inset-0 hidden lg:block">
+        <div className="absolute inset-y-0 left-0 right-[calc(50%+32rem)]">
+          <div className="absolute inset-y-[7%] left-2 w-px bg-[#6c35c3]/22" />
+          <div className="absolute inset-y-[15%] left-6 w-px bg-[#6c35c3]/10" />
+          <div className="absolute inset-y-[10%] left-12 w-[2px] bg-[#6c35c3]/18" />
+          <div className="absolute inset-y-[20%] left-[74px] w-px bg-[#6c35c3]/8" />
+        </div>
+        <div className="absolute inset-y-0 left-[calc(50%+32rem)] right-0">
+          <div className="absolute inset-y-[8%] right-2 w-px bg-[#6c35c3]/20" />
+          <div className="absolute inset-y-[13%] right-7 w-[2px] bg-[#6c35c3]/26" />
+          <div className="absolute inset-y-[22%] right-12 w-px bg-[#6c35c3]/9" />
+        </div>
+      </div>
+      <div className="relative z-10 mx-auto w-full max-w-5xl">
         <RecreationalClassesClient
           childId={child.id}
           childName={childName || "selected child"}
-          ageBandLabel={ageBandLabel}
+          ageGroupLabel={ageGroupLabel}
           groups={groups}
           initialSelectedClassIds={initialSelectedClassIds}
         />

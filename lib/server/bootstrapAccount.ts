@@ -3,6 +3,10 @@ import 'server-only'
 import { headers } from 'next/headers'
 import { cache } from 'react'
 import { createServerClient } from '@supabase/ssr'
+import {
+  getServerAuthRequestKey,
+  logAuthValidation,
+} from '../authValidationDebug'
 
 export type BootstrapAccountResult =
   | { status: 'unauthorized' }
@@ -63,6 +67,11 @@ export const getBootstrapAccount = cache(
     },
   })
 
+  logAuthValidation({
+    method: 'getUser',
+    source: 'lib/server/bootstrapAccount.ts',
+    requestKey: getServerAuthRequestKey(resolvedHeaders as Headers, '/account'),
+  })
   const { data, error } = await supabase.auth.getUser()
 
   if (error || !data?.user) {

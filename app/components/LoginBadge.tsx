@@ -25,6 +25,9 @@ export default function LoginBadge() {
     return `${prefix}@${domain}`;
   }, [label]);
 
+  const menuItemClass =
+    "relative flex min-h-[40px] items-center gap-3 overflow-hidden px-4 py-2.5 text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6c35c3]/35 before:absolute before:inset-0 before:bg-[#6c35c3]/8 before:origin-left before:scale-x-0 before:transition-transform before:duration-200 after:absolute after:left-0 after:top-2 after:bottom-2 after:w-[3px] after:rounded-full after:bg-[#6e2ac0] after:opacity-0 after:transition-opacity after:duration-200 hover:before:scale-x-100 hover:after:opacity-100 focus-visible:before:scale-x-100 focus-visible:after:opacity-100 [&>*]:relative [&>*]:z-10";
+
   const clearCloseTimer = () => {
     if (closeTimerRef.current) {
       clearTimeout(closeTimerRef.current);
@@ -155,7 +158,7 @@ export default function LoginBadge() {
             <li>
               <Link
                 href="/account"
-                className="flex min-h-[40px] items-center gap-3 px-4 py-2.5 text-sm font-medium text-[#302545] hover:bg-[#f7f3fc] focus-visible:outline-none focus-visible:bg-[#f7f3fc] focus-visible:ring-2 focus-visible:ring-[#6c35c3]/35"
+                className={`${menuItemClass} text-[#302545]`}
                 role="menuitem"
               >
                 <svg
@@ -174,6 +177,28 @@ export default function LoginBadge() {
                 <span>Account</span>
               </Link>
             </li>
+            <li>
+              <Link
+                href="/admin"
+                className={`${menuItemClass} text-[#302545]`}
+                role="menuitem"
+              >
+                <svg
+                  aria-hidden="true"
+                  viewBox="0 0 24 24"
+                  className="h-4 w-4 text-[#77658f]"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M12 3l7 3v6c0 5-3.5 8-7 9-3.5-1-7-4-7-9V6l7-3z" />
+                  <path d="M9.5 12.5l1.7 1.7 3.3-3.3" />
+                </svg>
+                <span>Admin Portal</span>
+              </Link>
+            </li>
             <li className="my-2 border-t border-[#eee7f6]" />
             <li>
               <button
@@ -189,7 +214,7 @@ export default function LoginBadge() {
                     setLogoutLoading(false);
                   }
                 }}
-                className="flex min-h-[40px] w-full items-center gap-3 px-4 py-2.5 text-left text-sm font-medium text-[#c5315a] hover:bg-[#fff2f6] focus-visible:outline-none focus-visible:bg-[#fff2f6] focus-visible:ring-2 focus-visible:ring-[#6c35c3]/35 disabled:cursor-not-allowed disabled:opacity-60"
+                className={`${menuItemClass} w-full text-left text-[#c5315a] before:bg-[#c5315a]/10 after:bg-[#c5315a] disabled:cursor-not-allowed disabled:opacity-60`}
                 role="menuitem"
                 disabled={logoutLoading}
               >

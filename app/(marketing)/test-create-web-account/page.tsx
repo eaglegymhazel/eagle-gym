@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { logAuthValidation } from '@/lib/authValidationDebug'
 import { supabase } from '@/lib/supabaseClient'
 
 export default function TestCreateWebAccountPage() {
@@ -8,6 +9,10 @@ export default function TestCreateWebAccountPage() {
 
   useEffect(() => {
     const run = async () => {
+      logAuthValidation({
+        method: 'getUser',
+        source: 'app/(marketing)/test-create-web-account/page.tsx',
+      })
       const { data: userRes, error: userErr } = await supabase.auth.getUser()
       if (userErr) return setResult(`Error: ${userErr.message}`)
       if (!userRes.user) return setResult('No user logged in')

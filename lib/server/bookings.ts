@@ -1,7 +1,7 @@
 import 'server-only'
 
 import { createServerClient } from '@supabase/ssr'
-import { cache } from 'react'
+import { unstable_cache } from 'next/cache'
 
 export type BookingSummary = {
   childId: string
@@ -10,9 +10,10 @@ export type BookingSummary = {
   startTime: string | null
   endTime: string | null
   durationMinutes: number | null
+  createdAt: string | null
 }
 
-const getActiveBookingsForChildrenCached = cache(
+const getActiveBookingsForChildrenCached = unstable_cache(
   async (childIdsKey: string): Promise<Record<string, BookingSummary[]>> => {
     if (!childIdsKey) {
       return {}
@@ -39,7 +40,7 @@ const getActiveBookingsForChildrenCached = cache(
     const { data, error } = await serviceRole
       .from('Bookings')
       .select(
-        'childId,status,Classes(className,weekday,startTime,endTime,durationMinutes)'
+        'childId,status,created_at,Classes(className,weekday,startTime,endTime,durationMinutes)'
       )
       .in('childId', childIds)
       .eq('status', 'active')
@@ -57,6 +58,7 @@ const getActiveBookingsForChildrenCached = cache(
         weekday: cls?.weekday ?? null,
         startTime: cls?.startTime ?? null,
         endTime: cls?.endTime ?? null,
+        createdAt: row.created_at ?? null,
         durationMinutes:
           typeof cls?.durationMinutes === 'number'
             ? cls.durationMinutes
@@ -69,7 +71,9 @@ const getActiveBookingsForChildrenCached = cache(
     })
 
     return map
-  }
+  },
+  ['active-bookings-for-children'],
+  { revalidate: 30 }
 )
 
 export async function getActiveBookingsForChildren(

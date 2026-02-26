@@ -105,7 +105,7 @@ export default function ChildSelectModal({
             ref={closeRef}
             aria-label="Close"
           >
-            ✕
+            {"\u00D7"}
           </button>
         </div>
         <div className={styles.modalBody}>
@@ -128,7 +128,7 @@ export default function ChildSelectModal({
                         {age === null ? "-" : `${age} yrs`}
                       </span>
                       <span className={styles.chevron} aria-hidden="true">
-                        ›
+                        {"\u203A"}
                       </span>
                     </span>
                   </button>

@@ -1,20 +1,33 @@
 import type { ClassCardItem } from "../types";
 import { getAvailabilityState } from "../utils";
-import { Check, Clock, Plus, XCircle } from "lucide-react";
+import { Check, Plus, XCircle } from "lucide-react";
 
 type ClassRowProps = {
+  weekday: string;
   item: ClassCardItem;
   selected: boolean;
   onToggle: (item: ClassCardItem) => void;
 };
 
-export default function ClassRow({ item, selected, onToggle }: ClassRowProps) {
+export default function ClassRow({
+  weekday,
+  item,
+  selected,
+  onToggle,
+}: ClassRowProps) {
   const blocked = item.isFull && !selected;
+  const isDisplayClass = item.name.toLowerCase().includes("display");
   const availability = getAvailabilityState(item.spotsLeft);
   const checkboxId = `class-toggle-${item.id}`;
-  const sessionInfo = getSessionInfo(item.name);
-  const startTimeLabel = formatStartTime(item.startTime);
-  const isGenericTitle = sessionInfo.title === "Recreational Gymnastics";
+  const startTime = formatStartTime(item.startTime);
+  const timeParts = splitTime(startTime);
+  const endTime = buildEndTimeLabel(
+    item.startTime,
+    item.durationMinutes,
+    item.endTime
+  );
+  const endTimeParts = splitTime(endTime ?? "");
+  const nextClassDateLabel = buildNextClassDateLabel(weekday, item.startTime);
 
   const toggleSelection = () => {
     if (blocked) return;
@@ -29,14 +42,20 @@ export default function ClassRow({ item, selected, onToggle }: ClassRowProps) {
   };
 
   const availabilityId = `availability-${item.id}`;
-  const availabilityLineClass =
-    availability.variant === "full"
-      ? "bg-[#f2f1f5] text-[#555360]"
+  const availabilityTextClass =
+    availability.variant === "full" || availability.variant === "critical"
+      ? "text-[#b91c1c]"
       : availability.variant === "low"
-      ? "bg-[#ffe4d7] text-[#8a2f10] ring-1 ring-[#f2c4ad]"
-      : availability.variant === "ok"
-      ? "bg-[#e8f6eb] text-[#1f5b2b]"
-      : "bg-[#f3f1f8] text-[#4c3e66]";
+      ? "text-[#b45309]"
+      : "text-[#15803d]";
+  const capacityPercent = getCapacityPercent(item.spotsLeft, item.capacity);
+  const capacityFillClass = getCapacityFillClass(item.spotsLeft);
+  const timeTextClass = selected ? "text-white" : "text-[#161321]";
+  const periodTextClass = selected ? "text-white/90" : "text-[#5e556f]";
+  const nextClassTextClass = selected ? "text-[#4c3f62]" : "text-[#5e556f]";
+  const specialBadgeClass = selected
+    ? "border-white/50 bg-white/20 text-white"
+    : "border-[#f4d978] bg-[#fff8dc] text-[#6a4a00]";
 
   return (
     <div
@@ -52,18 +71,33 @@ export default function ClassRow({ item, selected, onToggle }: ClassRowProps) {
           onToggle(item);
         }
       }}
-      className={`group relative grid grid-cols-[auto_1fr_auto] items-center gap-4 rounded-2xl border px-2.5 py-2.5 shadow-[0_3px_10px_-9px_rgba(28,20,45,0.18)] transition-colors transition-shadow duration-200 ease-out motion-reduce:transition-none active:scale-[0.99] motion-reduce:active:scale-100 sm:px-3 ${
+      className={`group relative grid min-h-[98px] grid-cols-[minmax(0,1fr)_112px] grid-rows-[auto_auto] items-center gap-x-3 gap-y-1 overflow-hidden rounded-2xl border border-[#e7e1f1] bg-white px-3 py-2.5 shadow-[0_10px_24px_-20px_rgba(34,24,56,0.36)] transition-[background-color,border-color,box-shadow,transform] duration-200 ease-out motion-reduce:transition-none active:scale-[0.99] motion-reduce:active:scale-100 sm:px-3 lg:min-h-[92px] lg:grid-cols-[84px_minmax(0,1fr)_128px] lg:grid-rows-1 ${
         blocked
-          ? "cursor-not-allowed border-[#e8e4ee] bg-[#f5f4f8] opacity-92"
+          ? "cursor-not-allowed border-[#ece7f4] bg-[#f5f4f8] opacity-92"
           : selected
-          ? "cursor-pointer border-[#d7cedf] bg-[#f9f7fc] shadow-[0_6px_14px_-11px_rgba(45,25,86,0.2)] ring-1 ring-[#e2d9eb]"
-          : "cursor-pointer border-[#e5e1ea] bg-[#ffffff] hover:border-[#d7cedf] hover:bg-[#faf9fc] hover:shadow-[0_7px_16px_-12px_rgba(38,24,66,0.2)] focus-visible:ring-2 focus-visible:ring-[#6c35c3]/30"
-      }`}
+          ? "cursor-pointer border-transparent bg-white shadow-[0_12px_28px_-18px_rgba(58,32,96,0.4)]"
+          : "cursor-pointer hover:-translate-y-[1px] hover:border-[#d4c5ea] hover:bg-[#fcfbff] hover:shadow-[0_14px_30px_-18px_rgba(46,28,76,0.38)] focus-visible:ring-2 focus-visible:ring-[#6c35c3]/30"
+      } ${isDisplayClass ? "min-h-[114px] lg:min-h-[100px]" : ""}`}
     >
+      {isDisplayClass ? (
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute left-0 top-0 z-20 h-8 w-8 bg-[#facc15] [clip-path:polygon(0_0,100%_0,0_100%)] lg:h-9 lg:w-9"
+        />
+      ) : null}
+      {isDisplayClass ? (
+        <span
+          className={`pointer-events-none absolute left-4 top-2 z-20 inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold leading-none ${specialBadgeClass}`}
+          aria-hidden="true"
+        >
+          Display class • Special pricing
+        </span>
+      ) : null}
+
       <span
-        className={`absolute inset-y-1.5 left-0 w-1.5 rounded-r-full transition-colors duration-180 motion-reduce:transition-none ${
-          selected ? "bg-[#7a6a93]" : "bg-transparent group-hover:bg-[#cfc2e2]"
-        }`}
+        className={`pointer-events-none absolute inset-0 rounded-2xl bg-[linear-gradient(90deg,#6c35c3_0%,#7a49cf_34%,#9f79dc_58%,#d8c6f1_78%,#ffffff_100%)] transition-transform duration-400 ease-out motion-reduce:transition-none ${
+          selected ? "scale-x-100 opacity-80" : "scale-x-0 opacity-0"
+        } origin-left`}
         aria-hidden="true"
       />
 
@@ -73,59 +107,90 @@ export default function ClassRow({ item, selected, onToggle }: ClassRowProps) {
         checked={selected}
         disabled={blocked}
         onChange={toggleSelection}
-        aria-label={selected ? `Deselect ${sessionInfo.title}` : `Select ${sessionInfo.title}`}
+        aria-label={selected ? `Deselect class` : `Select class`}
         aria-describedby={availabilityId}
         className="sr-only"
       />
+      <span id={availabilityId} className="sr-only">
+        {buildSpacesText(item.spotsLeft)}
+      </span>
 
-      <div
-        className={`relative w-28 shrink-0 rounded-xl border px-2.5 py-2 tabular-nums transition-colors duration-200 ease-out motion-reduce:transition-none ${
-          selected
-            ? "border-[#cfbbe9] bg-[#efe8fb]"
-            : blocked
-            ? "border-[#ece8f2] bg-[#f6f4f9]"
-            : "border-[#e7e0ee] bg-[#f7f4fb] group-hover:border-[#d8cfdf] group-hover:bg-[#f2eef8]"
-        }`}
-      >
-        <span
-          className="absolute inset-y-1.5 left-1.5 w-[2px] rounded-full bg-[#dfd0f4]"
-          aria-hidden="true"
-        />
-        <Clock className="absolute left-2.5 top-2 h-3 w-3 text-[#7a65a6]/70" aria-hidden="true" />
-        <p className="pl-4.5 text-[15px] font-black leading-tight tracking-tight text-[#1f1a25] sm:text-[16px]">
-          {startTimeLabel}
+      <div className={`relative z-10 row-start-1 col-start-1 flex h-full min-w-0 items-center pr-1 text-left tabular-nums transition-colors duration-300 lg:row-span-1 lg:pr-6 ${
+        isDisplayClass ? "pt-5 lg:pt-3" : ""
+      }`}>
+        <p className={`flex items-baseline gap-1.5 leading-none transition-colors duration-300 ${timeTextClass}`}>
+          <span className="inline-flex items-baseline">
+            <span className="text-[30px] font-bold tracking-[-0.02em]">
+              {timeParts.hour}
+            </span>
+            <span className="text-[22px] font-semibold tracking-[-0.015em]">
+              :{timeParts.minute}
+            </span>
+          </span>
+          <span
+            className={`pl-0.5 text-[10px] font-semibold tracking-[0.12em] transition-colors duration-300 ${periodTextClass}`}
+          >
+            {timeParts.period}
+          </span>
+          {endTime ? (
+            <>
+              <span className={`pl-1 text-[14px] font-semibold ${periodTextClass}`}>-</span>
+              <span className={`inline-flex items-baseline ${periodTextClass}`}>
+                <span className="text-[16px] font-semibold">{endTimeParts.hour}</span>
+                <span className="text-[14px] font-semibold">:{endTimeParts.minute}</span>
+              </span>
+              <span className={`pl-0.5 text-[9px] font-semibold tracking-[0.1em] ${periodTextClass}`}>
+                {endTimeParts.period}
+              </span>
+            </>
+          ) : null}
         </p>
       </div>
 
-      <div className="min-w-0 flex-1">
-        <div className="flex min-w-0 items-center gap-1.5">
-          <p
-            className={`truncate text-sm text-[#15131c] sm:text-[15px] ${
-              isGenericTitle ? "font-semibold" : "font-bold"
-            }`}
-          >
-            {sessionInfo.title}
-          </p>
-          {sessionInfo.tag ? (
-            <span className="shrink-0 rounded-full bg-[#f4eefe] px-1.5 py-0.5 text-[10px] font-semibold text-[#6a43a6] ring-1 ring-[#e4d6f7]">
-              {sessionInfo.tag}
-            </span>
-          ) : null}
+      <div className="relative z-10 col-start-1 row-start-2 mt-1 flex items-center gap-2 pl-1 pr-2 lg:hidden">
+        <div className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-[#e5e7eb]">
+          <span
+            className={`block h-full rounded-full transition-[width] duration-300 ease-out ${capacityFillClass}`}
+            style={{ width: `${capacityPercent}%` }}
+            aria-hidden="true"
+          />
         </div>
-        <p className="truncate text-xs font-medium text-[#2E2A33]/72">
-          {buildRowMeta(item.durationMinutes)}
-        </p>
         <span
-          id={availabilityId}
-          className={`mt-1 inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold ${availabilityLineClass}`}
+          className={`shrink-0 text-[11px] font-semibold ${availabilityTextClass} ${
+            selected
+              ? "rounded-full bg-white/85 px-2 py-0.5 shadow-[0_0_0_1px_rgba(255,255,255,0.7)]"
+              : ""
+          }`}
         >
-          {buildSpacesLabel(item.spotsLeft)}
+          {buildSpacesText(item.spotsLeft)}
         </span>
       </div>
 
-      <div className="ml-1 flex shrink-0 flex-col items-end gap-1.5">
+      <div className="relative z-10 hidden col-start-2 row-start-1 lg:flex lg:w-full lg:max-w-[380px] lg:justify-self-center lg:flex-col lg:justify-center lg:gap-1.5">
+        <span
+          className={`self-center text-[11px] font-semibold ${availabilityTextClass} ${
+            selected
+              ? "rounded-full bg-white/85 px-2 py-0.5 shadow-[0_0_0_1px_rgba(255,255,255,0.7)]"
+              : ""
+          }`}
+        >
+          {buildSpacesText(item.spotsLeft)}
+        </span>
+        <div className="h-1.5 min-w-0 overflow-hidden rounded-full bg-[#e5e7eb]">
+          <span
+            className={`block h-full rounded-full transition-[width] duration-300 ease-out ${capacityFillClass}`}
+            style={{ width: `${capacityPercent}%` }}
+            aria-hidden="true"
+          />
+        </div>
+      </div>
+
+      <div className="relative z-10 row-span-2 row-start-1 col-start-2 flex h-full w-[112px] flex-col items-end justify-between py-0.5 lg:col-start-3 lg:w-full">
+        <p className={`whitespace-nowrap text-right text-[10px] font-medium leading-none ${nextClassTextClass}`}>
+          Next class: {nextClassDateLabel}
+        </p>
         {blocked ? (
-          <span className="inline-flex h-8 min-w-[102px] items-center justify-center gap-1 rounded-full border border-[#e2dfe9] bg-[#f5f4f8] px-3 text-xs font-semibold text-[#706d7a]">
+          <span className="inline-flex h-8 w-[104px] items-center justify-center gap-1 rounded-full border border-[#e2dfe9] bg-[#f5f4f8] px-3 text-xs font-semibold text-[#706d7a]">
             <XCircle className="h-3.5 w-3.5" aria-hidden="true" />
             Booked out
           </span>
@@ -134,7 +199,7 @@ export default function ClassRow({ item, selected, onToggle }: ClassRowProps) {
             type="button"
             onClick={handleSelectControlClick}
             aria-pressed={selected}
-            className={`inline-flex h-8 min-w-[102px] items-center justify-center gap-1.5 rounded-full border px-3 text-xs font-semibold transition-all duration-180 motion-reduce:transition-none focus-within:ring-2 focus-within:ring-[#6c35c3]/35 ${
+            className={`inline-flex h-8 w-[104px] items-center justify-center gap-1.5 rounded-full border px-3 text-xs font-semibold transition-all duration-180 motion-reduce:transition-none focus-within:ring-2 focus-within:ring-[#6c35c3]/35 ${
               selected
                 ? "border-[#c4b3dc] bg-white text-[#4c3f62] shadow-[0_0_0_2px_rgba(124,106,147,0.14)]"
                 : "border-[#d4c7e6] bg-white text-[#4c3f62] hover:border-[#c4b3dc] hover:bg-[#f7f4fb]"
@@ -156,49 +221,6 @@ export default function ClassRow({ item, selected, onToggle }: ClassRowProps) {
       </div>
     </div>
   );
-}
-
-function getSessionInfo(name: string): {
-  title: string;
-  tag: string | null;
-} {
-  const trimmed = name.trim();
-  if (!trimmed) {
-    return { title: "Recreational Gymnastics", tag: null };
-  }
-
-  const tag =
-    /\bdisplay\b/i.test(trimmed)
-      ? "Display"
-      : /\bone[\s-]?off\b|\bdrop[\s-]?in\b/i.test(trimmed)
-      ? "One-off"
-      : /\bblock\b|\bterm\b/i.test(trimmed)
-      ? "Block"
-      : /\bweekly\b/i.test(trimmed)
-      ? "Weekly"
-      : null;
-
-  const stripped = trimmed
-    .replace(/\(([^)]*?\d[^)]*?)\)/gi, " ")
-    .replace(/\b\d{1,2}\s*(?:yrs?|years?)\s*\d{1,2}\s*(?:yrs?|years?)\b/gi, " ")
-    .replace(/\b\d{1,2}\s*(?:yrs?|years?)?\s*(?:-|to|\u2013)\s*\d{1,2}\s*(?:yrs?|years?)?\b/gi, " ")
-    .replace(
-      /\b(monday|tuesday|wednesday|thursday|friday|saturday|sunday|mon|tue|tues|wed|thu|thur|thurs|fri|sat|sun)\b/gi,
-      " "
-    )
-    .replace(/\b\d{1,2}(:\d{2})?\s?(am|pm)?\b/gi, " ")
-    .replace(/[-|_/]+/g, " ")
-    .replace(/\s{2,}/g, " ")
-    .trim();
-
-  if (!stripped || stripped.length < 3) {
-    return { title: "Recreational Gymnastics", tag };
-  }
-  if (/^recreational(\s+(class|session))?$/i.test(stripped)) {
-    return { title: "Recreational Gymnastics", tag };
-  }
-
-  return { title: stripped, tag };
 }
 
 function parseClockTime(value: string): { hour24: number; minute: number } | null {
@@ -223,18 +245,128 @@ function to12Hour(value: string): { hour: number; minute: number; period: "AM" |
 function formatStartTime(value: string): string {
   const time = to12Hour(value);
   if (!time) return value;
-  if (time.minute === 0) return `${time.hour} ${time.period}`;
   return `${time.hour}:${String(time.minute).padStart(2, "0")} ${time.period}`;
 }
 
-function buildRowMeta(durationMinutes: number | null): string {
-  const duration = typeof durationMinutes === "number" && durationMinutes > 0 ? `${durationMinutes} min` : null;
-  return duration ?? "Session details";
+function splitTime(value: string): { hour: string; minute: string; period: string } {
+  const match = value.match(/^(\d{1,2}:\d{2})\s*(AM|PM)$/i);
+  if (!match) return { hour: value, minute: "", period: "" };
+  const [hour = match[1], minute = "00"] = match[1].split(":");
+  return { hour, minute, period: match[2].toUpperCase() };
 }
 
-function buildSpacesLabel(spotsLeft: number | null): string {
-  if (spotsLeft == null) return "Open";
-  if (spotsLeft <= 0) return "Fully booked";
-  if (spotsLeft <= 3) return `Only ${spotsLeft} ${spotsLeft === 1 ? "spot" : "spots"} left`;
-  return `${spotsLeft} ${spotsLeft === 1 ? "spot" : "spots"} left`;
+
+function buildSpacesText(spotsLeft: number | null): string {
+  if (spotsLeft == null) return "Spaces unknown";
+  const safeSpaces = Math.max(0, spotsLeft);
+  return `${safeSpaces} ${safeSpaces === 1 ? "space" : "spaces"} left`;
+}
+
+function getCapacityPercent(
+  spotsLeft: number | null,
+  capacity: number | null
+): number {
+  if (
+    typeof spotsLeft !== "number" ||
+    typeof capacity !== "number" ||
+    !Number.isFinite(spotsLeft) ||
+    !Number.isFinite(capacity) ||
+    capacity <= 0
+  ) {
+    return 0;
+  }
+
+  const clampedSpots = Math.min(Math.max(spotsLeft, 0), capacity);
+  return (clampedSpots / capacity) * 100;
+}
+
+function getCapacityFillClass(spotsLeft: number | null): string {
+  if (spotsLeft === 1) return "bg-[#ef4444]";
+  if (typeof spotsLeft === "number" && spotsLeft > 0 && spotsLeft < 5) {
+    return "bg-[#f59e0b]";
+  }
+  return "bg-[#22c55e]";
+}
+
+function buildEndTimeLabel(
+  startTime: string,
+  durationMinutes: number | null,
+  endTime: string | null
+): string | null {
+  let normalizedEnd = "";
+
+  const computedEnd = addMinutesToTime(startTime, durationMinutes);
+  if (computedEnd) {
+    normalizedEnd = computedEnd;
+  } else if (endTime) {
+    normalizedEnd = formatStartTime(endTime);
+  }
+
+  if (!normalizedEnd) return null;
+  return normalizedEnd;
+}
+
+function addMinutesToTime(
+  value: string,
+  durationMinutes: number | null
+): string | null {
+  if (
+    typeof durationMinutes !== "number" ||
+    !Number.isFinite(durationMinutes) ||
+    durationMinutes <= 0
+  ) {
+    return null;
+  }
+
+  const parsed = parseClockTime(value);
+  if (!parsed) return null;
+
+  const baseMinutes = parsed.hour24 * 60 + parsed.minute;
+  const nextMinutes = (baseMinutes + durationMinutes) % (24 * 60);
+  const hour24 = Math.floor(nextMinutes / 60);
+  const minute = nextMinutes % 60;
+  const period: "AM" | "PM" = hour24 >= 12 ? "PM" : "AM";
+  const hour12 = hour24 % 12 === 0 ? 12 : hour24 % 12;
+
+  return `${hour12}:${String(minute).padStart(2, "0")} ${period}`;
+}
+
+function buildNextClassDateLabel(weekday: string, startTime: string): string {
+  const dayMap: Record<string, number> = {
+    sunday: 0,
+    monday: 1,
+    tuesday: 2,
+    wednesday: 3,
+    thursday: 4,
+    friday: 5,
+    saturday: 6,
+  };
+
+  const targetDay = dayMap[weekday.trim().toLowerCase()];
+  if (targetDay == null) {
+    return "Unknown";
+  }
+
+  const now = new Date();
+  const nowDay = now.getDay();
+  const daysUntil = (targetDay - nowDay + 7) % 7;
+
+  const parsedStart = parseClockTime(startTime);
+  const candidate = new Date(now);
+  candidate.setHours(0, 0, 0, 0);
+  candidate.setDate(candidate.getDate() + daysUntil);
+
+  if (parsedStart) {
+    candidate.setHours(parsedStart.hour24, parsedStart.minute, 0, 0);
+  }
+
+  if (daysUntil === 0 && candidate <= now) {
+    candidate.setDate(candidate.getDate() + 7);
+  }
+
+  return new Intl.DateTimeFormat("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  }).format(candidate);
 }

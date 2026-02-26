@@ -1,6 +1,10 @@
 import { headers } from 'next/headers'
 import { redirect } from 'next/navigation'
 import { createServerClient } from '@supabase/ssr'
+import {
+  getServerAuthRequestKey,
+  logAuthValidation,
+} from '@/lib/authValidationDebug'
 import LoginClient from './LoginClient'
 
 export default async function LoginPage() {
@@ -41,6 +45,11 @@ export default async function LoginPage() {
       },
     })
 
+    logAuthValidation({
+      method: 'getSession',
+      source: 'app/(portal)/login/page.tsx',
+      requestKey: getServerAuthRequestKey(resolvedHeaders as Headers, '/login'),
+    })
     const { data } = await supabase.auth.getSession()
 
     if (data?.session) {

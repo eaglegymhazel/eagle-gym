@@ -59,7 +59,7 @@ export function buildMeta(item: ClassCardItem): string {
   return durationPart ?? agePart ?? "Class details";
 }
 
-export type AvailabilityVariant = "open" | "ok" | "low" | "full";
+export type AvailabilityVariant = "open" | "ok" | "low" | "critical" | "full";
 
 export function getAvailabilityState(spotsLeft: number | null): {
   label: string;
@@ -67,6 +67,7 @@ export function getAvailabilityState(spotsLeft: number | null): {
 } {
   if (spotsLeft == null) return { label: "Open", variant: "open" };
   if (spotsLeft <= 0) return { label: "Fully booked", variant: "full" };
-  if (spotsLeft <= 3) return { label: `Only ${spotsLeft} left`, variant: "low" };
-  return { label: `${spotsLeft} left`, variant: "ok" };
+  if (spotsLeft === 1) return { label: "Only 1 spot left", variant: "critical" };
+  if (spotsLeft <= 3) return { label: `Only ${spotsLeft} spots left`, variant: "low" };
+  return { label: `${spotsLeft} spots left`, variant: "ok" };
 }

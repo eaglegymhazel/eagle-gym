@@ -5,8 +5,15 @@ import Nav from "../Nav";
 
 export default function SiteShell({
   children,
+  disableMobileNavMenu = false,
+  mobileRightLink,
 }: {
   children: React.ReactNode;
+  disableMobileNavMenu?: boolean;
+  mobileRightLink?: {
+    href: string;
+    label: string;
+  };
 }) {
   return (
     <div
@@ -18,7 +25,10 @@ export default function SiteShell({
           <div className="flex w-full items-center gap-4 px-3 py-2">
             <div className="flex-1">
               <div className="mx-auto max-w-5xl px-6">
-                <Nav />
+                <Nav
+                  disableMobileMenu={disableMobileNavMenu}
+                  mobileRightLink={mobileRightLink}
+                />
               </div>
             </div>
             <div className="hidden shrink-0 md:block">

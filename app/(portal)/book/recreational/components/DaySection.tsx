@@ -21,23 +21,28 @@ export default function DaySection({
       id={weekdayToId(weekday)}
       data-day-section="true"
       data-day-name={weekday}
-      className="space-y-1.5"
+      className="pt-4 first:pt-0"
     >
-      <div className="px-1 sm:px-2">
-        <h2 className="flex w-full items-center gap-1.5 whitespace-nowrap text-base font-black text-[#20192e] after:ml-2 after:block after:h-px after:flex-1 after:bg-[#c6b5dd] after:content-['']">
-          <CalendarDays className="h-4 w-4 text-[#654f88]" aria-hidden="true" />
+      <div className="px-1 sm:px-1.5">
+        <h2 className="flex w-full items-center gap-1.5 whitespace-nowrap text-[19px] font-black text-[#143271] sm:text-[20px] lg:mx-auto lg:w-[96%] lg:max-w-[980px]">
+          <CalendarDays className="h-4 w-4 text-[#8f88a3]" aria-hidden="true" />
           {weekday}
         </h2>
-      </div>
-      <div className="space-y-1.5">
-        {classes.map((item) => (
-          <ClassRow
-            key={item.id}
-            item={item}
-            selected={selectedIds.has(item.id)}
-            onToggle={onToggleClass}
+        <div className="relative mt-3 space-y-1 pl-8 lg:mx-auto lg:w-[96%] lg:max-w-[980px] lg:pl-5">
+          <span
+            aria-hidden="true"
+            className="absolute left-[11px] top-1.5 bottom-1.5 w-0 rounded-full border-l-2 border-dashed border-[#b7accf] lg:left-[8px]"
           />
-        ))}
+          {classes.map((item) => (
+            <ClassRow
+              key={item.id}
+              weekday={weekday}
+              item={item}
+              selected={selectedIds.has(item.id)}
+              onToggle={onToggleClass}
+            />
+          ))}
+        </div>
       </div>
     </section>
   );

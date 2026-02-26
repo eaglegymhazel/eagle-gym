@@ -3,9 +3,29 @@ import { createServerClient } from "@supabase/ssr";
 import { getChildrenForAccount } from "@/lib/server/children";
 import { getMedicalInfoForChildren } from "@/lib/server/medical";
 import { getActiveBookingsForChildren } from "@/lib/server/bookings";
+import {
+  getServerAuthRequestKey,
+  logAuthValidation,
+} from "@/lib/authValidationDebug";
 
 export async function POST(request: NextRequest) {
   try {
+    let includeChildDetails = true;
+    try {
+      const parsed = await request.json();
+      if (
+        parsed &&
+        typeof parsed === "object" &&
+        "includeChildDetails" in parsed
+      ) {
+        includeChildDetails = Boolean(
+          (parsed as { includeChildDetails?: unknown }).includeChildDetails
+        );
+      }
+    } catch {
+      includeChildDetails = true;
+    }
+
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
     const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -40,6 +60,14 @@ export async function POST(request: NextRequest) {
       }
     );
 
+    logAuthValidation({
+      method: "getUser",
+      source: "app/api/account/bootstrap/route.ts",
+      requestKey: getServerAuthRequestKey(
+        request.headers,
+        request.nextUrl.pathname
+      ),
+    });
     const { data, error } = await supabase.auth.getUser();
 
     if (error || !data?.user) {
@@ -170,6 +198,7 @@ export async function POST(request: NextRequest) {
             children: [],
             medicalByChildId: {},
             bookingsByChildId: {},
+            childDetailsIncluded: false,
             accountExists: false,
             profileComplete: false,
             nextRoute: "/account/setup",
@@ -200,22 +229,26 @@ export async function POST(request: NextRequest) {
       let children = [];
       let medicalByChildId = {};
       let bookingsByChildId = {};
+      let childIds: string[] = [];
 
       try {
         children = await getChildrenForAccount(account.id);
+        childIds = children.map((child) => child.id);
       } catch {}
 
-      try {
-        medicalByChildId = await getMedicalInfoForChildren(
-          children.map((child) => child.id)
-        );
-      } catch {}
+      if (includeChildDetails && childIds.length > 0) {
+        const [medicalResult, bookingsResult] = await Promise.allSettled([
+          getMedicalInfoForChildren(childIds),
+          getActiveBookingsForChildren(childIds),
+        ]);
 
-      try {
-        bookingsByChildId = await getActiveBookingsForChildren(
-          children.map((child) => child.id)
-        );
-      } catch {}
+        if (medicalResult.status === "fulfilled") {
+          medicalByChildId = medicalResult.value;
+        }
+        if (bookingsResult.status === "fulfilled") {
+          bookingsByChildId = bookingsResult.value;
+        }
+      }
 
       const profileComplete = !!(
         account.accFirstName &&
@@ -240,6 +273,7 @@ export async function POST(request: NextRequest) {
           children,
           medicalByChildId,
           bookingsByChildId,
+          childDetailsIncluded: includeChildDetails,
           accountExists: true,
           profileComplete,
           nextRoute: profileComplete ? "/account" : "/account/setup",
@@ -255,6 +289,7 @@ export async function POST(request: NextRequest) {
         children: [],
         medicalByChildId: {},
         bookingsByChildId: {},
+        childDetailsIncluded: false,
         accountExists: false,
         profileComplete: false,
         nextRoute: "/account/setup",

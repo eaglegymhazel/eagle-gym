@@ -119,6 +119,8 @@ export default function CompleteProfilePage() {
       const res = await fetch("/api/account/bootstrap", {
         method: "POST",
         credentials: "include",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ includeChildDetails: false }),
       });
       if (!active) return;
       if (res.status === 401) {

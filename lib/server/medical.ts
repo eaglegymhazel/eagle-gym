@@ -1,7 +1,7 @@
 import 'server-only'
 
 import { createServerClient } from '@supabase/ssr'
-import { cache } from 'react'
+import { unstable_cache } from 'next/cache'
 
 export type MedicalInformationRow = {
   childId: string
@@ -16,7 +16,7 @@ export type MedicalInformationRow = {
   surgeryTelephone: string | null
 }
 
-const getMedicalInfoForChildrenCached = cache(
+const getMedicalInfoForChildrenCached = unstable_cache(
   async (childIdsKey: string): Promise<Record<string, MedicalInformationRow>> => {
     if (!childIdsKey) {
       return {}
@@ -70,7 +70,9 @@ const getMedicalInfoForChildrenCached = cache(
     })
 
     return map
-  }
+  },
+  ['medical-info-for-children'],
+  { revalidate: 30 }
 )
 
 export async function getMedicalInfoForChildren(

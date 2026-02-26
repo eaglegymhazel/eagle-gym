@@ -61,8 +61,8 @@ export default function BookingGateway({
           }`}
         />
         <div className="pointer-events-none absolute inset-y-0 right-0 w-[32px] bg-[linear-gradient(90deg,_transparent,_rgba(124,58,237,0.14))] md:block" />
-        <div className="relative mt-12 flex h-full max-w-sm flex-col items-start gap-3 md:ml-6 md:mt-16">
-          <span className="text-xs font-semibold uppercase tracking-[0.3em] text-[#6c35c3]">
+        <div className="relative mt-4 flex h-full min-w-0 max-w-sm flex-col items-start gap-3 md:ml-6 md:mt-8">
+          <span className="text-sm font-extrabold uppercase tracking-[0.3em] text-[#6c35c3]">
             Recreational
           </span>
           <h2 className="text-[clamp(36px,3.4vw,48px)] font-black leading-[1.02] text-[#1f1a25]">
@@ -83,7 +83,7 @@ export default function BookingGateway({
               work.
             </p>
           </div>
-          <div className="pt-4">
+          <div className="mt-auto mb-8 flex w-full justify-center">
             <button
               type="button"
               disabled={isSwitchingChild}
@@ -94,7 +94,7 @@ export default function BookingGateway({
                 isSwitchingChild
                   ? "cursor-not-allowed opacity-60 shadow-none hover:bg-[#6c35c3]"
                   : ""
-              }`}
+              } ${!isSwitchingChild ? "cursor-pointer" : ""}`}
             >
               Book Recreational
               <span className="ml-2 inline-block !text-white transition-transform duration-300 group-hover:translate-x-1">
@@ -136,16 +136,16 @@ export default function BookingGateway({
           }`}
         />
         <div className="pointer-events-none absolute inset-y-0 left-0 w-[32px] bg-[linear-gradient(270deg,_transparent,_rgba(210,190,255,0.18))] md:block" />
-        <div className="relative mt-12 flex h-full max-w-sm flex-col items-start gap-3 md:ml-6 md:mt-16">
-          <span className="text-xs font-semibold uppercase tracking-[0.3em] !text-white">
+        <div className="relative mt-4 flex h-full min-w-0 max-w-sm flex-col items-start gap-3 md:ml-6 md:mt-8">
+          <span className="text-sm font-extrabold uppercase tracking-[0.3em] !text-white">
             Competition
           </span>
           <h2
             style={{ color: "#ffffff", WebkitTextFillColor: "#ffffff" }}
-            className="text-[clamp(36px,3.4vw,48px)] font-black leading-[1.02] !text-white"
+            className="text-[clamp(36px,3.4vw,48px)] font-black leading-[1.02] !text-white break-words"
           >
             <span
-              className="whitespace-nowrap"
+              className="break-words"
               style={{ color: "#ffffff", WebkitTextFillColor: "#ffffff" }}
             >
               Eagle Gymnastics
@@ -155,51 +155,53 @@ export default function BookingGateway({
               Academy
             </span>
           </h2>
+          <div
+            className="mt-4 space-y-3 text-sm font-medium leading-6 min-h-[200px]"
+            style={{ color: "#ffffff", WebkitTextFillColor: "#ffffff" }}
+          >
+            <p>
+              Invite-only training for children in the recreational programme
+              who demonstrate the ability, commitment, and potential to
+              progress to competitive gymnastics. Selection is at the
+              discretion of the coaching team.
+            </p>
+            <p>
+              For more information or to discuss this pathway, speak with a
+              coach.
+            </p>
+          </div>
           {competitionEligible ? (
-            <button
-              type="button"
-              disabled={isSwitchingChild}
-              onClick={() =>
-                router.push(`/book/competition?childId=${childId}`)
-              }
-              className={`group inline-flex h-[56px] w-[260px] items-center justify-center rounded-full bg-white px-6 text-sm font-semibold text-[#2b1b4f] shadow-[0_18px_40px_-18px_rgba(12,8,30,0.7)] transition hover:bg-white/95 ${
-                isSwitchingChild ? "cursor-not-allowed opacity-60 shadow-none" : ""
-              }`}
-            >
-              Book Competition
-              <span className="ml-2 inline-block transition-transform duration-300 group-hover:translate-x-1">
-                {"\u2192"}
-              </span>
-            </button>
+            <div className="mt-auto mb-8 flex w-full justify-center">
+              <button
+                type="button"
+                disabled={isSwitchingChild}
+                onClick={() =>
+                  router.push(`/book/competition?childId=${childId}`)
+                }
+                className={`group inline-flex h-[56px] w-[260px] items-center justify-center rounded-full bg-white px-6 text-sm font-semibold text-[#2b1b4f] shadow-[0_18px_40px_-18px_rgba(12,8,30,0.7)] transition hover:bg-white/95 ${
+                  isSwitchingChild ? "cursor-not-allowed opacity-60 shadow-none" : "cursor-pointer"
+                }`}
+              >
+                Book Competition
+                <span className="ml-2 inline-block transition-transform duration-300 group-hover:translate-x-1">
+                  {"\u2192"}
+                </span>
+              </button>
+            </div>
           ) : (
             <>
-              <div
-                className="mt-4 space-y-3 text-sm font-medium leading-6 min-h-[200px]"
-                style={{ color: "#ffffff", WebkitTextFillColor: "#ffffff" }}
-              >
-                <p>
-                  Invite-only training for children in the recreational programme
-                  who demonstrate the ability, commitment, and potential to
-                  progress to competitive gymnastics. Selection is at the
-                  discretion of the coaching team.
-                </p>
-                <p>
-                  For more information or to discuss this pathway, speak with a
-                  coach.
-                </p>
-              </div>
-              <div className="pt-4 flex flex-col items-center gap-3">
+              <div className="mt-auto mb-8 flex w-full justify-center">
               <button
                 type="button"
                 disabled
-                className="inline-flex h-[56px] w-[260px] cursor-not-allowed items-center justify-center gap-2 rounded-full bg-[#5a3a9b] px-6 text-sm font-semibold !text-white opacity-60 shadow-none"
+                className="inline-flex h-[56px] w-[260px] cursor-not-allowed items-center justify-center gap-2 rounded-full bg-white px-6 text-sm font-semibold text-[#2b1b4f] opacity-60 shadow-none"
               >
                 <svg
                   width="14"
                   height="14"
                   viewBox="0 0 24 24"
                   fill="none"
-                  className="text-white"
+                  className="text-[#2b1b4f]"
                   aria-hidden="true"
                 >
                   <rect
@@ -208,12 +210,12 @@ export default function BookingGateway({
                     width="14"
                     height="9"
                     rx="2"
-                    stroke="#fff"
+                    stroke="#2b1b4f"
                     strokeWidth="1.6"
                   />
                   <path
                     d="M8 11V9a4 4 0 118 0v2"
-                    stroke="#fff"
+                    stroke="#2b1b4f"
                     strokeWidth="1.6"
                     strokeLinecap="round"
                   />

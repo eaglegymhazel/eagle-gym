@@ -3,7 +3,6 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import DaySection from "./components/DaySection";
-import SchedulePageHeader from "./components/SchedulePageHeader";
 import SelectionTray from "./components/SelectionTray";
 import type { ClassCardItem, SelectedClassDetail, WeekdayGroup } from "./types";
 import { parseTimeToMinutes, WEEKDAY_ORDER } from "./utils";
@@ -11,7 +10,7 @@ import { parseTimeToMinutes, WEEKDAY_ORDER } from "./utils";
 type RecreationalClassesClientProps = {
   childId: string;
   childName: string;
-  ageBandLabel: string;
+  ageGroupLabel: string;
   groups: WeekdayGroup[];
   initialSelectedClassIds?: string[];
 };
@@ -21,7 +20,7 @@ export { type WeekdayGroup, type ClassCardItem } from "./types";
 export default function RecreationalClassesClient({
   childId,
   childName,
-  ageBandLabel,
+  ageGroupLabel,
   groups,
   initialSelectedClassIds = [],
 }: RecreationalClassesClientProps) {
@@ -150,23 +149,36 @@ export default function RecreationalClassesClient({
   return (
     <div className="pb-44 sm:pb-48">
       <div className="mx-auto w-full max-w-5xl space-y-4 sm:space-y-5">
-        <SchedulePageHeader
-          childName={childName}
-          ageBandLabel={ageBandLabel}
-        />
-
-        <div className="rounded-2xl bg-[linear-gradient(180deg,_rgba(255,255,255,0.92),_rgba(252,250,255,0.9))] p-1.5 shadow-[0_16px_32px_-28px_rgba(29,22,44,0.35)] sm:p-2">
-          <div className="space-y-3 sm:space-y-3.5">
-            {groups.map((group) => (
-              <DaySection
-                key={group.weekday}
-                weekday={group.weekday}
-                classes={group.classes}
-                selectedIds={selectedSet}
-                onToggleClass={toggleClass}
-              />
-            ))}
+        <header className="space-y-2">
+          <div className="px-0.5 py-0.5">
+            <div className="inline-flex items-center rounded-full border border-[#6c35c3]/25 bg-white/85 px-4 py-1.5 text-sm font-semibold uppercase tracking-[0.18em] text-[#2a203c]/70 shadow-[0_12px_28px_-18px_rgba(31,26,37,0.5)] backdrop-blur">
+              Booking for{" "}
+              <span className="ml-1 font-bold text-[#2a203c]">
+                {childName || "selected child"}
+              </span>
+            </div>
           </div>
+          <p className="pl-4 text-sm font-semibold text-[#2a203c]">
+            Class type: <span className="font-bold">Recreational</span>
+          </p>
+          <p className="pl-4 text-sm font-semibold text-[#2a203c]">
+            Age group: <span className="font-bold">{ageGroupLabel}</span>
+          </p>
+          <div className="pt-1">
+            <div className="h-[0.5px] w-full bg-black/20" />
+          </div>
+        </header>
+
+        <div className="pt-3 space-y-5 sm:pt-5 sm:space-y-6">
+          {groups.map((group) => (
+            <DaySection
+              key={group.weekday}
+              weekday={group.weekday}
+              classes={group.classes}
+              selectedIds={selectedSet}
+              onToggleClass={toggleClass}
+            />
+          ))}
         </div>
       </div>
 

@@ -1,31 +1,11 @@
-import { headers } from "next/headers";
-import { redirect } from "next/navigation";
-import { createClient } from "@supabase/supabase-js";
+import { getBookingContext } from "@/lib/server/bookingContext";
+import { getRecreationalClasses } from "@/lib/server/classes";
+import { getActiveBookingCountsForClassIds } from "@/lib/server/availability";
 import ReviewClient, { type ReviewClassItem } from "./ReviewClient";
 
 type SearchParams = {
   childId?: string;
   classIds?: string;
-};
-
-type BootstrappedChild = {
-  id: string;
-  firstName: string | null;
-  lastName: string | null;
-  dateOfBirth: string | null;
-};
-
-type ClassRow = {
-  id: string;
-  name: string | null;
-  weekday: string | number | null;
-  startTime: string | null;
-  endTime: string | null;
-  durationMinutes: number | null;
-  minAge: number | string | null;
-  maxAge: number | string | null;
-  capacity: number | null;
-  isCompetitionClass: boolean | null;
 };
 
 const WEEKDAY_ORDER = [
@@ -176,9 +156,6 @@ export default async function RecreationalReviewPage({
   const childId = resolvedSearchParams?.childId;
   const parsedSelection = parseSelection(resolvedSearchParams?.classIds);
   const showDebug = process.env.NODE_ENV !== "production";
-  const reviewHref = `/book/recreational/review?childId=${encodeURIComponent(
-    childId ?? ""
-  )}&classIds=${encodeURIComponent(parsedSelection.uniqueIds.join(","))}`;
 
   if (!childId) {
     return (
@@ -190,52 +167,20 @@ export default async function RecreationalReviewPage({
     );
   }
 
-  const headersList = headers();
-  const resolvedHeaders =
-    typeof (headersList as unknown as Promise<Headers>).then === "function"
-      ? await (headersList as Promise<Headers>)
-      : (headersList as Headers);
-  const cookieHeader =
-    typeof (resolvedHeaders as Headers).get === "function"
-      ? resolvedHeaders.get("cookie") ?? ""
-      : "";
-  const host =
-    typeof (resolvedHeaders as Headers).get === "function"
-      ? resolvedHeaders.get("x-forwarded-host") ??
-        resolvedHeaders.get("host") ??
-        "localhost:3000"
-      : "localhost:3000";
-  const proto =
-    typeof (resolvedHeaders as Headers).get === "function"
-      ? resolvedHeaders.get("x-forwarded-proto") ?? "http"
-      : "http";
-  const baseUrl = `${proto}://${host}`;
-
-  const bootstrapRes = await fetch(`${baseUrl}/api/account/bootstrap`, {
-    method: "POST",
-    headers: { cookie: cookieHeader },
-    cache: "no-store",
-  });
-
-  if (bootstrapRes.status === 401) {
-    redirect("/login");
-  }
-
-  if (!bootstrapRes.ok) {
+  const bookingContext = await getBookingContext();
+  if (bookingContext.status !== "existing") {
     return (
       <ErrorState
         title="Unable to load booking details"
         message="There was a problem loading your account details. Please try again."
         backHref={buildBackHref(childId, parsedSelection.uniqueIds)}
-        retryHref={reviewHref}
       />
     );
   }
 
-  const bootstrap = await bootstrapRes.json();
-  const children: BootstrappedChild[] = Array.isArray(bootstrap?.children)
-    ? bootstrap.children
-    : [];
+  const classCatalog = await getRecreationalClasses();
+
+  const children = bookingContext.children;
   const child = children.find((item) => item.id === childId);
 
   if (!child?.id) {
@@ -264,70 +209,14 @@ export default async function RecreationalReviewPage({
     );
   }
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!supabaseUrl || !supabaseServiceRoleKey) {
-    return (
-      <ErrorState
-        title="Configuration issue"
-        message="Supabase environment variables are missing. Please contact support."
-        backHref={buildBackHref(childId, parsedSelection.uniqueIds)}
-      />
-    );
-  }
-
-  const admin = createClient(supabaseUrl, supabaseServiceRoleKey, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
-
-  const { data: classData, error: classError } = await admin
-    .from("Classes")
-    .select(
-      "id,name:className,weekday,startTime,endTime,durationMinutes,minAge:ageMin,maxAge:ageMax,capacity,isCompetitionClass"
-    )
-    .in("id", parsedSelection.uniqueIds);
-
-  if (classError) {
-    return (
-      <ErrorState
-        title="Unable to load selected classes"
-        message={classError.message}
-        backHref={buildBackHref(childId, parsedSelection.uniqueIds)}
-        retryHref={reviewHref}
-      />
-    );
-  }
-
-  const rows = (classData ?? []) as ClassRow[];
+  const classById = new Map(classCatalog.map((row) => [row.id, row]));
+  const rows = parsedSelection.uniqueIds
+    .map((id) => classById.get(id))
+    .filter((row): row is NonNullable<typeof row> => !!row);
   const classIdsFromRows = rows.map((row) => row.id);
-  const bookingCountsByClassId = new Map<string, number>();
-
-  if (classIdsFromRows.length > 0) {
-    const { data: activeBookings, error: bookingsError } = await admin
-      .from("Bookings")
-      .select("classId")
-      .in("classId", classIdsFromRows)
-      .eq("status", "active");
-
-    if (bookingsError) {
-      return (
-        <ErrorState
-          title="Unable to revalidate availability"
-          message={bookingsError.message}
-          backHref={buildBackHref(childId, parsedSelection.uniqueIds)}
-          retryHref={reviewHref}
-        />
-      );
-    }
-
-    (activeBookings ?? []).forEach((booking: { classId: string | null }) => {
-      if (!booking.classId) return;
-      bookingCountsByClassId.set(
-        booking.classId,
-        (bookingCountsByClassId.get(booking.classId) ?? 0) + 1
-      );
-    });
-  }
+  const bookingCountsByClassId = await getActiveBookingCountsForClassIds(
+    classIdsFromRows
+  );
 
   const rowById = new Map(rows.map((row) => [row.id, row]));
   const reviewItems: ReviewClassItem[] = parsedSelection.uniqueIds

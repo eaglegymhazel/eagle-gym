@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type FormEvent } from "react";
 import PasswordField from "@/app/components/auth/PasswordField";
+import { logAuthValidation } from "@/lib/authValidationDebug";
 import { validatePassword } from "@/lib/passwordPolicy";
 import { supabase } from "@/lib/supabaseClient";
 
@@ -36,6 +37,10 @@ export default function ResetPasswordPage() {
         }
       }
 
+      logAuthValidation({
+        method: "getSession",
+        source: "app/(portal)/reset-password/page.tsx",
+      });
       const { data } = await supabase.auth.getSession();
       if (!active) return;
       setHasSession(!!data.session);
