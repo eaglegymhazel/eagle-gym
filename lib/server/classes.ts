@@ -53,3 +53,41 @@ const getRecreationalClassesCached = unstable_cache(
 export async function getRecreationalClasses(): Promise<RecreationalClassRow[]> {
   return getRecreationalClassesCached();
 }
+
+const getCompetitionClassesCached = unstable_cache(
+  async (): Promise<RecreationalClassRow[]> => {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!supabaseUrl || !supabaseServiceRoleKey) {
+      throw new Error("Supabase environment variables are not configured.");
+    }
+
+    const serviceRole = createServerClient(supabaseUrl, supabaseServiceRoleKey, {
+      cookies: {
+        getAll() {
+          return [];
+        },
+        setAll() {},
+      },
+    });
+
+    const { data, error } = await serviceRole
+      .from("Classes")
+      .select(
+        "id,name:className,weekday,startTime,endTime,durationMinutes,minAge:ageMin,maxAge:ageMax,capacity,isCompetitionClass"
+      )
+      .eq("isCompetitionClass", true);
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    return (data ?? []) as RecreationalClassRow[];
+  },
+  ["competition-classes-catalog"],
+  { revalidate: 60 }
+);
+
+export async function getCompetitionClasses(): Promise<RecreationalClassRow[]> {
+  return getCompetitionClassesCached();
+}

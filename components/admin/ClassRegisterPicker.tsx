@@ -470,7 +470,7 @@ export default function ClassRegisterPicker({ sessions, onSelect }: ClassRegiste
               onChange={(event) => {
                 setHistoricalDate(event.target.value);
               }}
-              className="h-10 w-full rounded-md border border-[#d9d1e5] bg-white px-3 text-sm text-[#1f1a25] outline-none transition focus:border-[#6e2ac0] focus:ring-2 focus:ring-[#6e2ac0]/20"
+              className="h-10 w-full cursor-pointer rounded-md border border-[#d9d1e5] bg-white px-3 text-sm text-[#1f1a25] outline-none transition focus:border-[#6e2ac0] focus:ring-2 focus:ring-[#6e2ac0]/20"
             />
           </div>
         </div>
@@ -511,11 +511,15 @@ export default function ClassRegisterPicker({ sessions, onSelect }: ClassRegiste
                     key={register.registerId}
                     type="button"
                     onClick={() => onSelect(historySession)}
-                    className="group relative w-full overflow-hidden border-b border-[#ede8f3] px-2 py-1.5 text-left transition last:border-b-0 sm:py-1"
+                    className="group relative w-full cursor-pointer overflow-hidden border-b border-[#ede8f3] px-2 py-1.5 text-left transition last:border-b-0 sm:py-1"
                   >
                     <span
                       aria-hidden
                       className="adminTintOverlay absolute inset-0 bg-[#f0e8fb]"
+                    />
+                    <span
+                      aria-hidden
+                      className="absolute inset-y-1 left-0 z-[1] w-[2px] rounded-full bg-[#6e2ac0] opacity-0 transition-opacity group-hover:opacity-100"
                     />
                     <div className="relative z-[1] sm:hidden">
                       <div className="flex items-center justify-between gap-2">
@@ -581,6 +585,9 @@ export default function ClassRegisterPicker({ sessions, onSelect }: ClassRegiste
       </section>
     </div>
     <style jsx global>{`
+      #historical-register-date::-webkit-calendar-picker-indicator {
+        cursor: pointer;
+      }
       .adminTintOverlay {
         transform-origin: left;
         transform: scaleX(1);
