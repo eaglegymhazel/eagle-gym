@@ -1,5 +1,5 @@
 .page {
-  padding: 24px;
+  padding: 16px 24px 24px;
   max-width: 1120px;
   margin: 0 auto;
   color: #111827;
@@ -282,7 +282,7 @@
   display: grid;
   gap: 12px;
   margin: -2px 0 0;
-  margin-top: 42px !important;
+  margin-top: 14px;
 }
 
 .detailRow {
@@ -547,6 +547,10 @@
   color: #ffffff !important;
 }
 
+.desktopBookButton {
+  display: inline-flex;
+}
+
 .mobileBookBar {
   display: none;
 }
@@ -604,6 +608,77 @@
 .childDetail {
   display: grid;
   gap: 16px;
+}
+
+.desktopChildView {
+  display: block;
+}
+
+.mobileChildView {
+  display: none;
+}
+
+.mobileSections {
+  display: grid;
+  gap: 10px;
+}
+
+.mobileSectionCard {
+  border: 1px solid rgba(108, 53, 195, 0.16);
+  border-radius: 12px;
+  background: #ffffff;
+  overflow: hidden;
+}
+
+.mobileSectionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(108, 53, 195, 0.12);
+  background: #ffffff;
+  transition: background-color 0.18s ease;
+}
+
+.mobileSectionHeaderActive {
+  background: rgba(108, 53, 195, 0.07);
+}
+
+.mobileSectionToggle {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #2a0c4f;
+  text-align: left;
+  cursor: pointer;
+}
+
+.mobileSectionChevron {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  color: rgba(108, 53, 195, 0.85);
+  transition: transform 0.2s ease;
+}
+
+.mobileSectionChevronOpen {
+  transform: rotate(180deg);
+}
+
+.mobileSectionActionSlot {
+  width: 54px;
+  display: inline-flex;
+  justify-content: flex-end;
 }
 
 .backLink {
@@ -724,6 +799,221 @@
   gap: 12px;
 }
 
+.badgesHeader {
+  display: grid;
+  gap: 4px;
+}
+
+.badgesSummary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  color: #6b7280;
+  font-size: 16px;
+}
+
+.badgesSummaryLine {
+  display: inline-flex;
+  align-items: center;
+}
+
+.badgesTrackRow {
+  margin-top: 6px;
+}
+
+.badgesTrackSwitch {
+  display: inline-grid;
+  grid-auto-flow: column;
+  border: 1px solid rgba(108, 53, 195, 0.2);
+  background: #ffffff;
+}
+
+.badgesTrackButton {
+  appearance: none;
+  border: 0;
+  border-right: 1px solid rgba(108, 53, 195, 0.2);
+  background: #ffffff;
+  color: #5f6772;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 8px 14px;
+  cursor: pointer;
+}
+
+.badgesTrackButton:last-child {
+  border-right: 0;
+}
+
+.badgesTrackButtonRecreational {
+  color: #4f5b67;
+}
+
+.badgesTrackButtonCompetition {
+  color: #5a5142;
+}
+
+.badgesTrackButtonActive {
+  color: #1f1a25;
+}
+
+.badgesTrackButtonRecreational.badgesTrackButtonActive {
+  background: rgba(15, 141, 78, 0.18);
+  color: #0a6e3b;
+}
+
+.badgesTrackButtonCompetition.badgesTrackButtonActive {
+  background: rgba(224, 178, 26, 0.2);
+  color: #9c7600;
+}
+
+.badgesList {
+  margin-top: 10px;
+  display: grid;
+  gap: 8px;
+}
+
+.badgesItem {
+  border: 1px solid rgba(108, 53, 195, 0.16);
+  background: #ffffff;
+}
+
+.badgesItemHeader {
+  width: 100%;
+  border: 0;
+  background: #ffffff;
+  text-align: left;
+  padding: 10px 12px;
+  display: grid;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.badgesItemHeader:hover {
+  background: #faf7ff;
+}
+
+.badgesItemHeaderComplete {
+  background: #f3faf6;
+}
+
+.badgesItemHeaderComplete:hover {
+  background: #edf7f1;
+}
+
+.badgesItemTitleRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.badgesCode {
+  border: 1px solid rgba(108, 53, 195, 0.25);
+  background: rgba(108, 53, 195, 0.08);
+  color: #4f2390;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 3px 7px;
+}
+
+.badgesTitle {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: #1f1a25;
+  min-width: 0;
+}
+
+.badgesCompleteStar {
+  color: #ffcf33;
+  font-size: 16px;
+  line-height: 1;
+  text-shadow: 0 0 0.5px #7a5800, 0 0 4px rgba(255, 207, 51, 0.28);
+}
+
+.badgesStatus {
+  border: 1px solid rgba(108, 53, 195, 0.2);
+  background: #fbf9fe;
+  color: #5f6772;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  white-space: nowrap;
+}
+
+.badgesStatusRow {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  min-height: 24px;
+}
+
+.badgesMetaRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #5f6772;
+  font-size: 13px;
+  font-weight: 600;
+  min-height: 20px;
+}
+
+.badgesProgressTrack {
+  height: 8px;
+  background: #f4eff9;
+  overflow: hidden;
+}
+
+.badgesProgressFill {
+  height: 100%;
+  transition: width 0.2s ease;
+}
+
+.badgesSkillsList {
+  list-style: none;
+  margin: 0;
+  padding: 0 12px 12px;
+  display: grid;
+  gap: 8px;
+}
+
+.badgesSkillRow {
+  border: 1px solid #ece4f5;
+  background: #ffffff;
+  padding: 8px 10px;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  align-items: center;
+  font-size: 14px;
+  color: #2e2a33;
+}
+
+.badgesSkillDone {
+  border-color: #cfe8db;
+  background: #f2faf6;
+}
+
+.badgesSkillText {
+  min-width: 0;
+}
+
+.badgesSkillState {
+  font-size: 11px;
+  font-weight: 700;
+  color: #6f6384;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.badgesSkillDone .badgesSkillState {
+  color: #1d6a3e;
+}
+
 .bookingMeta {
   display: flex;
   align-items: baseline;
@@ -801,6 +1091,10 @@
   margin: -2px 0 0;
   color: #6b7280;
   font-size: 16px;
+}
+
+.bookingsEmptyMessage {
+  margin-top: 12px;
 }
 
 .medicalSections {
@@ -906,27 +1200,41 @@
   .settingsNav ul {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 8px;
+    gap: 0;
     margin: 0;
+    border: 1px solid rgba(108, 53, 195, 0.18);
+    border-radius: 12px;
+    overflow: hidden;
+    background: #fff;
   }
   .navPrimaryActionWrap {
     display: none;
+  }
+  .settingsNav li {
+    min-width: 0;
   }
   .navItem {
     width: 100%;
     min-height: 46px;
     padding: 10px 12px;
     text-align: center;
-    border: 1px solid rgba(108, 53, 195, 0.16);
-    border-radius: 12px;
+    border: 0;
+    border-right: 1px solid rgba(108, 53, 195, 0.14);
+    border-radius: 0;
     background: #fff;
+  }
+  .settingsNav li:last-child .navItem {
+    border-right: 0;
+  }
+  .navItem::after {
+    display: none;
   }
   .navItemActive::before {
     display: none;
   }
   .navItemActive {
     background: rgba(108, 53, 195, 0.1);
-    border-color: rgba(108, 53, 195, 0.28);
+    border-color: transparent;
     color: #2a0c4f;
   }
   .pageTitleRow .childActionButton {
@@ -951,11 +1259,17 @@
     border-top: 1px solid rgba(108, 53, 195, 0.12);
     backdrop-filter: blur(4px);
   }
+  .desktopBookButton {
+    display: none;
+  }
   .subheading {
     margin-top: 2px;
   }
   .detailRow {
     grid-template-columns: 1fr;
+  }
+  .details {
+    margin-top: 10px;
   }
   .childButton {
     padding: 14px 12px 12px;
@@ -966,6 +1280,67 @@
   .profileRow {
     grid-template-columns: 1fr;
     gap: 6px;
+  }
+  .bookingsEmptyMessage {
+    margin-top: 0;
+  }
+  .desktopChildView {
+    display: none;
+  }
+  .mobileChildView {
+    display: block;
+  }
+  .mobileSections {
+    gap: 10px;
+    border-top: 0;
+  }
+  .mobileSectionCard {
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    border-bottom: 0;
+  }
+  .mobileSectionHeader {
+    padding: 0;
+    border-bottom: 0;
+    background: transparent;
+  }
+  .mobileSectionToggle {
+    padding: 10px 12px;
+    border: 1px solid rgba(108, 53, 195, 0.2);
+    border-radius: 12px;
+    background: #ffffff;
+  }
+  .mobileSectionHeaderActive {
+    background: transparent;
+  }
+  .mobileSectionHeaderActive .mobileSectionToggle {
+    background: rgba(108, 53, 195, 0.07);
+    border-color: rgba(108, 53, 195, 0.28);
+  }
+  .mobileSectionCard .childCard,
+  .mobileSectionCard .childCardStack {
+    border-top: 0;
+    padding: 10px 0 0;
+  }
+  .mobileSectionCard .childCard {
+    gap: 8px;
+  }
+  .mobileSectionCard .cardBody {
+    padding: 0 0 12px;
+  }
+  .mobileSectionCard .editButton {
+    padding: 5px 10px;
+    font-size: 11px;
+  }
+  .badgesSummary {
+    display: grid;
+    gap: 2px;
+    font-size: 15px;
+  }
+  .badgesSkillRow {
+    font-size: 13px;
+    padding: 7px 9px;
   }
 }
 
@@ -985,28 +1360,31 @@
   display: grid;
   place-items: center;
   padding: 20px;
+  contain: layout paint;
 }
 
 .modalBackdrop {
   position: absolute;
   inset: 0;
-  background: rgba(15, 10, 25, 0.52);
-  backdrop-filter: blur(3px);
+  background: rgba(17, 24, 39, 0.4);
   border: 0;
   cursor: pointer;
+  animation: modalBackdropFadeIn 180ms ease-out both;
 }
 
 .modalCard {
   position: relative;
-  width: min(96vw, 560px);
+  width: min(94vw, 540px);
   max-height: 85vh;
-  border: 1px solid rgba(108, 53, 195, 0.2);
+  border: 1px solid rgba(17, 24, 39, 0.08);
   background: #ffffff;
-  border-radius: 20px;
-  box-shadow: 0 28px 64px rgba(15, 10, 25, 0.3);
+  border-radius: 18px;
+  box-shadow: 0 12px 28px rgba(17, 24, 39, 0.16);
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  transform: translateZ(0);
+  animation: modalCardPopIn 320ms cubic-bezier(0.22, 1.18, 0.36, 1) both;
 }
 
 .modalHeader {
@@ -1014,52 +1392,48 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
-  padding: 18px 22px 14px;
-  border-bottom: 1px solid rgba(108, 53, 195, 0.14);
-  background: linear-gradient(
-    180deg,
-    rgba(108, 53, 195, 0.08) 0%,
-    rgba(108, 53, 195, 0.03) 100%
-  );
+  padding: 18px 22px 12px;
+  background: #ffffff;
 }
 
 .modalTitle {
-  margin: -1px 0 0;
-  font-size: 19px;
+  margin: 0;
+  font-size: 22px;
+  line-height: 1.15;
   font-weight: 700;
   letter-spacing: -0.01em;
   color: #20112f;
 }
 
 .modalSubtitle {
-  margin: 5px 0 0;
+  margin: 4px 0 0;
   font-size: 14px;
-  color: rgba(46, 42, 51, 0.72);
+  color: rgba(46, 42, 51, 0.68);
 }
 
 .modalClose {
   appearance: none;
-  width: 34px;
-  height: 34px;
+  width: 36px;
+  height: 36px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid rgba(108, 53, 195, 0.22);
+  border: 1px solid rgba(108, 53, 195, 0.2);
   border-radius: 999px;
   background: #ffffff;
-  color: #4a3a63;
-  font-size: 18px;
+  color: #55426f;
+  font-size: 22px;
   line-height: 1;
-  font-weight: 500;
+  font-weight: 400;
   cursor: pointer;
   transition: background-color 0.15s ease, border-color 0.15s ease,
     color 0.15s ease, transform 0.15s ease;
 }
 
 .modalClose:hover {
-  background: #f7f4fb;
-  border-color: rgba(108, 53, 195, 0.45);
-  color: #2a0c4f;
+  background: #f8f5fc;
+  border-color: rgba(108, 53, 195, 0.35);
+  color: #35105f;
 }
 
 .modalClose:active {
@@ -1072,8 +1446,10 @@
 }
 
 .modalBody {
-  padding: 16px 22px 18px;
+  padding: 14px 22px 20px;
   overflow: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
 .modalList {
@@ -1081,7 +1457,12 @@
   margin: 0;
   padding: 0;
   display: grid;
-  gap: 8px;
+  gap: 0;
+  border-top: 1px solid rgba(108, 53, 195, 0.14);
+}
+
+.modalList li {
+  border-bottom: 1px solid rgba(108, 53, 195, 0.14);
 }
 
 .modalRow {
@@ -1089,40 +1470,122 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border: 1px solid rgba(108, 53, 195, 0.18);
-  border-radius: 12px;
-  padding: 12px 15px;
-  background: linear-gradient(180deg, #ffffff 0%, #fcfbff 100%);
+  gap: 12px;
+  border: 0;
+  border-radius: 0;
+  padding: 14px 12px 12px 20px;
+  background: transparent;
+  min-height: 60px;
   cursor: pointer;
-  transition: background-color 0.15s ease, border-color 0.15s ease,
-    box-shadow 0.15s ease, transform 0.15s ease;
+  position: relative;
+  overflow: hidden;
+  transition: background-color 0.2s ease;
+}
+
+.modalRow::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgba(108, 53, 195, 0.05);
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform 0.22s ease-out;
+  z-index: 0;
+  will-change: transform;
+}
+
+.modalRow::after {
+  content: "";
+  position: absolute;
+  left: 4px;
+  top: 14px;
+  bottom: 14px;
+  width: 3px;
+  border-radius: 999px;
+  background: #6e2ac0;
+  opacity: 0;
+  transition: opacity 0.2s ease-out;
+  z-index: 1;
+  will-change: opacity;
+}
+
+.modalRow > * {
+  position: relative;
+  z-index: 2;
 }
 
 .modalRow:hover {
-  background: rgba(108, 53, 195, 0.06);
-  border-color: rgba(108, 53, 195, 0.48);
-  box-shadow: 0 10px 20px rgba(108, 53, 195, 0.18);
-  transform: translateY(-1px);
+  background: transparent;
+}
+
+.modalRow:hover::before,
+.modalRow:focus-visible::before {
+  transform: scaleX(1);
+}
+
+.modalRow:hover::after,
+.modalRow:focus-visible::after {
+  opacity: 1;
 }
 
 .modalRow:focus-visible {
-  outline: 2px solid rgba(108, 53, 195, 0.6);
-  outline-offset: 1px;
+  outline: 2px solid rgba(108, 53, 195, 0.35);
+  outline-offset: -2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .modalClose,
+  .modalRow,
+  .modalRow::before,
+  .modalRow::after {
+    transition: none;
+  }
+
+  .modalBackdrop,
+  .modalCard {
+    animation: none;
+  }
+}
+
+@keyframes modalBackdropFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes modalCardPopIn {
+  0% {
+    opacity: 0;
+    transform: translateY(18px) scale(0.96);
+  }
+  60% {
+    opacity: 1;
+    transform: translateY(-3px) scale(1.01);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 .modalRowName {
   font-weight: 700;
   color: #1f1a25;
-  letter-spacing: 0.01em;
+  letter-spacing: 0;
+  font-size: 16px;
+  line-height: 1.2;
 }
 
 .modalAgePill {
-  border: 1px solid rgba(108, 53, 195, 0.22);
-  background: rgba(108, 53, 195, 0.09);
-  color: #2a0c4f;
-  font-size: 11px;
-  font-weight: 700;
-  padding: 4px 9px;
+  border: 1px solid rgba(108, 53, 195, 0.2);
+  background: #f6f2fb;
+  color: #4b2a7f;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 5px 10px;
   border-radius: 999px;
   white-space: nowrap;
 }
@@ -1134,8 +1597,8 @@
 }
 
 .modalRowRight .chevron {
-  color: rgba(108, 53, 195, 0.9);
-  font-size: 20px;
+  color: rgba(108, 53, 195, 0.78);
+  font-size: 18px;
   line-height: 1;
 }
 
@@ -1144,12 +1607,25 @@
     padding: 12px;
   }
 
+  .modalCard {
+    width: min(96vw, 420px);
+    border-radius: 16px;
+  }
+
   .modalHeader {
     padding: 16px 16px 12px;
   }
 
+  .modalTitle {
+    font-size: 20px;
+  }
+
   .modalBody {
     padding: 12px 16px 16px;
+  }
+
+  .modalRowName {
+    font-size: 15px;
   }
 }
 

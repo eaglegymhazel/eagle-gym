@@ -27,6 +27,7 @@ type BootstrapResponse =
         lastName: string | null
         dateOfBirth: string | null
         photoConsent: boolean | null
+        competitionEligible: boolean | null
       }[]
       medicalByChildId: Record<string, any>
       bookingsByChildId: Record<string, any[]>
@@ -105,6 +106,7 @@ export default function AccountShell() {
   const [data, setData] = useState<BootstrapResponse | null>(null)
   const [childrenResetKey, setChildrenResetKey] = useState(0)
   const [isChildDetail, setIsChildDetail] = useState(false)
+  const [activeChildId, setActiveChildId] = useState<string | null>(null)
   const [bookMessage, setBookMessage] = useState<string | null>(null)
   const [isChildModalOpen, setIsChildModalOpen] = useState(false)
   const [loadingChildDetails, setLoadingChildDetails] = useState(false)
@@ -427,7 +429,7 @@ export default function AccountShell() {
               )
             })}
           </ul>
-          {tab === "children" && isChildDetail ? null : !isMobileViewport ? (
+          {!isMobileViewport ? (
             <div className={styles.navPrimaryActionWrap}>
               <button
                 type="button"
@@ -580,9 +582,7 @@ export default function AccountShell() {
                     medicalByChildId={data.medicalByChildId}
                     bookingsByChildId={data.bookingsByChildId}
                     onSelectionChange={setIsChildDetail}
-                    onBookChild={(childId) => {
-                      router.push(`/book?childId=${childId}`)
-                    }}
+                    onActiveChildChange={setActiveChildId}
                   />
                   )
                 )}
@@ -601,12 +601,18 @@ export default function AccountShell() {
         </section>
       </div>
 
-      {tab === "children" && isChildDetail ? null : isMobileViewport ? (
+      {isMobileViewport ? (
         <div className={styles.mobileBookBar}>
           <button
             type="button"
             className={`${styles.childActionButton} ${styles.mobileBookAction}`}
-            onClick={handleBookClassClick}
+            onClick={() => {
+              if (tab === "children" && isChildDetail && activeChildId) {
+                router.push(`/book?childId=${activeChildId}`)
+                return
+              }
+              handleBookClassClick()
+            }}
           >
             Book Class
           </button>

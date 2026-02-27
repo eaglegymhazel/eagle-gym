@@ -75,7 +75,7 @@ export default function BookingChildPicker({
       </button>
 
       {open && hasOtherChildren && (
-        <div className="absolute left-0 top-full z-30 mt-2 w-full min-w-full rounded-[24px] border border-[#e7def3] bg-white/95 p-2 text-left text-sm shadow-[0_16px_32px_rgba(24,12,40,0.24),_0_6px_12px_rgba(24,12,40,0.18)] backdrop-blur animate-[dropdown-enter_180ms_ease-out]">
+        <div className="absolute left-0 top-full z-30 mt-2 w-full min-w-full overflow-hidden rounded-[18px] border border-[#e7def3] bg-white/95 py-1 text-left text-sm shadow-[0_16px_32px_rgba(24,12,40,0.24),_0_6px_12px_rgba(24,12,40,0.18)] backdrop-blur animate-[dropdown-enter_180ms_ease-out] md:rounded-[16px] md:py-2">
           {otherChildren.length === 0 ? (
             <div className="px-3 py-2 text-sm font-semibold text-[#6c35c3]/70">
               No other children
@@ -91,10 +91,11 @@ export default function BookingChildPicker({
                   setOpen(false);
                   onSelectChild(child.id);
                 }}
-                className="group flex w-full items-center rounded-xl px-3 py-1.5 text-left text-sm font-semibold text-[#2a203c] transition hover:bg-[#faf7ff]"
+                className="group relative flex w-full items-center overflow-hidden border-b border-[#ece4f6] px-4 py-2.5 text-left text-sm font-semibold text-[#2a203c] transition last:border-b-0"
               >
-                <span className="mr-3 h-5 w-[3px] rounded-full bg-[#6c35c3] opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
-                {name || "Unnamed child"}
+                <span className="pointer-events-none absolute inset-0 origin-left scale-x-0 bg-[rgba(108,53,195,0.06)] transition-transform duration-200 ease-out group-hover:scale-x-100" />
+                <span className="pointer-events-none absolute left-0 top-2 bottom-2 w-[3px] rounded-r-full bg-[#6c35c3] opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
+                <span className="relative z-[1]">{name || "Unnamed child"}</span>
               </button>
             );
           })

@@ -3,6 +3,7 @@ import { supabaseAdmin } from "@/lib/admin";
 import { getMedicalInfoForChildren } from "@/lib/server/medical";
 import { getActiveBookingsForChildren } from "@/lib/server/bookings";
 import { Activity, ArrowLeft, CalendarDays, Shield, Star, UserCircle2, Users } from "lucide-react";
+import StudentProfileTabs from "./StudentProfileTabs";
 
 type StudentProfilePageProps = {
   params: Promise<{ childId: string }>;
@@ -174,6 +175,9 @@ export default async function StudentProfilePage({ params }: StudentProfilePageP
   const bookings = bookingsByChildId[child.id] ?? [];
   const account = (accountResult.data as AccountRow | null) ?? null;
   const studentName = `${displayText(child.firstName)} ${displayText(child.lastName)}`.trim();
+  const isCompetitionStudent =
+    child.competitionEligible === true ||
+    bookings.some((booking) => getProgrammeTag(booking.className) === "Comp");
 
   const healthRows = [
     { label: "Medical conditions", value: normalizeMedicalValue(medical?.medicalConditions) },
@@ -197,25 +201,26 @@ export default async function StudentProfilePage({ params }: StudentProfilePageP
 
   return (
     <main className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:py-8">
-      <section className="border border-[#ddd3ea] bg-white">
-        <header className="flex flex-col gap-4 border-b border-[#e8e0f2] px-5 py-5 md:flex-row md:items-start md:justify-between md:px-6">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.1em] text-[#6f6287]">
-              Student profile
-            </p>
-            <h1 className="mt-2 text-2xl font-bold text-[#221833]">{studentName}</h1>
-            <p className="mt-1 text-sm text-[#5f5177]">
-              {formatDate(child.dateOfBirth)} | {computeAge(child.dateOfBirth)}
-            </p>
-          </div>
-          <Link
-            href="/admin?tab=students"
-            className="inline-flex w-full items-center justify-center gap-1.5 border border-[#c7b4e5] bg-[#f7f2ff] px-3.5 py-2 text-sm font-semibold text-[#4f2390] shadow-[0_1px_0_rgba(255,255,255,0.8)_inset] transition hover:border-[#b398dd] hover:bg-[#f1e8ff] active:bg-[#ebddff] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6e2ac0]/35 md:w-auto"
-          >
-            <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-            Back to Student Management
-          </Link>
-        </header>
+      <StudentProfileTabs isCompetitionStudent={isCompetitionStudent}>
+        <section className="border border-[#ddd3ea] bg-white">
+          <header className="flex flex-col gap-4 border-b border-[#e8e0f2] px-5 py-5 md:flex-row md:items-start md:justify-between md:px-6">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.1em] text-[#6f6287]">
+                Student profile
+              </p>
+              <h1 className="mt-2 text-2xl font-bold text-[#221833]">{studentName}</h1>
+              <p className="mt-1 text-sm text-[#5f5177]">
+                {formatDate(child.dateOfBirth)} | {computeAge(child.dateOfBirth)}
+              </p>
+            </div>
+            <Link
+              href="/admin?tab=students"
+              className="inline-flex w-full items-center justify-center gap-1.5 border border-[#c7b4e5] bg-[#f7f2ff] px-3.5 py-2 text-sm font-semibold text-[#4f2390] shadow-[0_1px_0_rgba(255,255,255,0.8)_inset] transition hover:border-[#b398dd] hover:bg-[#f1e8ff] active:bg-[#ebddff] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6e2ac0]/35 md:w-auto"
+            >
+              <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+              Back to Student Management
+            </Link>
+          </header>
 
         <div className="grid gap-0 lg:grid-cols-2">
           <section className="border-b border-[#e8e0f2] px-5 py-5 md:px-6 lg:border-b-0 lg:border-r">
@@ -339,7 +344,7 @@ export default async function StudentProfilePage({ params }: StudentProfilePageP
                   key={`${booking.childId}-${booking.className ?? "class"}-${index}`}
                   className="flex flex-col gap-1.5 px-4 py-2 md:flex-row md:items-center md:justify-between md:gap-3"
                 >
-                                    {(() => {
+                  {(() => {
                     const programme = getProgrammeTag(booking.className);
                     const ageBand = extractAgeBand(booking.className);
                     const weekdayText = displayText(booking.weekday);
@@ -433,7 +438,8 @@ export default async function StudentProfilePage({ params }: StudentProfilePageP
             </div>
           )}
         </section>
-      </section>
+        </section>
+      </StudentProfileTabs>
     </main>
   );
 }
