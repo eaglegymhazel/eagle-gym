@@ -462,7 +462,7 @@ export default function AccountShell() {
                   <div className={styles.headerAction}>
                     <button
                       type="button"
-                      className={styles.editButton}
+                      className={`${styles.editButton} ${styles.saveButton}`}
                       onClick={() => router.push("/account/children/add")}
                     >
                       Add Child
@@ -559,7 +559,7 @@ export default function AccountShell() {
                           <div className={styles.detailActions}>
                             <button
                               type="button"
-                              className={styles.childActionButton}
+                              className={`${styles.childActionButton} ${styles.saveButton}`}
                               onClick={handleSaveDetails}
                               disabled={isSavingDetails}
                             >

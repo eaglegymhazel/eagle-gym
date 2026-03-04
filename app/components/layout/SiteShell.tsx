@@ -21,37 +21,35 @@ export default function SiteShell({
       style={{ backgroundColor: "#faf7fb" }}
     >
       <div className="sticky top-0 z-50 bg-[#faf7fb]/95 backdrop-blur">
-        <div className="relative">
-          <div className="flex w-full items-center gap-4 px-3 py-2">
-            <div className="flex-1">
-              <div className="mx-auto max-w-5xl px-6">
-                <Nav
-                  disableMobileMenu={disableMobileNavMenu}
-                  mobileRightLink={mobileRightLink}
+        <div className="mx-auto w-full max-w-6xl px-3 sm:px-4 lg:px-6">
+          <div className="relative flex w-full items-center gap-2 py-2 sm:gap-4">
+            <div className="shrink-0">
+              <Link href="/" aria-label="Eagle Gymnastics Academy home">
+                <Image
+                  src="/brand/new_logo1.png"
+                  alt="Eagle Gymnastics Academy"
+                  width={180}
+                  height={184}
+                  className="w-[4.2rem] max-w-none object-contain drop-shadow-[0_10px_14px_rgba(0,0,0,0.22)] transition-transform duration-200 hover:scale-105 sm:w-[4.9rem] lg:w-[5.4rem]"
+                  priority
                 />
-              </div>
+              </Link>
             </div>
-            <div className="hidden shrink-0 md:block">
+            <div className="min-w-0 flex-1">
+              <Nav
+                disableMobileMenu={disableMobileNavMenu}
+                mobileRightLink={mobileRightLink}
+              />
+            </div>
+            <div className="absolute right-16 top-1/2 -translate-y-1/2 lg:hidden">
+              <LoginBadge />
+            </div>
+            <div className="hidden shrink-0 lg:block">
               <LoginBadge />
             </div>
           </div>
-          <div className="flex justify-end px-6 pb-2 md:hidden">
-            <LoginBadge />
-          </div>
-
-            <div className="absolute -bottom-8 left-1 z-10 translate-y-[12px] sm:-bottom-9 sm:left-3 sm:translate-y-[26px] lg:left-6 lg:translate-y-[22px]">
-            <Link href="/" aria-label="Eagle Gymnastics Academy home">
-              <Image
-                src="/brand/logo_v8.png"
-                alt="Eagle Gymnastics Academy"
-                width={180}
-                height={184}
-                  className="w-[7.25rem] max-w-none object-contain drop-shadow-[0_14px_22px_rgba(0,0,0,0.28)] transition-transform duration-200 hover:scale-105 sm:w-[8.75rem] lg:w-[9.75rem]"
-                priority
-              />
-            </Link>
-          </div>
         </div>
+        <div className="h-px w-full bg-[#6c35c3]/20" />
       </div>
 
       <main className="mt-0 w-full px-0 pt-0 pb-4">{children}</main>

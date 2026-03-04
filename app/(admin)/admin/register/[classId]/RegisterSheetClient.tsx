@@ -2,15 +2,15 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, User, Users } from "lucide-react";
 
 type AttendanceState = "unmarked" | "present" | "absent";
 
 type RegisterStudent = {
   id: string;
   fullName: string;
-  dateOfBirthLabel: string;
   requiresPickup: boolean;
+  hasMedicalAlert: boolean;
 };
 
 type RegisterSheetClientProps = {
@@ -22,6 +22,7 @@ type RegisterSheetClientProps = {
   enrolledCount: number;
   students: RegisterStudent[];
   initialStatuses?: Record<string, Exclude<AttendanceState, "unmarked">>;
+  initialCollected?: Record<string, boolean>;
   isLocked?: boolean;
   isBeforeSaveWindow?: boolean;
 };
@@ -39,12 +40,16 @@ const attendanceActions: Array<{ key: Exclude<AttendanceState, "unmarked">; labe
   { key: "absent", label: "Absent" },
 ];
 
-function buildStatusSignature(
+function buildRegisterSignature(
   students: RegisterStudent[],
-  statuses: Record<string, AttendanceState | Exclude<AttendanceState, "unmarked">>
+  statuses: Record<string, AttendanceState | Exclude<AttendanceState, "unmarked">>,
+  collected: Record<string, boolean>
 ): string {
   return students
-    .map((student) => `${student.id}:${statuses[student.id] ?? "unmarked"}`)
+    .map(
+      (student) =>
+        `${student.id}:${statuses[student.id] ?? "unmarked"}:${collected[student.id] ? "1" : "0"}`
+    )
     .join("|");
 }
 
@@ -57,24 +62,27 @@ export default function RegisterSheetClient({
   enrolledCount,
   students,
   initialStatuses = {},
+  initialCollected = {},
   isLocked = false,
   isBeforeSaveWindow = false,
 }: RegisterSheetClientProps) {
   const [statuses, setStatuses] = useState<Record<string, AttendanceState>>(initialStatuses);
+  const [collected, setCollected] = useState<Record<string, boolean>>(initialCollected);
   const [activeFilter, setActiveFilter] = useState<FilterState>("all");
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [lastSavedSignature, setLastSavedSignature] = useState<string>(() =>
-    buildStatusSignature(students, initialStatuses)
+    buildRegisterSignature(students, initialStatuses, initialCollected)
   );
   const isReadOnly = isLocked;
 
   useEffect(() => {
     setStatuses(initialStatuses);
+    setCollected(initialCollected);
     setSaveState("idle");
     setSaveMessage(null);
-    setLastSavedSignature(buildStatusSignature(students, initialStatuses));
-  }, [classId, sessionDate, initialStatuses, students]);
+    setLastSavedSignature(buildRegisterSignature(students, initialStatuses, initialCollected));
+  }, [classId, sessionDate, initialStatuses, initialCollected, students]);
 
   const markedCount = useMemo(
     () => students.filter((student) => (statuses[student.id] ?? "unmarked") !== "unmarked").length,
@@ -98,8 +106,8 @@ export default function RegisterSheetClient({
   const progressHue = Math.round((progressPercent / 100) * 130);
   const progressColor = `hsl(${progressHue} 70% 45%)`;
   const currentSignature = useMemo(
-    () => buildStatusSignature(students, statuses),
-    [students, statuses]
+    () => buildRegisterSignature(students, statuses, collected),
+    [students, statuses, collected]
   );
   const hasUnsavedChanges = currentSignature !== lastSavedSignature;
 
@@ -110,9 +118,32 @@ export default function RegisterSheetClient({
 
   const setStatus = (studentId: string, next: AttendanceState) => {
     if (isReadOnly) return;
-    setStatuses((prev) => ({
+    setStatuses((prev) => {
+      const nextStatuses = {
+        ...prev,
+        [studentId]: next,
+      };
+      return nextStatuses;
+    });
+    if (next !== "present") {
+      setCollected((prev) => {
+        if (!prev[studentId]) return prev;
+        const nextCollected = { ...prev };
+        delete nextCollected[studentId];
+        return nextCollected;
+      });
+    }
+    if (saveState !== "idle") {
+      setSaveState("idle");
+      setSaveMessage(null);
+    }
+  };
+
+  const setCollectedStatus = (studentId: string, isCollected: boolean) => {
+    if (isReadOnly) return;
+    setCollected((prev) => ({
       ...prev,
-      [studentId]: next,
+      [studentId]: isCollected,
     }));
     if (saveState !== "idle") {
       setSaveState("idle");
@@ -136,6 +167,7 @@ export default function RegisterSheetClient({
   const clearAll = () => {
     if (isReadOnly) return;
     setStatuses({});
+    setCollected({});
     setSaveState("idle");
     setSaveMessage(null);
   };
@@ -148,6 +180,7 @@ export default function RegisterSheetClient({
     const entries = students.map((student) => ({
       childId: student.id,
       isPresent: (statuses[student.id] ?? "unmarked") === "present",
+      isCollected: collected[student.id] === true ? true : null,
     }));
 
     try {
@@ -290,10 +323,10 @@ export default function RegisterSheetClient({
         </div>
 
         <div className="px-4 py-2 sm:px-6 sm:py-3">
-          <div className="hidden rounded-none border border-[#ebe4f5] bg-[#f8f4fd] px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.06em] text-[#6f6384] md:grid md:grid-cols-[minmax(220px,1fr)_150px_340px] md:items-center">
+          <div className="hidden rounded-none border border-[#ebe4f5] bg-[#f8f4fd] px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.06em] text-[#6f6384] md:grid md:grid-cols-[minmax(220px,1fr)_340px_220px] md:items-center">
             <span>Student</span>
-            <span>Date of birth</span>
             <span>Attendance action</span>
+            <span>Collected</span>
           </div>
 
           <div className="mt-2 divide-y divide-[#ede7f6]">
@@ -314,19 +347,38 @@ export default function RegisterSheetClient({
                   <article
                     key={student.id}
                     className={[
-                      "grid gap-2 rounded-none px-2 py-2.5 transition-colors duration-200 md:grid-cols-[minmax(220px,1fr)_150px_340px] md:items-center md:gap-3",
+                      "grid gap-2 rounded-none px-2 py-2.5 transition-colors duration-200 md:grid-cols-[minmax(220px,1fr)_340px_220px] md:items-center md:gap-3",
                       rowTintClass,
                     ].join(" ")}
                   >
-                    <div className="flex min-w-0 items-center justify-between gap-2">
-                      <p className="truncate text-[15px] font-semibold text-[#201734]">{student.fullName}</p>
-                      {student.requiresPickup ? (
-                        <span className="inline-flex h-6 shrink-0 items-center rounded-none border border-[#f1cfd8] bg-[#fff7f9] px-2 text-[10px] font-medium uppercase tracking-[0.03em] text-[#9e2242]">
-                          Must be collected
-                        </span>
-                      ) : null}
+                    <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
+                      <div className="min-w-0 inline-flex items-center gap-2">
+                        <p className="truncate text-[15px] font-semibold text-[#201734]">{student.fullName}</p>
+                        {student.hasMedicalAlert ? (
+                          <span
+                            className="inline-flex h-5 w-5 shrink-0 items-center justify-center"
+                            title="Medical information on file"
+                            aria-label="Medical information on file"
+                          >
+                            <svg
+                              viewBox="0 0 24 24"
+                              className="h-4.5 w-4.5"
+                              aria-hidden="true"
+                            >
+                              <circle cx="12" cy="12" r="11" fill="#ffffff" stroke="#111111" strokeWidth="1.6" />
+                              <rect x="10.2" y="5.8" width="3.6" height="12.4" fill="#ef1b1b" />
+                              <rect x="5.8" y="10.2" width="12.4" height="3.6" fill="#ef1b1b" />
+                            </svg>
+                          </span>
+                        ) : null}
+                      </div>
+                      <Link
+                        href={`/admin/students/${encodeURIComponent(student.id)}`}
+                        className="inline-flex h-7 items-center justify-self-end rounded-none border border-[#cdbce8] bg-[#f7f2ff] px-2 text-[11px] font-semibold text-[#4f2390] transition hover:border-[#b398dd] hover:bg-[#f1e8ff] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6e2ac0]/35"
+                      >
+                        View Profile
+                      </Link>
                     </div>
-                    <p className="text-[13px] text-[#6a5f7b]">{student.dateOfBirthLabel}</p>
                     <div className="grid h-8 w-full max-w-[340px] grid-cols-2 overflow-hidden rounded-none border border-[#ddd4ea] bg-white">
                       {attendanceActions.map((action, index) => {
                         const isActive = status === action.key;
@@ -348,7 +400,9 @@ export default function RegisterSheetClient({
                                 : isUnmarked
                                   ? "bg-white text-[#6f6384] hover:bg-[#f8f5fc]"
                                   : "bg-[#fcfbfe] text-[#9389a6] hover:bg-[#f7f4fb]",
-                              isReadOnly ? "cursor-not-allowed" : "",
+                              isReadOnly
+                                ? "cursor-not-allowed"
+                                : "cursor-pointer hover:shadow-[inset_0_0_0_1px_rgba(110,42,192,0.2)]",
                             ].join(" ")}
                           >
                             <span
@@ -365,6 +419,45 @@ export default function RegisterSheetClient({
                           </button>
                         );
                       })}
+                    </div>
+                    <div className="flex items-center">
+                      {student.requiresPickup ? (
+                        <div className="inline-flex items-center gap-2">
+                          <span
+                            className={[
+                              "inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-none border",
+                              "border-[#f1cfd8] bg-[#fff7f9] text-[#9e2242]",
+                            ].join(" ")}
+                            title="Requires collection by parent/guardian"
+                            aria-label="Requires collection by parent or guardian"
+                          >
+                            <Users className="h-3.5 w-3.5" aria-hidden="true" />
+                          </span>
+                          <label className="inline-flex cursor-pointer select-none items-center gap-2 text-xs font-semibold text-[#5e536f]">
+                            <input
+                              type="checkbox"
+                              checked={collected[student.id] === true}
+                              onChange={(event) => setCollectedStatus(student.id, event.target.checked)}
+                              disabled={isReadOnly || status !== "present"}
+                              className="h-4 w-4 rounded-none border border-[#cfc4e0] text-[#6e2ac0] focus:ring-[#6e2ac0]/35 disabled:cursor-not-allowed disabled:opacity-60"
+                            />
+                            Collected
+                          </label>
+                        </div>
+                      ) : (
+                        <div className="inline-flex items-center">
+                          <span
+                            className={[
+                              "inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-none border",
+                              "border-[#bde3ca] bg-[#edf9f2] text-[#1d6a3e]",
+                            ].join(" ")}
+                            title="Can leave independently"
+                            aria-label="Can leave independently"
+                          >
+                            <User className="h-3.5 w-3.5" aria-hidden="true" />
+                          </span>
+                        </div>
+                      )}
                     </div>
                   </article>
                 );
@@ -421,11 +514,15 @@ export default function RegisterSheetClient({
                 }
                 className={[
                   "inline-flex h-9 items-center rounded-none px-3 text-sm font-semibold text-white",
+                  saveState === "saved" && !hasUnsavedChanges
+                    ? "cursor-not-allowed bg-[#1f8f4d]"
+                    : "",
                   isComplete &&
                   saveState !== "saving" &&
                   !isReadOnly &&
                   !isBeforeSaveWindow &&
-                  hasUnsavedChanges
+                  hasUnsavedChanges &&
+                  saveState !== "saved"
                     ? "bg-[#6e2ac0] hover:bg-[#6125a8]"
                     : "cursor-not-allowed bg-[#b9aed0]",
                 ].join(" ")}
@@ -436,6 +533,8 @@ export default function RegisterSheetClient({
                     ? "Save unavailable"
                     : saveState === "saving"
                       ? "Saving..."
+                      : saveState === "saved" && !hasUnsavedChanges
+                        ? "Saved"
                       : "Save register"}
               </button>
             </div>

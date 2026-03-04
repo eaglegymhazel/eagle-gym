@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { supabaseAdmin } from "@/lib/admin";
-import { isBeforeSaveWindow, isRegisterLocked } from "@/lib/server/registerLock";
+import { isBeforeSaveWindow, isRegisterLocked, shouldBypassSaveWindow } from "@/lib/server/registerLock";
 
 type SaveEntryInput = {
   childId: string;
   isPresent: boolean;
+  isCollected: boolean | null;
 };
 
 const UUID_REGEX =
@@ -86,6 +87,8 @@ export async function POST(request: NextRequest) {
           : "";
       const isPresent =
         row && typeof row === "object" ? (row as { isPresent?: unknown }).isPresent : undefined;
+      const isCollected =
+        row && typeof row === "object" ? (row as { isCollected?: unknown }).isCollected : null;
 
       if (!isUuid(childId)) {
         return NextResponse.json({ error: "Invalid childId in entries" }, { status: 400 });
@@ -93,11 +96,14 @@ export async function POST(request: NextRequest) {
       if (typeof isPresent !== "boolean") {
         return NextResponse.json({ error: "Invalid isPresent in entries" }, { status: 400 });
       }
+      if (isCollected !== null && typeof isCollected !== "boolean") {
+        return NextResponse.json({ error: "Invalid isCollected in entries" }, { status: 400 });
+      }
       if (childIdSet.has(childId)) {
         return NextResponse.json({ error: "Duplicate childId in entries" }, { status: 400 });
       }
       childIdSet.add(childId);
-      parsedEntries.push({ childId, isPresent });
+      parsedEntries.push({ childId, isPresent, isCollected });
     }
 
     const { data: webAccount, error: webAccountError } = await supabaseAdmin
@@ -142,12 +148,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const beforeSaveWindow = isBeforeSaveWindow({
-      sessionDate,
-      startTime: classRow.startTime ?? null,
-      endTime: classRow.endTime ?? null,
-      leadMinutes: 15,
-    });
+    const beforeSaveWindow = shouldBypassSaveWindow()
+      ? false
+      : isBeforeSaveWindow({
+          sessionDate,
+          startTime: classRow.startTime ?? null,
+          endTime: classRow.endTime ?? null,
+          leadMinutes: 15,
+        });
     if (beforeSaveWindow) {
       return NextResponse.json(
         { error: "Register can be saved from 15 minutes before class start." },
@@ -225,6 +233,22 @@ export async function POST(request: NextRequest) {
       row && typeof row === "object" && "register_id" in row
         ? String((row as { register_id: string }).register_id)
         : "";
+
+    if (isUuid(registerId)) {
+      const collectionUpdates = parsedEntries.map((entry) =>
+        supabaseAdmin
+          .from("ClassRegisterEntries")
+          .update({ isCollected: entry.isCollected })
+          .eq("registerId", registerId)
+          .eq("childId", entry.childId)
+      );
+
+      const updateResults = await Promise.all(collectionUpdates);
+      const updateError = updateResults.find((result) => result.error)?.error;
+      if (updateError) {
+        return NextResponse.json({ error: updateError.message }, { status: 500 });
+      }
+    }
 
     return NextResponse.json({
       ok: true,

@@ -127,12 +127,7 @@ export default function Nav({
   }, [isOpen]);
 
   return (
-    <nav
-      ref={navRef}
-      className={`relative border-b ${
-        isRecreationalBooking ? "border-[#6c35c3]/12" : "border-[#6c35c3]/20"
-      }`}
-    >
+    <nav ref={navRef} className="relative">
       <div className="mx-auto flex h-[50px] max-w-5xl items-center justify-center px-4 md:h-[58px] md:px-6">
         <div
           className={`flex w-full items-center justify-center ${
@@ -144,7 +139,7 @@ export default function Nav({
           }}
         >
           <div
-            className="hidden items-center justify-center md:flex -translate-y-[5px]"
+            className="hidden items-center justify-center lg:flex -translate-y-[5px]"
             style={{ columnGap: "clamp(16px, 2vw, 32px)" }}
           >
             {links.map((link) => {
@@ -157,7 +152,7 @@ export default function Nav({
                   key={link.href}
                   href={link.href}
                   className={[
-                    "relative px-1 py-1 uppercase tracking-[0.06em]",
+                    "relative whitespace-nowrap px-1 py-1 uppercase tracking-[0.06em]",
                     isRecreationalBooking
                       ? "text-[15px] font-medium"
                       : "text-[16px] font-semibold",
@@ -182,7 +177,7 @@ export default function Nav({
           mobileRightLink ? (
             <Link
               href={mobileRightLink.href}
-              className="absolute right-4 inline-flex h-9 items-center rounded-md border border-[#d9cdef] bg-white px-3 text-[11px] font-semibold uppercase tracking-[0.04em] text-[#4d2d79] transition hover:bg-[#f8f3ff] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6c35c3]/40 md:hidden"
+              className="absolute right-4 inline-flex h-9 items-center rounded-md border border-[#d9cdef] bg-white px-3 text-[11px] font-semibold uppercase tracking-[0.04em] text-[#4d2d79] transition hover:bg-[#f8f3ff] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6c35c3]/40 lg:hidden"
             >
               {mobileRightLink.label}
             </Link>
@@ -194,7 +189,7 @@ export default function Nav({
             aria-label="Toggle navigation"
             aria-expanded={isOpen}
             onClick={() => setIsOpen((prev) => !prev)}
-            className="absolute right-4 inline-flex h-11 w-11 items-center justify-center rounded-xl border border-black/10 bg-white text-[#2f2442] shadow-sm transition hover:bg-[#f7f4fb] active:bg-[#f1edf8] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6c35c3]/40 md:hidden"
+            className="absolute right-4 inline-flex h-11 w-11 items-center justify-center rounded-xl border border-black/10 bg-white text-[#2f2442] shadow-sm transition hover:bg-[#f7f4fb] active:bg-[#f1edf8] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6c35c3]/40 lg:hidden"
           >
             <span className="sr-only">Menu</span>
             <svg
@@ -227,7 +222,7 @@ export default function Nav({
         ? createPortal(
             <AnimatePresence>
               {isOpen ? (
-                <div className="fixed inset-0 z-[90] md:hidden" aria-hidden={false}>
+                <div className="fixed inset-0 z-[90] lg:hidden" aria-hidden={false}>
                   <motion.button
                     type="button"
                     onClick={() => setIsOpen(false)}

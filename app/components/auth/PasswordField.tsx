@@ -38,7 +38,7 @@ export default function PasswordField({
   }, [onValidityChange, validation.isValid]);
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col">
       <label className="text-sm font-bold text-[#2E2A33]" htmlFor={name}>
         {label}
       </label>
@@ -46,7 +46,7 @@ export default function PasswordField({
         <input
           id={name}
           name={name}
-          className="w-full rounded-2xl border border-[#cfc6de] bg-white px-4 py-3 pr-12 text-sm text-[#2E2A33] placeholder:text-[#2E2A33]/45 transition duration-200 focus:border-[#6c35c3]/60 focus:outline-none focus:ring-2 focus:ring-[#6c35c3]/25"
+          className="w-full rounded-xl border border-[#cfc6de] bg-white px-4 py-3 pr-12 text-sm text-[#2E2A33] placeholder:text-[#2E2A33]/45 transition duration-200 focus:border-[#6c35c3]/60 focus:outline-none focus:ring-2 focus:ring-[#6c35c3]/25"
           value={value}
           onChange={(event) => onChange(event.target.value)}
           autoComplete={autoComplete}

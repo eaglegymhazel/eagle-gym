@@ -1,5 +1,9 @@
 const LONDON_TZ = "Europe/London";
 
+// Temporary testing switch: when true, skips the "opens 15 minutes before class" rule.
+// Set back to false after testing.
+const TEMP_DISABLE_SAVE_WINDOW = false;
+
 function parseTime(value: string | null): { hour: number; minute: number } | null {
   if (!value) return null;
   const [h, m] = value.split(":");
@@ -69,6 +73,10 @@ export function isBeforeSaveWindow(params: {
   const openAt = new Date(new Date(startIso).getTime() - leadMinutes * 60_000);
   const now = params.now ?? new Date();
   return now.getTime() < openAt.getTime();
+}
+
+export function shouldBypassSaveWindow(): boolean {
+  return TEMP_DISABLE_SAVE_WINDOW || process.env.BYPASS_REGISTER_SAVE_WINDOW === "1";
 }
 
 export function getRegisterCutoffIso(params: {

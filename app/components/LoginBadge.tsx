@@ -103,7 +103,7 @@ export default function LoginBadge() {
     >
       <button
         type="button"
-        className="inline-flex h-9 max-w-[220px] items-center gap-2 rounded-full border border-[#d4c7e6] bg-white px-3 text-sm font-semibold text-[#2f2442] shadow-[0_6px_14px_-12px_rgba(33,24,50,0.45)] transition hover:border-[#c6b7dd] hover:bg-[#faf8fd] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6c35c3]/35"
+        className="inline-flex h-9 max-w-[170px] items-center gap-2 rounded-full border border-[#d4c7e6] bg-white px-3 text-sm font-semibold text-[#2f2442] shadow-[0_6px_14px_-12px_rgba(33,24,50,0.45)] transition hover:border-[#c6b7dd] hover:bg-[#faf8fd] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6c35c3]/35 sm:max-w-[220px]"
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={() => setOpen((prev) => !prev)}

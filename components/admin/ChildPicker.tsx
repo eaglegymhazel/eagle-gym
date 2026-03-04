@@ -193,8 +193,6 @@ export default function ChildPicker({
   const selectChild = (child: Child) => {
     setIsOpen(false);
     setHighlightedIndex(-1);
-    setQuery(fullName(child));
-    console.log(child);
     onSelect(child);
   };
 

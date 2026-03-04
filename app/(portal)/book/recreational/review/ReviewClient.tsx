@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { AlertCircle, ArrowLeft, Trash2 } from "lucide-react";
 import { DAY_SHORT, formatTime, getAvailabilityState } from "../utils";
 import { getReviewValidation } from "./validation";
+import TermsAcceptance from "../../components/TermsAcceptance";
 
 export type ReviewClassItem = {
   id: string;
@@ -52,6 +53,7 @@ export default function ReviewClient({
   const [items, setItems] = useState<ReviewClassItem[]>(initialItems);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
+  const [hasAcceptedTerms, setHasAcceptedTerms] = useState(false);
 
   const validation = useMemo(
     () =>
@@ -289,11 +291,17 @@ export default function ReviewClient({
                 <button
                   type="button"
                   onClick={handleContinue}
-                  disabled={!validation.canContinue || isSubmitting}
+                  disabled={!validation.canContinue || isSubmitting || !hasAcceptedTerms}
                   className="inline-flex h-11 items-center justify-center rounded-full bg-[#6c35c3] px-5 text-sm font-semibold text-white !text-white shadow-[0_12px_24px_-12px_rgba(69,34,124,0.78)] transition hover:bg-[#5b2ca7] disabled:cursor-not-allowed disabled:bg-[#c5addf] disabled:!text-white"
                 >
                   {isSubmitting ? "Continuing..." : "Confirm Booking"}
                 </button>
+                <div className="pt-2 pl-2">
+                  <TermsAcceptance
+                    accepted={hasAcceptedTerms}
+                    onAccept={() => setHasAcceptedTerms(true)}
+                  />
+                </div>
               </div>
             </div>
           </aside>

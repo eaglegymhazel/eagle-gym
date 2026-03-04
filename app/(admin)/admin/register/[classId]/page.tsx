@@ -1,6 +1,7 @@
 import RegisterSheetClient from "./RegisterSheetClient";
 import { supabaseAdmin } from "@/lib/admin";
-import { isBeforeSaveWindow, isRegisterLocked } from "@/lib/server/registerLock";
+import { isBeforeSaveWindow, isRegisterLocked, shouldBypassSaveWindow } from "@/lib/server/registerLock";
+import { getMedicalInfoForChildren } from "@/lib/server/medical";
 
 type RegisterDetailPageProps = {
   params: Promise<{ classId: string }>;
@@ -38,6 +39,7 @@ type RegisterHeaderRow = {
 type RegisterEntryRow = {
   childId: string;
   isPresent: boolean;
+  isCollected: boolean | null;
 };
 
 const ACTIVE_BOOKING_STATUSES = ["active", "confirmed", "current"] as const;
@@ -120,17 +122,6 @@ function formatTime(value: string | null): string {
   });
 }
 
-function formatDob(dateOfBirth: string | null): string {
-  if (!dateOfBirth) return "-";
-  const date = new Date(dateOfBirth);
-  if (Number.isNaN(date.getTime())) return "-";
-  return date.toLocaleDateString("en-GB", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
-}
-
 function toRequiresPickup(pickedUp: string | null | undefined): boolean {
   const normalized = (pickedUp ?? "").trim().toLowerCase();
   if (normalized === "yes") return false;
@@ -177,6 +168,12 @@ function formatTitleTime(value: string | null): string {
     .toLowerCase();
 }
 
+function hasMeaningfulMedicalValue(value: string | null | undefined): boolean {
+  const normalized = (value ?? "").trim();
+  if (!normalized) return false;
+  return normalized.toLowerCase() !== "not provided";
+}
+
 export default async function RegisterDetailPage({
   params,
   searchParams,
@@ -205,25 +202,38 @@ export default async function RegisterDetailPage({
   const childIds = [...new Set(activeBookings.map((row) => row.childId).filter(Boolean))] as string[];
 
   let childrenById = new Map<string, ChildRow>();
+  let medicalByChildId: Awaited<ReturnType<typeof getMedicalInfoForChildren>> = {};
   if (childIds.length > 0) {
-    const { data: childRows } = await supabaseAdmin
-      .from("Children")
-      .select("id,firstName,lastName,dateOfBirth,pickedUp")
-      .in("id", childIds);
+    const [{ data: childRows }, medicalMap] = await Promise.all([
+      supabaseAdmin
+        .from("Children")
+        .select("id,firstName,lastName,dateOfBirth,pickedUp")
+        .in("id", childIds),
+      getMedicalInfoForChildren(childIds),
+    ]);
 
     childrenById = new Map(((childRows ?? []) as ChildRow[]).map((child) => [child.id, child]));
+    medicalByChildId = medicalMap;
   }
 
   const students = childIds
     .map((childId) => {
       const child = childrenById.get(childId);
+      const medical = medicalByChildId[childId];
       const firstName = child?.firstName?.trim() || "";
       const lastName = child?.lastName?.trim() || "";
+      const hasMedicalAlert =
+        hasMeaningfulMedicalValue(medical?.medicalConditions) ||
+        hasMeaningfulMedicalValue(medical?.medications) ||
+        hasMeaningfulMedicalValue(medical?.disabilities) ||
+        hasMeaningfulMedicalValue(medical?.behaviouralConditions) ||
+        hasMeaningfulMedicalValue(medical?.allergies) ||
+        hasMeaningfulMedicalValue(medical?.dietaryNeeds);
       return {
         id: childId,
         fullName: `${firstName} ${lastName}`.trim() || "Unknown student",
-        dateOfBirthLabel: formatDob(child?.dateOfBirth ?? null),
         requiresPickup: toRequiresPickup(child?.pickedUp),
+        hasMedicalAlert,
       };
     })
     .sort((a, b) => a.fullName.localeCompare(b.fullName, "en-GB"));
@@ -246,12 +256,14 @@ export default async function RegisterDetailPage({
     durationMinutes: classData?.durationMinutes ?? null,
     lockHours: 12,
   });
-  const beforeSaveWindow = isBeforeSaveWindow({
-    sessionDate,
-    startTime: classData?.startTime ?? null,
-    endTime: classData?.endTime ?? null,
-    leadMinutes: 15,
-  });
+  const beforeSaveWindow = shouldBypassSaveWindow()
+    ? false
+    : isBeforeSaveWindow({
+        sessionDate,
+        startTime: classData?.startTime ?? null,
+        endTime: classData?.endTime ?? null,
+        leadMinutes: 15,
+      });
 
   const { data: registerHeader } = await supabaseAdmin
     .from("ClassRegisters")
@@ -264,14 +276,18 @@ export default async function RegisterDetailPage({
     ((registerHeader ?? null) as RegisterHeaderRow | null)?.id ?? null;
 
   const initialStatuses: Record<string, "present" | "absent"> = {};
+  const initialCollected: Record<string, boolean> = {};
   if (registerId) {
     const { data: entryRows } = await supabaseAdmin
       .from("ClassRegisterEntries")
-      .select("childId,isPresent")
+      .select("childId,isPresent,isCollected")
       .eq("registerId", registerId);
 
     ((entryRows ?? []) as RegisterEntryRow[]).forEach((row) => {
       initialStatuses[row.childId] = row.isPresent ? "present" : "absent";
+      if (row.isCollected === true) {
+        initialCollected[row.childId] = true;
+      }
     });
   }
   const titleLabel = `${weekdayLabel} ${formatTitleTime(classData?.startTime ?? null)} ${programme}`;
@@ -291,6 +307,7 @@ export default async function RegisterDetailPage({
       enrolledCount={students.length}
       students={students}
       initialStatuses={initialStatuses}
+      initialCollected={initialCollected}
       isLocked={isLocked}
       isBeforeSaveWindow={beforeSaveWindow}
     />

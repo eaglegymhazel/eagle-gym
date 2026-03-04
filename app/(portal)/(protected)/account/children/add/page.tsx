@@ -192,16 +192,9 @@ export default function AddChildPage() {
   };
 
   return (
-    <section className="w-full bg-[#faf7fb] px-4 pb-20 pt-12 sm:px-6 lg:px-8">
+    <section className="w-full bg-[#faf7fb] px-4 pb-20 pt-4 sm:px-6 sm:pt-5 lg:px-8">
       <div className="mx-auto w-full max-w-6xl">
-        <div className="mb-6">
-          <Link
-            href="/account"
-            className="inline-flex items-center gap-2 text-sm font-semibold text-[#6c35c3] underline-offset-4 hover:underline"
-          >
-            <span aria-hidden="true">{"\u2190"}</span>
-            Back to account
-          </Link>
+        <div className="mb-4">
           <div className="mt-4 text-center">
             <div className="mx-auto mb-2 h-1 w-16 rounded-full bg-[#6c35c3] shadow-[0_6px_14px_rgba(108,53,195,0.25)]" />
             <h1 className="text-3xl font-black tracking-tight text-[#1f1a25] sm:text-4xl">
@@ -213,31 +206,18 @@ export default function AddChildPage() {
           </div>
         </div>
 
-        <div className="overflow-hidden rounded-2xl border border-[#e1d7ee] bg-white shadow-[0_18px_42px_rgba(22,12,47,0.1)]">
-          <div className="grid grid-cols-1 md:grid-cols-[0.28fr_0.72fr]">
-            <aside className="relative min-h-[220px] bg-gradient-to-br from-[#5e2eb0] via-[#5530a8] to-[#3a1f7a] px-6 py-11 !text-white sm:px-8 md:px-10 after:pointer-events-none after:absolute after:inset-0 after:bg-black/16">
-              <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_18%,rgba(255,255,255,0.32),transparent_52%),radial-gradient(circle_at_85%_12%,rgba(255,255,255,0.12),transparent_40%),radial-gradient(circle_at_70%_75%,rgba(0,0,0,0.2),transparent_55%)]" />
-              <div
-                className="absolute inset-0 opacity-28 mix-blend-overlay"
-                style={{
-                  backgroundImage:
-                    "url('data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2260%22 height=%2260%22 viewBox=%220 0 60 60%22%3E%3Cfilter id=%22n%22 x=%220%22 y=%220%22%3E%3CfeTurbulence type=%22fractalNoise%22 baseFrequency=%220.9%22 numOctaves=%221%22 stitchTiles=%22stitch%22/%3E%3C/filter%3E%3Crect width=%2260%22 height=%2260%22 filter=%22url(%23n)%22 opacity=%220.2%22/%3E%3C/svg%3E')",
-                }}
-              />
-              <div className="relative z-10 flex h-full flex-col">
-                <div className="text-white">
-                  <span className="text-base font-semibold uppercase tracking-[0.28em] !text-white/85">
-                    Child profile
-                  </span>
-                  <p className="mt-6 text-base font-medium leading-relaxed !text-white/85">
-                    Add your child&apos;s profile to start booking classes and managing
-                    their participation.
-                  </p>
-                </div>
-              </div>
-            </aside>
+        <div className="mb-3">
+          <Link
+            href="/account"
+            className="inline-flex items-center gap-2 text-sm font-semibold text-[#6c35c3] underline-offset-4 hover:underline"
+          >
+            <span aria-hidden="true">{"\u2190"}</span>
+            Back to account
+          </Link>
+        </div>
 
-            <div className="px-6 py-8 sm:px-8 lg:px-10">
+        <div className="overflow-hidden rounded-2xl border border-[#e1d7ee] bg-white shadow-[0_18px_42px_rgba(22,12,47,0.1)]">
+          <div className="px-6 py-8 sm:px-8 lg:px-10">
               <form
                 className="grid grid-cols-1 gap-x-8 gap-y-5 md:grid-cols-2"
                 onSubmit={handleSubmit}
@@ -433,7 +413,15 @@ export default function AddChildPage() {
                       </span>
                     </button>
 
-                    {medicalExpanded ? (
+                    <div
+                      className={[
+                        "overflow-hidden transition-[max-height,opacity,transform] duration-300 ease-out",
+                        medicalExpanded
+                          ? "max-h-[2400px] opacity-100 translate-y-0"
+                          : "max-h-0 opacity-0 -translate-y-1 pointer-events-none",
+                      ].join(" ")}
+                      aria-hidden={!medicalExpanded}
+                    >
                       <div className="border-t border-[#ede5f8] px-4 py-4">
                         <label className="mb-4 flex items-start gap-3 rounded-xl border border-[#e1d7ee] px-4 py-3 text-sm text-[#2E2A33]">
                           <input
@@ -592,7 +580,7 @@ export default function AddChildPage() {
                           This information is optional and used only for safeguarding and emergency response.
                         </p>
                       </div>
-                    ) : null}
+                    </div>
                   </div>
                 </div>
 
@@ -652,7 +640,6 @@ export default function AddChildPage() {
                   </p>
                 ) : null}
               </form>
-            </div>
           </div>
         </div>
       </div>

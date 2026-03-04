@@ -45,13 +45,15 @@ begin
     "registerId",
     "childId",
     "isPresent",
-    "requiresPickup"
+    "requiresPickup",
+    "isCollected"
   )
   select
     v_register_id,
     (entry->>'childId')::uuid,
     (entry->>'isPresent')::boolean,
-    coalesce((entry->>'requiresPickup')::boolean, true)
+    coalesce((entry->>'requiresPickup')::boolean, true),
+    (entry->>'isCollected')::boolean
   from jsonb_array_elements(p_entries) as entry;
 
   return query
@@ -61,4 +63,3 @@ begin
     p_absent_count;
 end;
 $$;
-

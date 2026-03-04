@@ -113,7 +113,7 @@ export default function ResetPasswordPage() {
   };
 
   return (
-    <section className="w-full bg-[#faf7fb] px-6 pb-16 pt-12">
+    <section className="w-full bg-[#faf7fb] px-6 pb-16 pt-4 sm:pt-5">
       <div className="mx-auto flex w-full max-w-3xl flex-col gap-3 text-center">
         <div className="mx-auto h-1 w-16 rounded-full bg-[#6c35c3] shadow-[0_6px_14px_rgba(108,53,195,0.25)]" />
         <h1 className="text-3xl font-black tracking-tight text-[#1f1a25] sm:text-4xl">
@@ -126,53 +126,49 @@ export default function ResetPasswordPage() {
         </p>
       </div>
 
-      <div className="mx-auto mt-8 w-full max-w-2xl overflow-hidden rounded-2xl border border-[#e1d7ee] bg-white shadow-[0_18px_42px_rgba(22,12,47,0.1)]">
-        <div className="grid grid-cols-1 sm:grid-cols-[18%_82%]">
-          <aside
-            className="relative min-h-[120px] bg-gradient-to-br from-[#5e2eb0] via-[#5530a8] to-[#3a1f7a] after:pointer-events-none after:absolute after:inset-0 after:bg-black/16"
-            aria-hidden="true"
-          />
-          <div className="p-6 sm:p-8">
-            {loading ? (
-              <p className="text-sm text-[#2E2A33]/70">Loading...</p>
-            ) : hasSession ? (
-              <form className="flex flex-col gap-4" onSubmit={onReset}>
-                <PasswordField
-                  label="New password"
-                  name="new-password"
-                  value={password}
-                  onChange={setPassword}
-                  autoComplete="new-password"
-                  placeholder="Enter a new password"
-                  showRequirements
-                  onValidityChange={setPasswordValid}
-                />
+      <div className="mx-auto mt-4 w-full max-w-2xl overflow-hidden rounded-2xl border border-[#e1d7ee] bg-white shadow-[0_18px_42px_rgba(22,12,47,0.1)]">
+        <div className="p-6 sm:p-8">
+          {loading ? (
+            <p className="text-sm text-[#2E2A33]/70">Loading...</p>
+          ) : hasSession ? (
+            <form className="flex flex-col gap-4" onSubmit={onReset}>
+              <PasswordField
+                label="New password"
+                name="new-password"
+                value={password}
+                onChange={setPassword}
+                autoComplete="new-password"
+                placeholder="Enter a new password"
+                showRequirements
+                onValidityChange={setPasswordValid}
+              />
 
-                <PasswordField
-                  label="Confirm new password"
-                  name="confirm-password"
-                  value={confirmPassword}
-                  onChange={setConfirmPassword}
-                  autoComplete="new-password"
-                  placeholder="Re-enter your new password"
-                  showRequirements={false}
-                />
-                {confirmPassword.length > 0 && password !== confirmPassword ? (
-                  <p className="text-xs text-rose-600">
-                    Passwords do not match.
-                  </p>
-                ) : null}
+              <PasswordField
+                label="Confirm new password"
+                name="confirm-password"
+                value={confirmPassword}
+                onChange={setConfirmPassword}
+                autoComplete="new-password"
+                placeholder="Re-enter your new password"
+                showRequirements={false}
+              />
+              {confirmPassword.length > 0 && password !== confirmPassword ? (
+                <p className="text-xs text-rose-600">
+                  Passwords do not match.
+                </p>
+              ) : null}
 
-                <button
-                  type="submit"
-                  className="btn-primary mt-2"
-                  disabled={!passwordValid || password !== confirmPassword || submitting}
-                >
-                  Update password
-                </button>
-              </form>
-            ) : (
-              <form className="flex flex-col gap-4" onSubmit={onRequest}>
+              <button
+                type="submit"
+                className="btn-primary mt-2"
+                disabled={!passwordValid || password !== confirmPassword || submitting}
+              >
+                Update password
+              </button>
+            </form>
+          ) : (
+            <form className="flex flex-col gap-4" onSubmit={onRequest}>
+              <div className="flex flex-col">
                 <label>Email</label>
                 <input
                   className="w-full rounded-xl border border-[#cfc6de] bg-white px-4 py-3.5 text-sm text-[#2E2A33] placeholder:text-[#2E2A33]/55 transition duration-200 focus:border-[#6c35c3]/60 focus:outline-none focus:ring-2 focus:ring-[#6c35c3]/25"
@@ -183,26 +179,26 @@ export default function ResetPasswordPage() {
                   type="email"
                   required
                 />
+              </div>
 
-                <button type="submit" className="btn-primary mt-2">
-                  Send reset link
-                </button>
+              <button type="submit" className="btn-primary mt-2">
+                Send reset link
+              </button>
 
-                <p className="-mt-1 text-sm text-[#2E2A33]/70">
-                  Remembered your password?{" "}
-                  <Link
-                    href="/login"
-                    className="font-semibold text-[#6c35c3] underline-offset-4 transition hover:underline"
-                  >
-                    Log in
-                  </Link>
-                </p>
-              </form>
-            )}
+              <p className="-mt-1 text-sm text-[#2E2A33]/70">
+                Remembered your password?{" "}
+                <Link
+                  href="/login"
+                  className="font-semibold text-[#6c35c3] underline-offset-4 transition hover:underline"
+                >
+                  Log in
+                </Link>
+              </p>
+            </form>
+          )}
 
-            {error && <p className="mt-4 text-sm text-rose-600">{error}</p>}
-            {msg && <p className="mt-4 text-sm text-[#2E2A33]/75">{msg}</p>}
-          </div>
+          {error && <p className="mt-4 text-sm text-rose-600">{error}</p>}
+          {msg && <p className="mt-4 text-sm text-[#2E2A33]/75">{msg}</p>}
         </div>
       </div>
     </section>

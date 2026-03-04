@@ -22,6 +22,7 @@ type ChildRow = {
 
 type AccountRow = {
   id: string | number;
+  email: string | null;
   accFirstName: string | null;
   accLastName: string | null;
   accTelNo: string | null;
@@ -165,7 +166,7 @@ export default async function StudentProfilePage({ params }: StudentProfilePageP
     child.accountId != null
       ? supabaseAdmin
           .from("Accounts")
-          .select("id,accFirstName,accLastName,accTelNo,accEmergencyTelNo")
+          .select("id,email,accFirstName,accLastName,accTelNo,accEmergencyTelNo")
           .eq("id", child.accountId)
           .maybeSingle()
       : Promise.resolve({ data: null, error: null }),
@@ -326,6 +327,14 @@ export default async function StudentProfilePage({ params }: StudentProfilePageP
                   {displayText(account?.accEmergencyTelNo)}
                 </dd>
               </div>
+              <div className="sm:col-span-2">
+                <dt className="text-xs font-semibold uppercase tracking-[0.06em] text-[#74688a]">
+                  Account email
+                </dt>
+                <dd className="mt-1 text-sm font-medium text-[#221833] break-all">
+                  {displayText(account?.email)}
+                </dd>
+              </div>
             </dl>
           </section>
         </div>
@@ -353,7 +362,7 @@ export default async function StudentProfilePage({ params }: StudentProfilePageP
                     }`;
 
                     return (
-                      <p className="min-w-0 truncate text-[#221833] md:flex md:flex-wrap md:items-baseline md:gap-x-2">
+                      <p className="min-w-0 flex flex-wrap items-center gap-x-2 gap-y-1 text-[#221833]">
                         <span
                           className={[
                             "inline-flex items-center gap-1 text-sm font-semibold leading-none",

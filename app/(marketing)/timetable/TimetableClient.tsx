@@ -1,0 +1,460 @@
+"use client";
+
+import { useMemo, useState } from "react";
+
+export type TimetableSession = {
+  title: string;
+  age: string;
+  time: string;
+  isSpecial?: boolean;
+};
+
+export type TimetableDay = {
+  day: string;
+  sessions: TimetableSession[];
+};
+
+type TimetableClientProps = {
+  timetable: TimetableDay[];
+};
+
+const filters = [
+  { key: "all", label: "All" },
+  { key: "recreational", label: "Recreational" },
+  { key: "competition", label: "Competition" },
+  { key: "special", label: "Special" },
+];
+
+const weekdayFilters = [
+  "All days",
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+  "Sunday",
+] as const;
+
+const typeStyles: Record<string, { pill: string; rail: string; dot: string }> = {
+  recreational: {
+    pill: "bg-[#ecfaf1] text-[#138a4b] border-[#b7e6ca]",
+    rail: "bg-[#138a4b]",
+    dot: "bg-[#138a4b]",
+  },
+  competition: {
+    pill: "bg-[#fffbea] text-[#9a7200] border-[#f1dd8b]",
+    rail: "bg-[#e0b21a]",
+    dot: "bg-[#e0b21a]",
+  },
+  special: {
+    pill: "bg-[#eef4ff] text-[#1e4fbf] border-[#bfd3ff]",
+    rail: "bg-[#2563eb]",
+    dot: "bg-[#2563eb]",
+  },
+};
+
+const getType = (session: TimetableSession): "recreational" | "competition" | "special" => {
+  if (session.isSpecial) return "special";
+  const lower = session.title.toLowerCase();
+  if (lower.includes("competition")) return "competition";
+  return "recreational";
+};
+
+function normalizeAgeLabel(label: string): string {
+  const lower = label.toLowerCase().replace(/\s+/g, " ").trim();
+  if (
+    lower.includes("1.5-3") ||
+    lower.includes("1.5 - 3") ||
+    lower.includes("18 months") ||
+    lower.includes("18months")
+  ) {
+    return "Preschool";
+  }
+  return label;
+}
+
+function recreationalAgeBucket(label: string): "Preschool" | "4-7 years" | "8-18 years" | null {
+  const normalized = normalizeAgeLabel(label);
+  if (normalized === "Preschool") return "Preschool";
+  if (normalized === "4-7 years") return "4-7 years";
+  if (normalized === "8-18 years") return "8-18 years";
+  return null;
+}
+
+export default function TimetableClient({ timetable }: TimetableClientProps) {
+  const [activeFilter, setActiveFilter] = useState<string>("all");
+  const [activeAgeGroup, setActiveAgeGroup] = useState<string>("all");
+  const [activeWeekday, setActiveWeekday] = useState<string>("All days");
+  const [viewMode, setViewMode] = useState<"day" | "list">("list");
+
+  const recreationalAgeGroups = useMemo(() => {
+    const groups = new Set<"Preschool" | "4-7 years" | "8-18 years">();
+    timetable.forEach((day) => {
+      day.sessions.forEach((session) => {
+        if (getType(session) === "recreational") {
+          const bucket = recreationalAgeBucket(session.age);
+          if (bucket) groups.add(bucket);
+        }
+      });
+    });
+    const order = ["Preschool", "4-7 years", "8-18 years"] as const;
+    return order.filter((value) => groups.has(value));
+  }, [timetable]);
+
+  const effectiveAgeFilter =
+    activeFilter === "recreational" &&
+    activeAgeGroup !== "all" &&
+    recreationalAgeGroups.includes(activeAgeGroup)
+      ? activeAgeGroup
+      : "all";
+
+  const filteredTimetable = useMemo(() => {
+    return timetable
+      .map((day) => {
+        const sessions = day.sessions.filter((session) => {
+          const type = getType(session);
+          if (activeFilter === "all") return true;
+          if (activeFilter === "special") return !!session.isSpecial;
+          if (activeFilter === "recreational") {
+            if (type !== "recreational") return false;
+            if (effectiveAgeFilter === "all") return true;
+            return recreationalAgeBucket(session.age) === effectiveAgeFilter;
+          }
+          return type === activeFilter;
+        });
+        return { ...day, sessions };
+      })
+      .filter((day) => activeWeekday === "All days" || day.day === activeWeekday)
+      .filter((day) => day.sessions.length > 0);
+  }, [activeFilter, activeWeekday, effectiveAgeFilter, timetable]);
+
+  const totalSessions = useMemo(
+    () => filteredTimetable.reduce((sum, day) => sum + day.sessions.length, 0),
+    [filteredTimetable],
+  );
+
+  const showEmptyState = filteredTimetable.length === 0;
+
+  const specialIcon = (
+    <span aria-hidden="true" className="inline-flex h-3.5 w-3.5 items-center justify-center text-[#2563eb]">
+      <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 fill-current">
+        <path d="M12 2.6l2.77 5.61 6.19.9-4.48 4.37 1.06 6.17L12 17.3 6.46 19.7l1.06-6.17L3.04 9.11l6.19-.9L12 2.6z" />
+      </svg>
+    </span>
+  );
+
+  return (
+    <section className="mx-auto w-full max-w-[1880px] px-3 pb-10 pt-6 sm:px-4 sm:pt-8 md:px-6">
+      <div className="sticky top-[66px] z-20 mb-5 -mx-3 bg-[#faf7fb]/95 px-3 py-2 backdrop-blur sm:top-[74px] sm:mx-0 sm:px-0 md:mb-6 md:top-[82px] relative">
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="inline-flex items-center rounded-full bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.06em] text-[#3c2266] shadow-[0_1px_4px_rgba(0,0,0,0.06)]">
+              {totalSessions} sessions
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2 rounded-full border border-[#6c35c3]/16 bg-white p-1 md:hidden">
+            <button
+              type="button"
+              onClick={() => setViewMode("list")}
+              className={[
+                "rounded-full px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.05em] transition-colors duration-200",
+                viewMode === "list"
+                  ? "bg-[#6c35c3] text-white"
+                  : "text-[#4a267a] hover:bg-[#f4efff]",
+              ].join(" ")}
+              aria-pressed={viewMode === "list"}
+            >
+              List
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode("day")}
+              className={[
+                "rounded-full px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.05em] transition-colors duration-200",
+                viewMode === "day"
+                  ? "bg-[#6c35c3] text-white"
+                  : "text-[#4a267a] hover:bg-[#f4efff]",
+              ].join(" ")}
+              aria-pressed={viewMode === "day"}
+            >
+              By day
+            </button>
+          </div>
+        </div>
+
+        <div className="mt-5 pb-1">
+          <div className="flex flex-wrap gap-2">
+            {filters.map((filter) => {
+              const isActive = activeFilter === filter.key;
+              const baseStyle =
+                filter.key === "all"
+                  ? isActive
+                    ? "border-[#6c35c3]/35 bg-[#efe8fb] text-[#41216f] ring-1 ring-[#6c35c3]/15"
+                    : "border-[#d9d1e8] bg-white text-[#2a0c4f] hover:border-[#cdbfe4] hover:bg-[#faf7ff]"
+                  : filter.key === "recreational"
+                    ? isActive
+                      ? "border-[#138a4b]/35 bg-[#dff5e8] text-[#106f3d] ring-1 ring-[#138a4b]/20"
+                      : "border-[#d9d1e8] bg-white text-[#138a4b] hover:border-[#b7e6ca] hover:bg-[#f4fbf7]"
+                    : filter.key === "competition"
+                      ? isActive
+                        ? "border-[#c89200]/35 bg-[#fff7de] text-[#8f6900] ring-1 ring-[#e0b21a]/26"
+                        : "border-[#d9d1e8] bg-white text-[#9a7200] hover:border-[#f1dd8b] hover:bg-[#fffdf4]"
+                      : isActive
+                        ? "border-[#2563eb]/35 bg-[#eaf1ff] text-[#1e4fbf] ring-1 ring-[#2563eb]/24"
+                        : "border-[#d9d1e8] bg-white text-[#1e4fbf] hover:border-[#bfd3ff] hover:bg-[#f5f8ff]";
+              const dotStyle =
+                filter.key === "all"
+                  ? "bg-[#7a6a98]"
+                  : filter.key === "special"
+                    ? "bg-[#2563eb]"
+                    : typeStyles[filter.key].dot;
+              return (
+                <button
+                  key={filter.key}
+                  type="button"
+                  onClick={() => {
+                    setActiveFilter(filter.key);
+                    if (filter.key !== "recreational") {
+                      setActiveAgeGroup("all");
+                    }
+                  }}
+                  className={[
+                    "inline-flex min-h-10 cursor-pointer items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold transition-all duration-160",
+                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6c35c3]/45 focus-visible:ring-offset-2",
+                    isActive
+                      ? "shadow-[0_2px_8px_-6px_rgba(31,18,57,0.35)]"
+                      : "opacity-95 hover:opacity-100 hover:shadow-[0_8px_18px_-14px_rgba(31,18,57,0.45)]",
+                    baseStyle,
+                  ].join(" ")}
+                >
+                  {filter.key === "special" ? (
+                    specialIcon
+                  ) : (
+                    <span aria-hidden="true" className={`h-2 w-2 rounded-full ${dotStyle}`} />
+                  )}
+                  {filter.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {activeFilter === "recreational" ? (
+          <div className="mt-2.5 pb-1">
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => setActiveAgeGroup("all")}
+                className={[
+                  "inline-flex min-h-9 cursor-pointer items-center rounded-full border px-3 py-1.5 text-xs font-semibold transition-all duration-160",
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#138a4b]/40 focus-visible:ring-offset-2",
+                  activeAgeGroup === "all"
+                    ? "border-[#138a4b]/30 bg-[#dff5e8] text-[#106f3d] ring-1 ring-[#138a4b]/18 shadow-[0_2px_8px_-6px_rgba(31,18,57,0.35)]"
+                    : "border-[#d9d1e8] bg-white text-[#138a4b] hover:border-[#b7e6ca] hover:bg-[#f4fbf7] hover:shadow-[0_8px_18px_-14px_rgba(31,18,57,0.45)]",
+                ].join(" ")}
+              >
+                All ages
+              </button>
+              {recreationalAgeGroups.map((age) => {
+                const isActive = activeAgeGroup === age;
+                return (
+                  <button
+                    key={age}
+                    type="button"
+                    onClick={() => setActiveAgeGroup(age)}
+                    className={[
+                      "inline-flex min-h-9 cursor-pointer items-center rounded-full border px-3 py-1.5 text-xs font-semibold transition-all duration-160",
+                      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#138a4b]/40 focus-visible:ring-offset-2",
+                      isActive
+                        ? "border-[#138a4b]/30 bg-[#dff5e8] text-[#106f3d] ring-1 ring-[#138a4b]/18 shadow-[0_2px_8px_-6px_rgba(31,18,57,0.35)]"
+                        : "border-[#d9d1e8] bg-white text-[#138a4b] hover:border-[#b7e6ca] hover:bg-[#f4fbf7] hover:shadow-[0_8px_18px_-14px_rgba(31,18,57,0.45)]",
+                    ].join(" ")}
+                    aria-pressed={isActive}
+                  >
+                    {age}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ) : null}
+
+        <div className="mt-2.5 pb-1">
+          <div className="grid grid-cols-3 gap-2 sm:flex sm:flex-wrap">
+            {weekdayFilters.map((day) => {
+              const isActive = activeWeekday === day;
+              return (
+                <button
+                  key={day}
+                  type="button"
+                  onClick={() => setActiveWeekday(day)}
+                  className={[
+                    "inline-flex min-h-9 cursor-pointer items-center justify-center rounded-full border px-3 py-1.5 text-xs font-semibold transition-all duration-160",
+                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6c35c3]/35 focus-visible:ring-offset-2",
+                    isActive
+                      ? "border-[#6c35c3]/30 bg-[#efe8fb] text-[#41216f] shadow-[0_2px_8px_-6px_rgba(31,18,57,0.35)]"
+                      : "border-[#d9d1e8] bg-white text-[#554579] hover:border-[#cdbfe4] hover:bg-[#faf7ff]",
+                  ].join(" ")}
+                  aria-pressed={isActive}
+                >
+                  {day === "All days" ? "All days" : day.slice(0, 3)}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-x-0 bottom-0 h-[2px] bg-[#e6deef]"
+        />
+      </div>
+
+      <div>
+        {showEmptyState ? (
+          <div className="rounded-2xl border border-dashed border-[#6c35c3]/20 bg-[#faf5ff] px-5 py-10 text-center">
+            <p className="text-base font-semibold text-[#2a0c4f]">No sessions match this filter.</p>
+            <p className="mt-2 text-sm text-[#2a0c4f]/75">
+              Try another class type or clear your filter to view all sessions.
+            </p>
+            <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveFilter("all");
+                  setActiveAgeGroup("all");
+                  setActiveWeekday("All days");
+                }}
+                className="inline-flex cursor-pointer items-center rounded-full bg-[#6c35c3] px-4 py-2 text-xs font-semibold uppercase tracking-[0.06em] text-white transition-colors duration-160 hover:bg-[#5f2eb6] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6c35c3]/40 focus-visible:ring-offset-2"
+              >
+                Clear filters
+              </button>
+              <a
+                href="/contact"
+                className="inline-flex items-center rounded-full border border-[#6c35c3]/25 bg-white px-4 py-2 text-xs font-semibold uppercase tracking-[0.06em] text-[#4a267a] transition hover:bg-[#f8f2ff] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6c35c3]/40 focus-visible:ring-offset-2"
+              >
+                Contact us
+              </a>
+            </div>
+          </div>
+        ) : (
+          <>
+            <div className={viewMode === "day" ? "overflow-x-auto pb-1 md:block" : "hidden md:block"}>
+              <div className="grid min-w-[1700px] grid-cols-6 gap-3">
+                {filteredTimetable.map((day) => (
+                  <section
+                    key={day.day}
+                    className="rounded-xl border border-[#6c35c3]/10 bg-white p-3 shadow-[0_6px_18px_-18px_rgba(54,22,93,0.55)]"
+                    aria-label={`${day.day} sessions`}
+                  >
+                    <div className="mb-2 flex items-center justify-between border-b border-[#6c35c3]/10 pb-1.5">
+                      <h2 className="text-[19px] font-extrabold tracking-[0.01em] text-[#3d1b70]">
+                        {day.day}
+                      </h2>
+                      <span className="rounded-full bg-[#f4efff] px-2.5 py-1 text-[11px] font-semibold text-[#5f2eb6]">
+                        {day.sessions.length}
+                      </span>
+                    </div>
+                    <div className="space-y-2.5">
+                      {day.sessions.map((session, index) => {
+                        const type = getType(session);
+                        const cleanTitle =
+                          type === "special"
+                            ? "Display class"
+                            : type === "competition"
+                              ? "Competition"
+                              : "Recreational";
+
+                        return (
+                          <article
+                            key={`${day.day}-${session.title}-${session.time}-${index}`}
+                            className="relative overflow-hidden rounded-lg border border-[#6c35c3]/10 bg-white px-3 py-3"
+                          >
+                            <span
+                              aria-hidden="true"
+                              className={`absolute inset-y-0 left-0 w-1 ${typeStyles[type].rail}`}
+                            />
+                            <div className={type === "recreational" ? "flex flex-col gap-2" : "flex min-h-[46px] items-center"}>
+                              <div className="flex items-center justify-between gap-2">
+                                <p className="text-[16px] font-extrabold text-[#251341]">{session.time}</p>
+                                <span
+                                  className={`inline-flex items-center gap-1 rounded-full border px-2 py-1 text-[11px] font-semibold ${typeStyles[type].pill}`}
+                                >
+                                  {type === "special" ? specialIcon : null}
+                                  {cleanTitle}
+                                </span>
+                              </div>
+                              {type === "recreational" ? (
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <span className="text-xs font-medium text-[#2a0c4f]/80">
+                                    {normalizeAgeLabel(session.age)}
+                                  </span>
+                                </div>
+                              ) : null}
+                            </div>
+                          </article>
+                        );
+                      })}
+                    </div>
+                  </section>
+                ))}
+              </div>
+            </div>
+
+            <div className={viewMode === "list" ? "space-y-3 md:hidden" : "hidden"}>
+              {filteredTimetable.map((day) => (
+                <section key={`mobile-${day.day}`}>
+                  <h3 className="mb-2 px-1 text-[11px] font-bold uppercase tracking-[0.08em] text-[#5f2eb6]/85">
+                    {day.day}
+                  </h3>
+                  <div className="space-y-2.5">
+                    {day.sessions.map((session, index) => {
+                      const type = getType(session);
+                      const cleanTitle =
+                        type === "special"
+                          ? "Display class"
+                          : type === "competition"
+                            ? "Competition"
+                            : "Recreational";
+
+                      return (
+                        <article
+                          key={`${day.day}-${session.title}-${session.time}-${index}`}
+                          className="relative overflow-hidden rounded-xl border border-[#6c35c3]/12 bg-white px-3 py-3 pl-4 shadow-[0_8px_18px_-18px_rgba(54,22,93,0.55)]"
+                        >
+                          <span
+                            aria-hidden="true"
+                            className={`absolute inset-y-0 left-0 w-1 ${typeStyles[type].rail}`}
+                          />
+                          <div className={type === "recreational" ? "flex flex-col gap-1.5" : "flex min-h-[44px] items-center"}>
+                            <div className="flex items-center justify-between gap-2">
+                              <p className="text-[15px] font-extrabold text-[#251341]">{session.time}</p>
+                              <span
+                                className={`inline-flex items-center gap-1 rounded-full border px-2 py-1 text-[11px] font-semibold ${typeStyles[type].pill}`}
+                              >
+                                {type === "special" ? specialIcon : null}
+                                {cleanTitle}
+                              </span>
+                            </div>
+                            {type === "recreational" ? (
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span className="text-xs font-medium text-[#2a0c4f]/80">
+                                  {normalizeAgeLabel(session.age)}
+                                </span>
+                              </div>
+                            ) : null}
+                          </div>
+                        </article>
+                      );
+                    })}
+                  </div>
+                </section>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+    </section>
+  );
+}

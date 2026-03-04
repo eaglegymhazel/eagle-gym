@@ -640,7 +640,7 @@ export default function ChildrenClientPanel({
         <div className={styles.detailActions}>
           <button
             type="button"
-            className={styles.childActionButton}
+            className={`${styles.childActionButton} ${styles.saveButton}`}
             onClick={() => {
               void handleSave()
             }}
@@ -815,7 +815,7 @@ export default function ChildrenClientPanel({
         <div className={styles.detailActions}>
           <button
             type="button"
-            className={styles.childActionButton}
+            className={`${styles.childActionButton} ${styles.saveButton}`}
             onClick={() => {
               void handleSave()
             }}
@@ -1082,7 +1082,14 @@ export default function ChildrenClientPanel({
                     </div>
                   ) : null}
                 </div>
-                {open ? section.content : null}
+                <div
+                  className={`${styles.mobileSectionContent} ${
+                    open ? styles.mobileSectionContentOpen : ''
+                  }`}
+                  aria-hidden={!open}
+                >
+                  {section.content}
+                </div>
               </section>
             )
           })}
