@@ -3,6 +3,7 @@ import { createServerClient } from "@supabase/ssr";
 import { getChildrenForAccount } from "@/lib/server/children";
 import { getMedicalInfoForChildren } from "@/lib/server/medical";
 import { getActiveBookingsForChildren } from "@/lib/server/bookings";
+import { getAssignedBadgesForChildren } from "@/lib/server/badges";
 import {
   getServerAuthRequestKey,
   logAuthValidation,
@@ -198,6 +199,7 @@ export async function POST(request: NextRequest) {
             children: [],
             medicalByChildId: {},
             bookingsByChildId: {},
+            badgesByChildId: {},
             childDetailsIncluded: false,
             accountExists: false,
             profileComplete: false,
@@ -229,6 +231,7 @@ export async function POST(request: NextRequest) {
       let children = [];
       let medicalByChildId = {};
       let bookingsByChildId = {};
+      let badgesByChildId = {};
       let childIds: string[] = [];
 
       try {
@@ -237,9 +240,10 @@ export async function POST(request: NextRequest) {
       } catch {}
 
       if (includeChildDetails && childIds.length > 0) {
-        const [medicalResult, bookingsResult] = await Promise.allSettled([
+        const [medicalResult, bookingsResult, badgesResult] = await Promise.allSettled([
           getMedicalInfoForChildren(childIds),
           getActiveBookingsForChildren(childIds),
+          getAssignedBadgesForChildren(childIds),
         ]);
 
         if (medicalResult.status === "fulfilled") {
@@ -247,6 +251,9 @@ export async function POST(request: NextRequest) {
         }
         if (bookingsResult.status === "fulfilled") {
           bookingsByChildId = bookingsResult.value;
+        }
+        if (badgesResult.status === "fulfilled") {
+          badgesByChildId = badgesResult.value;
         }
       }
 
@@ -273,6 +280,7 @@ export async function POST(request: NextRequest) {
           children,
           medicalByChildId,
           bookingsByChildId,
+          badgesByChildId,
           childDetailsIncluded: includeChildDetails,
           accountExists: true,
           profileComplete,
@@ -289,6 +297,7 @@ export async function POST(request: NextRequest) {
         children: [],
         medicalByChildId: {},
         bookingsByChildId: {},
+        badgesByChildId: {},
         childDetailsIncluded: false,
         accountExists: false,
         profileComplete: false,

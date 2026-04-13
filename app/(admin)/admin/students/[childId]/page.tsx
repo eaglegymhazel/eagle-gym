@@ -2,6 +2,7 @@ import Link from "next/link";
 import { supabaseAdmin } from "@/lib/admin";
 import { getMedicalInfoForChildren } from "@/lib/server/medical";
 import { getActiveBookingsForChildren } from "@/lib/server/bookings";
+import { getAdminBadgeDataForChild } from "@/lib/server/badges";
 import { Activity, ArrowLeft, CalendarDays, Shield, Star, UserCircle2, Users } from "lucide-react";
 import StudentProfileTabs from "./StudentProfileTabs";
 
@@ -160,7 +161,7 @@ export default async function StudentProfilePage({ params }: StudentProfilePageP
   }
 
   const child = childData as ChildRow;
-  const [medicalByChildId, bookingsByChildId, accountResult] = await Promise.all([
+  const [medicalByChildId, bookingsByChildId, accountResult, badgeData] = await Promise.all([
     getMedicalInfoForChildren([child.id]),
     getActiveBookingsForChildren([child.id]),
     child.accountId != null
@@ -170,15 +171,13 @@ export default async function StudentProfilePage({ params }: StudentProfilePageP
           .eq("id", child.accountId)
           .maybeSingle()
       : Promise.resolve({ data: null, error: null }),
+    getAdminBadgeDataForChild(child.id),
   ]);
 
   const medical = medicalByChildId[child.id] ?? null;
   const bookings = bookingsByChildId[child.id] ?? [];
   const account = (accountResult.data as AccountRow | null) ?? null;
   const studentName = `${displayText(child.firstName)} ${displayText(child.lastName)}`.trim();
-  const isCompetitionStudent =
-    child.competitionEligible === true ||
-    bookings.some((booking) => getProgrammeTag(booking.className) === "Comp");
 
   const healthRows = [
     { label: "Medical conditions", value: normalizeMedicalValue(medical?.medicalConditions) },
@@ -202,7 +201,11 @@ export default async function StudentProfilePage({ params }: StudentProfilePageP
 
   return (
     <main className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:py-8">
-      <StudentProfileTabs isCompetitionStudent={isCompetitionStudent}>
+      <StudentProfileTabs
+        childId={child.id}
+        initialAssignedBadges={badgeData.assignedBadges}
+        initialAvailableBadges={badgeData.availableBadges}
+      >
         <section className="border border-[#ddd3ea] bg-white">
           <header className="flex flex-col gap-4 border-b border-[#e8e0f2] px-5 py-5 md:flex-row md:items-start md:justify-between md:px-6">
             <div>

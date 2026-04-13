@@ -6,7 +6,6 @@ import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
-  Award,
   CalendarDays,
   Home,
   IdCard,
@@ -22,7 +21,6 @@ const links = [
   { href: "/team", label: "Team", icon: Users },
   { href: "/news", label: "Club News", icon: Newspaper },
   { href: "/timetable", label: "Timetable", icon: CalendarDays },
-  { href: "/badge", label: "Badge", icon: Award },
   { href: "/members", label: "Members", icon: IdCard },
   { href: "/contact", label: "Contact", icon: Mail },
 ] as const satisfies ReadonlyArray<{

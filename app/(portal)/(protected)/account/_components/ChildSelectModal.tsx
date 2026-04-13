@@ -14,7 +14,7 @@ type Props = {
   isOpen: boolean;
   onClose: () => void;
   onSelect: (child: ChildSummary) => void;
-  children: ChildSummary[];
+  childOptions: ChildSummary[];
 };
 
 function computeAge(dateOfBirth: string | null) {
@@ -35,7 +35,7 @@ export default function ChildSelectModal({
   isOpen,
   onClose,
   onSelect,
-  children,
+  childOptions,
 }: Props) {
   const modalRef = useRef<HTMLDivElement | null>(null);
   const closeRef = useRef<HTMLButtonElement | null>(null);
@@ -110,7 +110,7 @@ export default function ChildSelectModal({
         </div>
         <div className={styles.modalBody}>
           <ul className={styles.modalList}>
-            {children.map((child) => {
+            {childOptions.map((child) => {
               const age = computeAge(child.dateOfBirth);
               return (
                 <li key={child.id}>

@@ -34,6 +34,25 @@ type BookingSummary = {
   durationMinutes: number | null
 }
 
+type ChildBadgeSkill = {
+  id: string
+  name: string
+  description: string | null
+  sortOrder: number
+  completedAt: string | null
+}
+
+type ChildAssignedBadge = {
+  assignmentId: string
+  badgeId: string
+  name: string
+  description: string | null
+  category: string | null
+  isCompleted: boolean
+  completedAt: string | null
+  skills: ChildBadgeSkill[]
+}
+
 type DetailTab = 'profile' | 'medical' | 'bookings' | 'badges'
 type MobileSection = DetailTab
 
@@ -54,16 +73,6 @@ type EditableMedical = {
   doctorName: string
   surgeryAddress: string
   surgeryTelephone: string
-}
-
-type BadgeTrack = 'recreational' | 'competition'
-type ParentBadge = {
-  id: string
-  code: string
-  title: string
-  skills: string[]
-  completedSkillCount: number
-  track: BadgeTrack
 }
 
 const NAME_PATTERN = /^[A-Za-z]+$/
@@ -99,66 +108,42 @@ function computeAge(dateOfBirth: string | null) {
   return age < 0 ? 0 : age
 }
 
-function buildPlaceholderSkills(prefix: string) {
-  return Array.from({ length: 10 }, (_, index) => `${prefix} skill ${index + 1}`)
-}
-
-function placeholderCompletedDate(badgeId: string, skillIndex: number) {
-  const base = new Date('2026-01-01T00:00:00Z')
-  const numericSeed = badgeId.length * 11 + skillIndex * 3
-  base.setUTCDate(base.getUTCDate() + numericSeed)
+function formatBadgeDate(value: string | null) {
+  if (!value) return null
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return null
   return new Intl.DateTimeFormat('en-GB', {
     day: '2-digit',
     month: 'short',
     year: 'numeric',
-  }).format(base)
+  }).format(date)
 }
 
-const recreationalBadges: ParentBadge[] = Array.from({ length: 10 }, (_, index) => {
-  const level = index + 1
-  return {
-    id: `rec-${level}`,
-    code: `R${String(level).padStart(2, '0')}`,
-    title: `Level ${level}`,
-    skills: buildPlaceholderSkills(`Level ${level}`),
-    completedSkillCount: (index * 2) % 11,
-    track: 'recreational' as const,
-  }
-})
-
-const competitionBadges: ParentBadge[] = Array.from({ length: 10 }, (_, index) => {
-  const level = index + 1
-  return {
-    id: `comp-${level}`,
-    code: `C${String(level).padStart(2, '0')}`,
-    title: `Competition Badge ${level}`,
-    skills: buildPlaceholderSkills(`Competition Badge ${level}`),
-    completedSkillCount: (index * 3) % 11,
-    track: 'competition' as const,
-  }
-})
-
+function categoryLabel(category: string | null) {
+  return category?.trim() || 'Badge'
+}
 
 export default function ChildrenClientPanel({
-  children,
+  childSummaries,
   medicalByChildId,
   bookingsByChildId,
+  badgesByChildId,
   onSelectionChange,
   onActiveChildChange,
 }: {
-  children: ChildSummary[]
+  childSummaries: ChildSummary[]
   medicalByChildId: Record<string, MedicalInformationRow>
   bookingsByChildId: Record<string, BookingSummary[]>
+  badgesByChildId: Record<string, ChildAssignedBadge[]>
   onSelectionChange?: (isDetail: boolean) => void
   onActiveChildChange?: (childId: string | null) => void
 }) {
-  const [childRecords, setChildRecords] = useState<ChildSummary[]>(children)
+  const [childRecords, setChildRecords] = useState<ChildSummary[]>(childSummaries)
   const [medicalRecords, setMedicalRecords] =
     useState<Record<string, MedicalInformationRow>>(medicalByChildId)
   const [selectedChildId, setSelectedChildId] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<DetailTab>('profile')
   const [activeMobileSection, setActiveMobileSection] = useState<MobileSection | null>('profile')
-  const [activeBadgeTrack, setActiveBadgeTrack] = useState<BadgeTrack>('recreational')
   const [expandedBadgeId, setExpandedBadgeId] = useState<string | null>(null)
   const [isEditing, setIsEditing] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
@@ -197,13 +182,12 @@ export default function ChildrenClientPanel({
   }, [onActiveChildChange, selectedChildId])
 
   useEffect(() => {
-    setActiveBadgeTrack('recreational')
     setExpandedBadgeId(null)
   }, [selectedChildId])
 
   useEffect(() => {
-    setChildRecords(children)
-  }, [children])
+    setChildRecords(childSummaries)
+  }, [childSummaries])
 
   useEffect(() => {
     setMedicalRecords(medicalByChildId)
@@ -292,7 +276,7 @@ export default function ChildrenClientPanel({
   const age = computeAge(selectedChild.dateOfBirth)
   const medical = medicalRecords[selectedChild.id] ?? null
   const bookings = bookingsByChildId[selectedChild.id] ?? []
-  const isCompetitionChild = selectedChild.competitionEligible === true
+  const assignedBadges = badgesByChildId[selectedChild.id] ?? []
   const showEditButton = activeTab === 'profile' || activeTab === 'medical'
 
   const isRenderable = (value: string | null) => {
@@ -858,9 +842,7 @@ export default function ChildrenClientPanel({
     </div>
   )
 
-  const visibleBadges = activeBadgeTrack === 'competition' ? competitionBadges : recreationalBadges
-  const recCompletedCount = recreationalBadges.filter((badge) => badge.completedSkillCount >= badge.skills.length).length
-  const compCompletedCount = competitionBadges.filter((badge) => badge.completedSkillCount >= badge.skills.length).length
+  const completedBadgeCount = assignedBadges.filter((badge) => badge.isCompleted).length
 
   const badgesPanel = (
     <div className={styles.childCard}>
@@ -868,72 +850,46 @@ export default function ChildrenClientPanel({
         <h3 className={styles.cardTitle}>Badge progress</h3>
         <div className={styles.badgesSummary}>
           <span className={styles.badgesSummaryLine}>
-            Recreational: {recCompletedCount}/10 complete
+            {assignedBadges.length} assigned
           </span>
-          {isCompetitionChild ? (
-            <span className={styles.badgesSummaryLine}>
-              Competition: {compCompletedCount}/10 complete
-            </span>
-          ) : null}
-        </div>
-      </div>
-
-      <div className={styles.badgesTrackRow}>
-        <div className={styles.badgesTrackSwitch}>
-          {(['recreational', 'competition'] as BadgeTrack[])
-            .filter((track) => (isCompetitionChild ? true : track === 'recreational'))
-            .map((track) => {
-              const isActive = activeBadgeTrack === track
-              return (
-                <button
-                  key={track}
-                  type="button"
-                  className={[
-                    styles.badgesTrackButton,
-                    track === 'competition'
-                      ? styles.badgesTrackButtonCompetition
-                      : styles.badgesTrackButtonRecreational,
-                    isActive ? styles.badgesTrackButtonActive : '',
-                  ].join(' ')}
-                  onClick={() => {
-                    setActiveBadgeTrack(track)
-                    setExpandedBadgeId(null)
-                  }}
-                >
-                  {track === 'recreational' ? 'Recreational' : 'Competition'}
-                </button>
-              )
-            })}
+          <span className={styles.badgesSummaryLine}>
+            {completedBadgeCount} complete
+          </span>
         </div>
       </div>
 
       <div className={styles.badgesList}>
-        {visibleBadges.map((badge) => {
+        {assignedBadges.length === 0 ? (
+          <p className={styles.cardBody}>
+            No badges have been assigned to this child yet.
+          </p>
+        ) : assignedBadges.map((badge) => {
           const total = badge.skills.length
-          const completed = Math.min(badge.completedSkillCount, total)
-          const percent = Math.round((completed / total) * 100)
+          const completed = badge.skills.filter((skill) => skill.completedAt).length
+          const percent = total > 0 ? Math.round((completed / total) * 100) : 0
           const status =
-            completed === 0 ? 'Not started' : completed === total ? 'Complete' : 'In progress'
-          const badgeCompleted = completed === total
-          const badgeCompletedDate = badgeCompleted
-            ? placeholderCompletedDate(badge.id, total - 1)
-            : null
-          const isOpen = expandedBadgeId === badge.id
-          const progressColor = badge.track === 'competition' ? '#e0b21a' : '#6c35c3'
+            badge.isCompleted || (total > 0 && completed >= total)
+              ? 'Complete'
+              : completed === 0
+                ? 'Not started'
+                : 'In progress'
+          const badgeCompleted = status === 'Complete'
+          const badgeCompletedDate = formatBadgeDate(badge.completedAt)
+          const isOpen = expandedBadgeId === badge.assignmentId
 
           return (
-            <article key={badge.id} className={styles.badgesItem}>
+            <article key={badge.assignmentId} className={styles.badgesItem}>
               <button
                 type="button"
                 className={`${styles.badgesItemHeader} ${
                   badgeCompleted ? styles.badgesItemHeaderComplete : ''
                 }`}
-                onClick={() => setExpandedBadgeId((prev) => (prev === badge.id ? null : badge.id))}
+                onClick={() => setExpandedBadgeId((prev) => (prev === badge.assignmentId ? null : badge.assignmentId))}
                 aria-expanded={isOpen}
               >
                 <div className={styles.badgesItemTitleRow}>
-                  <span className={styles.badgesCode}>{badge.code}</span>
-                  <h4 className={styles.badgesTitle}>{badge.title}</h4>
+                  <span className={styles.badgesCode}>{categoryLabel(badge.category)}</span>
+                  <h4 className={styles.badgesTitle}>{badge.name}</h4>
                   {badgeCompleted ? (
                     <span className={styles.badgesCompleteStar} aria-hidden="true">
                       ★
@@ -942,7 +898,7 @@ export default function ChildrenClientPanel({
                 </div>
                 <div className={styles.badgesStatusRow}>
                   <span className={styles.badgesStatus}>
-                    {badgeCompletedDate ? `Completed ${badgeCompletedDate}` : status}
+                    {badgeCompleted && badgeCompletedDate ? `Completed ${badgeCompletedDate}` : status}
                   </span>
                 </div>
                 <div className={styles.badgesMetaRow}>
@@ -951,24 +907,24 @@ export default function ChildrenClientPanel({
                 <div className={styles.badgesProgressTrack}>
                   <div
                     className={styles.badgesProgressFill}
-                    style={{ width: `${percent}%`, backgroundColor: progressColor }}
+                    style={{ width: `${percent}%` }}
                   />
                 </div>
               </button>
 
               {isOpen ? (
                 <ul className={styles.badgesSkillsList}>
-                  {badge.skills.map((skill, index) => {
-                    const done = index < completed
-                    const completedDate = done ? placeholderCompletedDate(badge.id, index) : null
+                  {badge.skills.map((skill) => {
+                    const done = Boolean(skill.completedAt)
+                    const completedDate = formatBadgeDate(skill.completedAt)
                     return (
                       <li
-                        key={`${badge.id}-${index}`}
+                        key={skill.id}
                         className={`${styles.badgesSkillRow} ${done ? styles.badgesSkillDone : ''}`}
                       >
-                        <span className={styles.badgesSkillText}>{skill}</span>
+                        <span className={styles.badgesSkillText}>{skill.name}</span>
                         <span className={styles.badgesSkillState}>
-                          {done ? `Complete | ${completedDate}` : 'Pending'}
+                          {done && completedDate ? `Complete | ${completedDate}` : done ? 'Complete' : 'Pending'}
                         </span>
                       </li>
                     )

@@ -1,85 +1,54 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
+import * as Dialog from "@radix-ui/react-dialog";
 import { ArrowLeft } from "lucide-react";
 
 type StudentProfileTabsProps = {
   children: ReactNode;
-  isCompetitionStudent: boolean;
+  childId: string;
+  initialAssignedBadges: AdminAssignedBadge[];
+  initialAvailableBadges: AdminBadgeDefinitionOption[];
 };
 
 type TabKey = "profile" | "badges";
-type BadgeTrack = "recreational" | "competition";
-type BadgeDefinition = {
+
+type AdminBadgeSkill = {
   id: string;
-  code: string;
-  title: string;
-  skills: string[];
-  track: BadgeTrack;
+  name: string;
+  description: string | null;
+  sortOrder: number;
+  completedAt: string | null;
 };
 
-const levelOneSkills = [
-  "Show three different shapes: straight, star, and tuck",
-  "Eight rebound jumps from side to side on the floor",
-  "Balance on two hands and one foot",
-  "Standing straight jumps from springboard",
-  "Sit in tuck position and roll backwards",
-  "Hang on bar in tuck shape",
-  "Four consecutive bunny jumps",
-  "Walk along a floor beam or bench",
-  "Show back support and front support position",
-  "Upper body dish",
-];
+type AdminAssignedBadge = {
+  assignmentId: string;
+  badgeId: string;
+  name: string;
+  description: string | null;
+  category: string | null;
+  isCompleted: boolean;
+  completedAt: string | null;
+  skills: AdminBadgeSkill[];
+};
 
-function placeholderSkills(prefix: string): string[] {
-  return Array.from({ length: 10 }, (_, index) => `${prefix} skill ${index + 1}`);
-}
+type AdminBadgeDefinitionOption = {
+  id: string;
+  name: string;
+  description: string | null;
+  category: string | null;
+};
 
-const recreationalBadges: BadgeDefinition[] = [
-  {
-    id: "rec-1",
-    code: "R01",
-    title: "Level 1",
-    skills: levelOneSkills,
-    track: "recreational",
-  },
-  ...Array.from({ length: 9 }, (_, index) => {
-    const badgeNumber = index + 2;
-    const levelTitle = `Level ${badgeNumber}`;
-    return {
-      id: `rec-${badgeNumber}`,
-      code: `R${String(badgeNumber).padStart(2, "0")}`,
-      title: levelTitle,
-      skills: placeholderSkills(levelTitle),
-      track: "recreational" as const,
-    };
-  }),
-];
+type BadgeApiResponse = {
+  assignedBadges?: AdminAssignedBadge[];
+  availableBadges?: AdminBadgeDefinitionOption[];
+  error?: string;
+};
 
-const competitionBadges: BadgeDefinition[] = Array.from({ length: 10 }, (_, index) => {
-  const badgeNumber = index + 1;
-  const badgeTitle = `Competition Badge ${badgeNumber}`;
-  return {
-    id: `comp-${badgeNumber}`,
-    code: `C${String(badgeNumber).padStart(2, "0")}`,
-    title: badgeTitle,
-    skills: placeholderSkills(badgeTitle),
-    track: "competition" as const,
-  };
-});
-
-const allBadgeDefinitions = [...recreationalBadges, ...competitionBadges];
-
-function createEmptyProgressMap(definitions: BadgeDefinition[]): Record<string, boolean[]> {
-  return Object.fromEntries(
-    definitions.map((badge) => [badge.id, Array.from({ length: badge.skills.length }, () => false)])
-  );
-}
-
-function badgeStatus(done: number, total: number): "Not started" | "In progress" | "Complete" {
+function badgeStatus(done: number, total: number, isCompleted: boolean): "Not started" | "In progress" | "Complete" {
+  if (isCompleted || (total > 0 && done >= total)) return "Complete";
   if (done <= 0) return "Not started";
-  if (done >= total) return "Complete";
   return "In progress";
 }
 
@@ -89,69 +58,166 @@ function statusClass(status: "Not started" | "In progress" | "Complete"): string
   return "border-[#e5dfef] bg-[#fcfbfe] text-[#7f7591]";
 }
 
+function formatDate(value: string | null): string {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toLocaleDateString("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+}
+
+function categoryLabel(category: string | null): string {
+  return category?.trim() || "Uncategorised";
+}
+
 export default function StudentProfileTabs({
   children,
-  isCompetitionStudent,
+  childId,
+  initialAssignedBadges,
+  initialAvailableBadges,
 }: StudentProfileTabsProps) {
   const [activeTab, setActiveTab] = useState<TabKey>("profile");
-  const [activeBadgeTrack, setActiveBadgeTrack] = useState<BadgeTrack>(
-    isCompetitionStudent ? "competition" : "recreational"
+  const [assignedBadges, setAssignedBadges] = useState(initialAssignedBadges);
+  const [availableBadges, setAvailableBadges] = useState(initialAvailableBadges);
+  const [selectedBadgeId, setSelectedBadgeId] = useState(initialAvailableBadges[0]?.id ?? "");
+  const [expandedByAssignmentId, setExpandedByAssignmentId] = useState<Record<string, boolean>>({});
+  const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
+  const [isAssigning, setIsAssigning] = useState(false);
+  const [savingSkillKey, setSavingSkillKey] = useState<string | null>(null);
+  const [deleteCandidate, setDeleteCandidate] = useState<AdminAssignedBadge | null>(null);
+  const [deletingAssignmentId, setDeletingAssignmentId] = useState<string | null>(null);
+  const [assignError, setAssignError] = useState<string | null>(null);
+  const [skillError, setSkillError] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  const completeCount = useMemo(
+    () => assignedBadges.filter((badge) => badge.isCompleted).length,
+    [assignedBadges]
   );
-  const [expandedByBadgeId, setExpandedByBadgeId] = useState<Record<string, boolean>>({});
-  const [progressByBadgeId, setProgressByBadgeId] = useState<Record<string, boolean[]>>(() =>
-    createEmptyProgressMap(allBadgeDefinitions)
-  );
+  const hasExpandedBadges = assignedBadges.some((badge) => expandedByAssignmentId[badge.assignmentId]);
 
-  useEffect(() => {
-    if (!isCompetitionStudent && activeBadgeTrack === "competition") {
-      setActiveBadgeTrack("recreational");
-    }
-  }, [activeBadgeTrack, isCompetitionStudent]);
+  const selectedBadgeStillAvailable = availableBadges.some((badge) => badge.id === selectedBadgeId);
+  const selectedValue = selectedBadgeStillAvailable ? selectedBadgeId : availableBadges[0]?.id ?? "";
+  const selectedBadge = availableBadges.find((badge) => badge.id === selectedValue) ?? null;
+  const isSavingSkill = savingSkillKey !== null;
+  const isDeletingBadge = deletingAssignmentId !== null;
+  const isMutating = isSavingSkill || isDeletingBadge;
 
-  const availableTracks = useMemo<BadgeTrack[]>(
-    () => (isCompetitionStudent ? ["competition", "recreational"] : ["recreational"]),
-    [isCompetitionStudent]
-  );
-
-  const badgesForActiveTrack = useMemo(
-    () => (activeBadgeTrack === "competition" ? competitionBadges : recreationalBadges),
-    [activeBadgeTrack]
-  );
-
-  const completedCountForTrack = (definitions: BadgeDefinition[]) =>
-    definitions.reduce((count, badge) => {
-      const done = (progressByBadgeId[badge.id] ?? []).filter(Boolean).length;
-      return done === badge.skills.length ? count + 1 : count;
-    }, 0);
-
-  const toggleSkill = (badgeId: string, index: number) => {
-    setProgressByBadgeId((prev) => {
-      const current = [...(prev[badgeId] ?? [])];
-      current[index] = !current[index];
-      return { ...prev, [badgeId]: current };
-    });
-  };
-
-  const markAll = (badgeId: string, value: boolean) => {
-    const badge = allBadgeDefinitions.find((item) => item.id === badgeId);
-    if (!badge) return;
-    setProgressByBadgeId((prev) => ({
-      ...prev,
-      [badgeId]: Array.from({ length: badge.skills.length }, () => value),
-    }));
-  };
-
-  const toggleExpanded = (badgeId: string) => {
-    setExpandedByBadgeId((prev) => ({ ...prev, [badgeId]: !prev[badgeId] }));
+  const toggleExpanded = (assignmentId: string) => {
+    setExpandedByAssignmentId((prev) => ({ ...prev, [assignmentId]: !prev[assignmentId] }));
   };
 
   const collapseAll = () => {
-    setExpandedByBadgeId({});
+    setExpandedByAssignmentId({});
   };
 
-  const recreationalCompleted = completedCountForTrack(recreationalBadges);
-  const competitionCompleted = completedCountForTrack(competitionBadges);
-  const hasExpandedBadges = badgesForActiveTrack.some((badge) => expandedByBadgeId[badge.id]);
+  const assignBadge = async () => {
+    const badgeId = selectedValue;
+    if (!badgeId || isAssigning || isMutating) return;
+
+    setIsAssigning(true);
+    setAssignError(null);
+
+    try {
+      const response = await fetch("/api/admin/child-badges", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ childId, badgeId }),
+      });
+      const payload = (await response.json()) as BadgeApiResponse;
+
+      if (!response.ok) {
+        throw new Error(payload.error ?? "The badge could not be assigned.");
+      }
+
+      const nextAssigned = payload.assignedBadges ?? [];
+      const nextAvailable = payload.availableBadges ?? [];
+      setAssignedBadges(nextAssigned);
+      setAvailableBadges(nextAvailable);
+      setSelectedBadgeId(nextAvailable[0]?.id ?? "");
+      setIsAssignDialogOpen(false);
+      setExpandedByAssignmentId((prev) => {
+        const next = { ...prev };
+        nextAssigned.forEach((badge) => {
+          if (badge.badgeId === badgeId) next[badge.assignmentId] = true;
+        });
+        return next;
+      });
+    } catch (error) {
+      setAssignError(error instanceof Error ? error.message : "The badge could not be assigned.");
+    } finally {
+      setIsAssigning(false);
+    }
+  };
+
+  const setSkillCompleted = async (
+    assignmentId: string,
+    badgeSkillId: string,
+    completed: boolean
+  ) => {
+    const mutationKey = `${assignmentId}:${badgeSkillId}`;
+    if (savingSkillKey || isDeletingBadge) return;
+
+    setSavingSkillKey(mutationKey);
+    setSkillError(null);
+
+    try {
+      const response = await fetch("/api/admin/child-badges", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ assignmentId, badgeSkillId, completed }),
+      });
+      const payload = (await response.json()) as BadgeApiResponse;
+
+      if (!response.ok) {
+        throw new Error(payload.error ?? "The skill progress could not be saved.");
+      }
+
+      setAssignedBadges(payload.assignedBadges ?? []);
+      setAvailableBadges(payload.availableBadges ?? []);
+    } catch (error) {
+      setSkillError(error instanceof Error ? error.message : "The skill progress could not be saved.");
+    } finally {
+      setSavingSkillKey(null);
+    }
+  };
+
+  const deleteAssignedBadge = async () => {
+    if (!deleteCandidate || isMutating || isAssigning) return;
+
+    setDeletingAssignmentId(deleteCandidate.assignmentId);
+    setDeleteError(null);
+
+    try {
+      const response = await fetch("/api/admin/child-badges", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ assignmentId: deleteCandidate.assignmentId }),
+      });
+      const payload = (await response.json()) as BadgeApiResponse;
+
+      if (!response.ok) {
+        throw new Error(payload.error ?? "The badge assignment could not be deleted.");
+      }
+
+      setAssignedBadges(payload.assignedBadges ?? []);
+      setAvailableBadges(payload.availableBadges ?? []);
+      setSelectedBadgeId((payload.availableBadges ?? [])[0]?.id ?? "");
+      setExpandedByAssignmentId((prev) => {
+        const next = { ...prev };
+        delete next[deleteCandidate.assignmentId];
+        return next;
+      });
+      setDeleteCandidate(null);
+    } catch (error) {
+      setDeleteError(error instanceof Error ? error.message : "The badge assignment could not be deleted.");
+    } finally {
+      setDeletingAssignmentId(null);
+    }
+  };
 
   return (
     <div>
@@ -188,105 +254,224 @@ export default function StudentProfileTabs({
         children
       ) : (
         <section className="border border-[#ddd3ea] bg-white">
-          <div>
-            <header className="border-b border-[#e8e0f2] px-5 py-5 md:px-6">
-              <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[#726587]">
-                    Coach badge tracker
-                  </p>
-                  <p className="mt-1 text-sm font-medium text-[#5f5177]">
-                    Recreational: {recreationalCompleted}/10 complete
-                    {isCompetitionStudent ? ` | Competition: ${competitionCompleted}/10 complete` : ""}
-                  </p>
-                </div>
-                <Link
-                  href="/admin?tab=students"
-                  className="inline-flex w-full cursor-pointer items-center justify-center gap-1.5 border border-[#c7b4e5] bg-[#f7f2ff] px-3.5 py-2 text-sm font-semibold text-[#4f2390] shadow-[0_1px_0_rgba(255,255,255,0.8)_inset] transition hover:border-[#b398dd] hover:bg-[#f1e8ff] active:bg-[#ebddff] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6e2ac0]/35 md:w-auto"
-                >
-                  <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-                  Back to Student Management
-                </Link>
+          <header className="border-b border-[#e8e0f2] px-5 py-5 md:px-6">
+            <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[#726587]">
+                  Coach badge tracker
+                </p>
+                <p className="mt-1 text-sm font-medium text-[#5f5177]">
+                  {assignedBadges.length} assigned | {completeCount} complete
+                </p>
               </div>
+              <Link
+                href="/admin?tab=students"
+                className="inline-flex w-full cursor-pointer items-center justify-center gap-1.5 border border-[#c7b4e5] bg-[#f7f2ff] px-3.5 py-2 text-sm font-semibold text-[#4f2390] shadow-[0_1px_0_rgba(255,255,255,0.8)_inset] transition hover:border-[#b398dd] hover:bg-[#f1e8ff] active:bg-[#ebddff] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6e2ac0]/35 md:w-auto"
+              >
+                <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+                Back to Student Management
+              </Link>
+            </div>
 
-              <div className="mt-3 flex items-center gap-2">
-                  <div
-                    className={[
-                      "grid h-8 w-[340px] max-w-full overflow-hidden border border-[#ddd4ea] bg-white",
-                      availableTracks.length === 2 ? "grid-cols-2" : "grid-cols-1",
-                    ].join(" ")}
-                  >
-                    {availableTracks.map((track, index) => {
-                      const isActive = activeBadgeTrack === track;
-                      const label = track === "competition" ? "Competition (10)" : "Recreational (10)";
-                      return (
-                        <button
-                          key={track}
-                          type="button"
-                          onClick={() => setActiveBadgeTrack(track)}
-                          disabled={availableTracks.length === 1}
-                          className={[
-                            "relative h-8 w-full overflow-hidden px-3 text-xs font-semibold uppercase tracking-[0.05em] transition-colors duration-200",
-                            availableTracks.length === 2 && index === 0 ? "border-r border-[#ddd4ea]" : "",
-                            isActive
-                              ? track === "competition"
-                                ? "text-[#a26b00]"
-                                : "text-[#0a6e3b]"
-                              : "bg-white text-[#6f6384] hover:bg-[#faf7ff]",
-                            availableTracks.length === 1 ? "cursor-default" : "cursor-pointer",
-                          ].join(" ")}
-                        >
-                          <span
-                            aria-hidden
-                            className={[
-                              "absolute inset-0 transition-transform duration-200 ease-out",
-                              track === "competition"
-                                ? "origin-right bg-[#c89200]/28"
-                                : "origin-left bg-[#0f8d4e]/24",
-                              isActive ? "scale-x-100" : "scale-x-0",
-                            ].join(" ")}
-                          />
-                          <span className="relative z-10">{label}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
+            <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
+              <Dialog.Root
+                open={isAssignDialogOpen}
+                onOpenChange={(open) => {
+                  setIsAssignDialogOpen(open);
+                  if (open) {
+                    setAssignError(null);
+                    setSelectedBadgeId(availableBadges[0]?.id ?? "");
+                  }
+                }}
+              >
+                <Dialog.Trigger asChild>
                   <button
                     type="button"
-                    onClick={collapseAll}
-                    disabled={!hasExpandedBadges}
+                    disabled={availableBadges.length === 0 || isAssigning || isMutating}
                     className={[
-                      "h-8 border px-2.5 text-xs font-semibold transition",
-                      hasExpandedBadges
-                        ? "cursor-pointer border-[#ddd4ea] bg-white text-[#6f6384] hover:bg-[#faf7ff]"
+                      "h-10 border px-4 text-sm font-semibold transition sm:w-auto",
+                      availableBadges.length > 0 && !isAssigning && !isMutating
+                        ? "cursor-pointer border-[#0f8d4e] bg-[#0f8d4e] text-white hover:bg-[#0d7c45]"
                         : "cursor-not-allowed border-[#e9e4f0] bg-[#f8f6fb] text-[#a095b0]",
                     ].join(" ")}
                   >
-                    Collapse all
+                    Assign badge
                   </button>
-              </div>
-            </header>
+                </Dialog.Trigger>
+                <Dialog.Portal>
+                  <Dialog.Overlay className="fixed inset-0 z-[100] bg-black/45" />
+                  <Dialog.Content className="fixed inset-x-3 top-1/2 z-[101] max-h-[86vh] -translate-y-1/2 overflow-hidden border border-[#d8ceeb] bg-white shadow-2xl sm:left-1/2 sm:right-auto sm:w-[min(680px,calc(100vw-32px))] sm:-translate-x-1/2">
+                    <div className="border-b border-[#e8e0f2] px-4 py-4 sm:px-5">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <Dialog.Title className="text-lg font-bold text-[#24193a]">
+                            Assign badge
+                          </Dialog.Title>
+                          <Dialog.Description className="mt-1 text-sm text-[#5f5177]">
+                            Choose a badge to assign to this student.
+                          </Dialog.Description>
+                        </div>
+                        <Dialog.Close asChild>
+                          <button
+                            type="button"
+                            className="inline-flex h-9 w-9 shrink-0 items-center justify-center border border-[#ddd4ea] text-[#6f6384] hover:bg-[#faf7ff] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6e2ac0]/35"
+                            aria-label="Close assign badge dialog"
+                          >
+                            <svg
+                              viewBox="0 0 24 24"
+                              className="h-4 w-4"
+                              aria-hidden="true"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                            >
+                              <path d="M6 6l12 12" />
+                              <path d="M18 6l-12 12" />
+                            </svg>
+                          </button>
+                        </Dialog.Close>
+                      </div>
+                    </div>
 
-            <div className="space-y-2 px-5 py-5 md:px-6 lg:max-w-[1120px]">
-              {badgesForActiveTrack.map((badge) => {
-                const progress = progressByBadgeId[badge.id] ?? [];
-                const done = progress.filter(Boolean).length;
+                    <div className="max-h-[52vh] overflow-y-auto px-4 py-4 sm:px-5">
+                      {availableBadges.length === 0 ? (
+                        <div className="border border-dashed border-[#d8ceeb] bg-[#fcfafe] px-4 py-5">
+                          <p className="text-sm font-semibold text-[#24193a]">No badges available</p>
+                          <p className="mt-1 text-sm text-[#5f5177]">
+                            Every active badge has already been assigned to this student.
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="space-y-2" role="radiogroup" aria-label="Available badges">
+                          {availableBadges.map((badge) => {
+                            const isSelected = selectedValue === badge.id;
+                            return (
+                              <button
+                                key={badge.id}
+                                type="button"
+                                onClick={() => setSelectedBadgeId(badge.id)}
+                                className={[
+                                  "w-full border px-3 py-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6e2ac0]/35",
+                                  isSelected
+                                    ? "border-[#6e2ac0] bg-[#f7f2ff]"
+                                    : "border-[#ece4f5] bg-white hover:bg-[#fcfafe]",
+                                ].join(" ")}
+                                role="radio"
+                                aria-checked={isSelected}
+                              >
+                                <span className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-2">
+                                  <span className="inline-flex w-fit items-center border border-[#d7cbe8] bg-white px-2 py-1 text-[11px] font-semibold uppercase tracking-[0.04em] text-[#4f2390]">
+                                    {categoryLabel(badge.category)}
+                                  </span>
+                                  <span className="text-sm font-semibold text-[#24193a]">{badge.name}</span>
+                                </span>
+                                {badge.description ? (
+                                  <span className="mt-1 block text-sm text-[#6c607d]">
+                                    {badge.description}
+                                  </span>
+                                ) : null}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="border-t border-[#e8e0f2] px-4 py-4 sm:px-5">
+                      {assignError ? (
+                        <p className="mb-3 text-sm font-medium text-[#a72020]">{assignError}</p>
+                      ) : null}
+                      <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                        <Dialog.Close asChild>
+                          <button
+                            type="button"
+                            className="h-10 border border-[#ddd4ea] bg-white px-4 text-sm font-semibold text-[#6f6384] hover:bg-[#faf7ff]"
+                          >
+                            Cancel
+                          </button>
+                        </Dialog.Close>
+                        <button
+                          type="button"
+                          onClick={assignBadge}
+                          disabled={!selectedBadge || isAssigning}
+                          className={[
+                            "h-10 border px-4 text-sm font-semibold transition",
+                            selectedBadge && !isAssigning
+                              ? "cursor-pointer border-[#0f8d4e] bg-[#0f8d4e] text-white hover:bg-[#0d7c45]"
+                              : "cursor-not-allowed border-[#e9e4f0] bg-[#f8f6fb] text-[#a095b0]",
+                          ].join(" ")}
+                        >
+                          {isAssigning ? "Adding..." : "Add badge"}
+                        </button>
+                      </div>
+                    </div>
+                  </Dialog.Content>
+                </Dialog.Portal>
+              </Dialog.Root>
+              <button
+                type="button"
+                onClick={collapseAll}
+                disabled={!hasExpandedBadges || isMutating}
+                className={[
+                  "h-10 border px-3 text-sm font-semibold transition",
+                  hasExpandedBadges && !isMutating
+                    ? "cursor-pointer border-[#ddd4ea] bg-white text-[#6f6384] hover:bg-[#faf7ff]"
+                    : "cursor-not-allowed border-[#e9e4f0] bg-[#f8f6fb] text-[#a095b0]",
+                ].join(" ")}
+              >
+                Collapse all
+              </button>
+              {availableBadges.length === 0 ? (
+                <p className="text-sm text-[#6f6384] sm:ml-1">
+                  No active badges left to assign.
+                </p>
+              ) : null}
+            </div>
+            {skillError ? <p className="mt-2 text-sm font-medium text-[#a72020]">{skillError}</p> : null}
+            {deleteError ? <p className="mt-2 text-sm font-medium text-[#a72020]">{deleteError}</p> : null}
+          </header>
+
+          <div
+            className={[
+              "space-y-2 px-5 py-5 md:px-6 lg:max-w-[1120px]",
+              isMutating ? "cursor-wait" : "",
+            ].join(" ")}
+            aria-busy={isMutating}
+          >
+            {assignedBadges.length === 0 ? (
+              <div className="border border-dashed border-[#d8ceeb] bg-[#fcfafe] px-4 py-6">
+                <h2 className="text-base font-semibold text-[#24193a]">No badges assigned</h2>
+                <p className="mt-1 text-sm text-[#5f5177]">
+                  Assign a badge to start tracking progress for this student.
+                </p>
+              </div>
+            ) : (
+              assignedBadges.map((badge) => {
                 const total = badge.skills.length;
-                const percentage = Math.round((done / total) * 100);
+                const done = badge.skills.filter((skill) => skill.completedAt).length;
+                const percentage = total > 0 ? Math.round((done / total) * 100) : 0;
                 const progressWidth = done > 0 ? Math.max(percentage, 3) : 0;
-                const status = badgeStatus(done, total);
-                const isExpanded = expandedByBadgeId[badge.id] === true;
-                const badgeCompleted = done === total;
-                const progressBarColor = badge.track === "competition" ? "#e0b21a" : "#6c35c3";
+                const status = badgeStatus(done, total, badge.isCompleted);
+                const isExpanded = expandedByAssignmentId[badge.assignmentId] === true;
+                const isThisBadgeDeleting = deletingAssignmentId === badge.assignmentId;
 
                 return (
-                  <article key={badge.id} className="overflow-hidden border border-[#e7e0f1] bg-white">
+                  <article
+                    key={badge.assignmentId}
+                    className={[
+                      "overflow-hidden border border-[#e7e0f1] bg-white",
+                      isThisBadgeDeleting ? "opacity-70" : "",
+                    ].join(" ")}
+                  >
                     <button
                       type="button"
-                      onClick={() => toggleExpanded(badge.id)}
+                      onClick={() => toggleExpanded(badge.assignmentId)}
+                      disabled={isMutating}
                       className={[
-                        "w-full cursor-pointer px-4 py-3 text-left",
-                        badgeCompleted
+                        "w-full px-4 py-3 text-left",
+                        isMutating ? "cursor-wait" : "cursor-pointer",
+                        status === "Complete"
                           ? "bg-[#f7fcf9] hover:bg-[#f3faf6]"
                           : "bg-white hover:bg-[#fcfafe]",
                       ].join(" ")}
@@ -296,9 +481,9 @@ export default function StudentProfileTabs({
                         <div className="min-w-0">
                           <div className="flex flex-wrap items-center gap-2">
                             <span className="inline-flex h-6 items-center border border-[#d7cbe8] bg-[#f7f2ff] px-2 text-[11px] font-semibold text-[#4f2390]">
-                              {badge.code}
+                              {categoryLabel(badge.category)}
                             </span>
-                            <h3 className="truncate text-base font-semibold text-[#24193a]">{badge.title}</h3>
+                            <h3 className="truncate text-base font-semibold text-[#24193a]">{badge.name}</h3>
                             <span
                               className={[
                                 "inline-flex h-6 items-center border px-2 text-[11px] font-semibold",
@@ -310,9 +495,16 @@ export default function StudentProfileTabs({
                           </div>
                           <p className="mt-1 text-sm font-medium text-[#574b69]">
                             {done}/{total} skills complete | {percentage}%
+                            {badge.completedAt ? ` | Completed ${formatDate(badge.completedAt)}` : ""}
                           </p>
+                          {badge.description ? (
+                            <p className="mt-1 text-sm text-[#6c607d]">{badge.description}</p>
+                          ) : null}
                         </div>
-                        <div className="flex items-center">
+                        <div className="flex items-center gap-2">
+                          {isThisBadgeDeleting ? (
+                            <span className="inline-flex h-5 w-5 animate-spin rounded-full border-2 border-[#d6c9e7] border-t-[#6c35c3]" />
+                          ) : null}
                           <span className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-[#ddd4ea] bg-white text-[#7c6f91] transition hover:bg-[#faf7ff] hover:ring-2 hover:ring-[#6e2ac0]/20">
                             <svg
                               viewBox="0 0 20 20"
@@ -334,78 +526,158 @@ export default function StudentProfileTabs({
                       </div>
                       <div className="mt-2 h-2.5 overflow-hidden bg-[#f4eff9]">
                         <div
-                          className="h-full transition-all duration-200"
-                          style={{ width: `${progressWidth}%`, backgroundColor: progressBarColor }}
+                          className="h-full bg-[#6c35c3] transition-all duration-200"
+                          style={{ width: `${progressWidth}%` }}
                         />
                       </div>
                     </button>
 
                     {isExpanded ? (
                       <div className="border-t border-[#ece4f5] px-4 py-3">
-                        <div className="mb-3 flex flex-wrap items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => markAll(badge.id, true)}
-                            className="h-8 cursor-pointer border border-[#0f8d4e] bg-[#0f8d4e] px-2.5 text-xs font-semibold text-white hover:bg-[#0d7c45]"
-                          >
-                            Mark all complete
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => markAll(badge.id, false)}
-                            className="h-8 cursor-pointer border border-[#ddd4ea] bg-white px-2.5 text-xs font-semibold text-[#6f6384] hover:bg-[#faf7ff]"
-                          >
-                            Reset
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => toggleExpanded(badge.id)}
-                            className="h-8 cursor-pointer border border-[#ddd4ea] bg-white px-2.5 text-xs font-semibold text-[#6f6384] hover:bg-[#faf7ff]"
-                          >
-                            Collapse
-                          </button>
-                        </div>
-
-                        <div className="grid gap-3 sm:grid-cols-2">
-                          {badge.skills.map((skill, index) => {
-                            const isChecked = progress[index] || false;
-                            return (
-                              <label
-                                key={`${badge.id}-skill-${index}`}
-                                className={[
-                                  "relative flex cursor-pointer items-start gap-2 overflow-hidden border px-3 py-2.5 text-sm text-[#2a203c] transition",
-                                  isChecked
-                                    ? "border-[#cfe8db] bg-[#fefcff]"
-                                    : "border-[#ece4f5] bg-[#fefcff] hover:border-[#e1d7ef] hover:bg-[#fbf8ff]",
-                                ].join(" ")}
-                              >
-                                <span
-                                  aria-hidden
+                        {badge.skills.length === 0 ? (
+                          <p className="text-sm text-[#5f5177]">No skills have been defined for this badge.</p>
+                        ) : (
+                          <div className="grid gap-3 sm:grid-cols-2">
+                            {badge.skills.map((skill) => {
+                              const isChecked = Boolean(skill.completedAt);
+                              const mutationKey = `${badge.assignmentId}:${skill.id}`;
+                              const isThisSkillSaving = savingSkillKey === mutationKey;
+                              return (
+                                <label
+                                  key={skill.id}
                                   className={[
-                                    "absolute inset-0 origin-left bg-[#eef8f2] transition-transform duration-300 ease-out",
-                                    isChecked ? "scale-x-100" : "scale-x-0",
+                                    "relative flex items-start gap-2 overflow-hidden border px-3 py-2.5 text-sm text-[#2a203c]",
+                                    isMutating ? "cursor-wait" : "cursor-pointer",
+                                    isChecked ? "border-[#cfe8db] bg-[#eef8f2]" : "border-[#ece4f5] bg-[#fefcff]",
                                   ].join(" ")}
-                                />
-                                <input
-                                  type="checkbox"
-                                  checked={isChecked}
-                                  onChange={() => toggleSkill(badge.id, index)}
-                                  className="relative z-10 mt-0.5 h-4 w-4 accent-[#6c35c3]"
-                                />
-                                <span className="relative z-10">{skill}</span>
-                              </label>
-                            );
-                          })}
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={isChecked}
+                                    disabled={isMutating}
+                                    onChange={(event) =>
+                                      setSkillCompleted(
+                                        badge.assignmentId,
+                                        skill.id,
+                                        event.target.checked
+                                      )
+                                    }
+                                    className="relative z-10 mt-0.5 h-4 w-4 accent-[#6c35c3]"
+                                  />
+                                  <span className="relative z-10">
+                                    <span className="flex items-center gap-2">
+                                      <span>{skill.name}</span>
+                                      {isThisSkillSaving ? (
+                                        <span className="inline-flex h-4 w-4 animate-spin rounded-full border-2 border-[#d6c9e7] border-t-[#6c35c3]" />
+                                      ) : null}
+                                    </span>
+                                    {skill.description ? (
+                                      <span className="mt-0.5 block text-xs text-[#6c607d]">
+                                        {skill.description}
+                                      </span>
+                                    ) : null}
+                                  </span>
+                                </label>
+                              );
+                            })}
+                          </div>
+                        )}
+                        <div className="mt-4 flex justify-end border-t border-[#f0eaf6] pt-3">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setDeleteError(null);
+                              setDeleteCandidate(badge);
+                            }}
+                            disabled={isMutating || isAssigning}
+                            className={[
+                              "h-8 border px-2.5 text-xs font-semibold transition",
+                              !isMutating && !isAssigning
+                                ? "cursor-pointer border-[#d93636] bg-[#d93636] text-white hover:bg-[#bd2d2d]"
+                                : "cursor-not-allowed border-[#eadada] bg-[#f8f6fb] text-[#b79a9a]",
+                            ].join(" ")}
+                          >
+                            Delete Badge
+                          </button>
                         </div>
                       </div>
                     ) : null}
                   </article>
                 );
-              })}
-            </div>
+              })
+            )}
           </div>
         </section>
       )}
+
+      <Dialog.Root
+        open={deleteCandidate !== null}
+        onOpenChange={(open) => {
+          if (!open && !isDeletingBadge) {
+            setDeleteCandidate(null);
+            setDeleteError(null);
+          }
+        }}
+      >
+        <Dialog.Portal>
+          <Dialog.Overlay className="fixed inset-0 z-[100] bg-black/45" />
+          <Dialog.Content className="fixed inset-x-3 top-1/2 z-[101] max-h-[86vh] -translate-y-1/2 overflow-hidden border border-[#d8ceeb] bg-white shadow-2xl sm:left-1/2 sm:right-auto sm:w-[min(520px,calc(100vw-32px))] sm:-translate-x-1/2">
+            <div className="border-b border-[#e8e0f2] px-4 py-4 sm:px-5">
+              <div>
+                <Dialog.Title className="text-lg font-bold text-[#24193a]">
+                  Delete assigned badge
+                </Dialog.Title>
+                <Dialog.Description className="mt-1 text-sm text-[#5f5177]">
+                  This will remove the badge and any completed skill records for this student.
+                </Dialog.Description>
+              </div>
+            </div>
+
+            <div className="px-4 py-4 sm:px-5">
+              <p className="text-sm text-[#342744]">
+                Delete{" "}
+                <span className="font-semibold text-[#24193a]">
+                  {deleteCandidate?.name ?? "this badge"}
+                </span>
+                ?
+              </p>
+              <p className="mt-2 text-sm text-[#6c607d]">
+                Warning, this action is permanent and cannot be undone.
+              </p>
+              {deleteError ? (
+                <p className="mt-3 text-sm font-medium text-[#a72020]">{deleteError}</p>
+              ) : null}
+            </div>
+
+            <div className="border-t border-[#e8e0f2] px-4 py-4 sm:px-5">
+              <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                <Dialog.Close asChild>
+                  <button
+                    type="button"
+                    disabled={isDeletingBadge}
+                    className="h-10 border border-[#ddd4ea] bg-white px-4 text-sm font-semibold text-[#6f6384] hover:bg-[#faf7ff] disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    Cancel
+                  </button>
+                </Dialog.Close>
+                <button
+                  type="button"
+                  onClick={deleteAssignedBadge}
+                  disabled={!deleteCandidate || isDeletingBadge}
+                  className={[
+                    "h-10 border px-4 text-sm font-semibold transition",
+                    deleteCandidate && !isDeletingBadge
+                      ? "cursor-pointer border-[#d93636] bg-[#d93636] text-white hover:bg-[#bd2d2d]"
+                      : "cursor-not-allowed border-[#eadada] bg-[#f8f6fb] text-[#b79a9a]",
+                  ].join(" ")}
+                >
+                  {isDeletingBadge ? "Deleting..." : "Delete badge"}
+                </button>
+              </div>
+            </div>
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
     </div>
   );
 }

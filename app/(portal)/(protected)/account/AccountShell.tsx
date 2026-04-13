@@ -16,21 +16,65 @@ type AccountDetails = {
   accAddress: string | null
 }
 
+type ChildSummary = {
+  id: string
+  firstName: string | null
+  lastName: string | null
+  dateOfBirth: string | null
+  photoConsent: boolean | null
+  competitionEligible: boolean | null
+}
+
+type MedicalInformationRow = {
+  childId: string
+  medicalConditions: string | null
+  medications: string | null
+  disabilities: string | null
+  behaviouralConditions: string | null
+  allergies: string | null
+  dietaryNeeds: string | null
+  doctorName: string | null
+  surgeryAddress: string | null
+  surgeryTelephone: string | null
+}
+
+type BookingSummary = {
+  childId: string
+  className: string | null
+  weekday: string | null
+  startTime: string | null
+  endTime: string | null
+  durationMinutes: number | null
+}
+
+type ChildBadgeSkill = {
+  id: string
+  name: string
+  description: string | null
+  sortOrder: number
+  completedAt: string | null
+}
+
+type ChildAssignedBadge = {
+  assignmentId: string
+  badgeId: string
+  name: string
+  description: string | null
+  category: string | null
+  isCompleted: boolean
+  completedAt: string | null
+  skills: ChildBadgeSkill[]
+}
+
 type BootstrapResponse =
   | {
       ok: true
       status: "existing"
       account: AccountDetails
-      children: {
-        id: string
-        firstName: string | null
-        lastName: string | null
-        dateOfBirth: string | null
-        photoConsent: boolean | null
-        competitionEligible: boolean | null
-      }[]
-      medicalByChildId: Record<string, any>
-      bookingsByChildId: Record<string, any[]>
+      children: ChildSummary[]
+      medicalByChildId: Record<string, MedicalInformationRow>
+      bookingsByChildId: Record<string, BookingSummary[]>
+      badgesByChildId: Record<string, ChildAssignedBadge[]>
       childDetailsIncluded: boolean
       accountExists: true
       profileComplete: boolean
@@ -41,8 +85,9 @@ type BootstrapResponse =
       status: "missing"
       account: null
       children: []
-      medicalByChildId: Record<string, any>
-      bookingsByChildId: Record<string, any[]>
+      medicalByChildId: Record<string, MedicalInformationRow>
+      bookingsByChildId: Record<string, BookingSummary[]>
+      badgesByChildId: Record<string, ChildAssignedBadge[]>
       childDetailsIncluded: false
       accountExists: false
       profileComplete: false
@@ -578,9 +623,10 @@ export default function AccountShell() {
                   ) : (
                   <ChildrenClientPanel
                     key={`children-${childrenResetKey}`}
-                    children={data.children}
+                    childSummaries={data.children}
                     medicalByChildId={data.medicalByChildId}
                     bookingsByChildId={data.bookingsByChildId}
+                    badgesByChildId={data.badgesByChildId}
                     onSelectionChange={setIsChildDetail}
                     onActiveChildChange={setActiveChildId}
                   />
@@ -589,7 +635,7 @@ export default function AccountShell() {
                 <ChildSelectModal
                   isOpen={isChildModalOpen}
                   onClose={() => setIsChildModalOpen(false)}
-                  children={data.children}
+                  childOptions={data.children}
                   onSelect={(child) => {
                     setIsChildModalOpen(false)
                     router.push(`/book?childId=${child.id}`)
