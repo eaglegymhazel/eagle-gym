@@ -8,6 +8,9 @@ import { ArrowLeft } from "lucide-react";
 type StudentProfileTabsProps = {
   children: ReactNode;
   childId: string;
+  studentName: string;
+  dateOfBirthLabel: string;
+  ageLabel: string;
   initialAssignedBadges: AdminAssignedBadge[];
   initialAvailableBadges: AdminBadgeDefinitionOption[];
 };
@@ -30,6 +33,8 @@ type AdminAssignedBadge = {
   category: string | null;
   isCompleted: boolean;
   completedAt: string | null;
+  dateAwarded: string | null;
+  datePaid: string | null;
   skills: AdminBadgeSkill[];
 };
 
@@ -69,6 +74,13 @@ function formatDate(value: string | null): string {
   });
 }
 
+function formatDateInputValue(value: string | null): string {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toISOString().slice(0, 10);
+}
+
 function categoryLabel(category: string | null): string {
   return category?.trim() || "Uncategorised";
 }
@@ -76,6 +88,9 @@ function categoryLabel(category: string | null): string {
 export default function StudentProfileTabs({
   children,
   childId,
+  studentName,
+  dateOfBirthLabel,
+  ageLabel,
   initialAssignedBadges,
   initialAvailableBadges,
 }: StudentProfileTabsProps) {
@@ -87,6 +102,7 @@ export default function StudentProfileTabs({
   const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
   const [isAssigning, setIsAssigning] = useState(false);
   const [savingSkillKey, setSavingSkillKey] = useState<string | null>(null);
+  const [savingAssignmentId, setSavingAssignmentId] = useState<string | null>(null);
   const [deleteCandidate, setDeleteCandidate] = useState<AdminAssignedBadge | null>(null);
   const [deletingAssignmentId, setDeletingAssignmentId] = useState<string | null>(null);
   const [assignError, setAssignError] = useState<string | null>(null);
@@ -103,8 +119,9 @@ export default function StudentProfileTabs({
   const selectedValue = selectedBadgeStillAvailable ? selectedBadgeId : availableBadges[0]?.id ?? "";
   const selectedBadge = availableBadges.find((badge) => badge.id === selectedValue) ?? null;
   const isSavingSkill = savingSkillKey !== null;
+  const isSavingAssignment = savingAssignmentId !== null;
   const isDeletingBadge = deletingAssignmentId !== null;
-  const isMutating = isSavingSkill || isDeletingBadge;
+  const isMutating = isSavingSkill || isSavingAssignment || isDeletingBadge;
 
   const toggleExpanded = (assignmentId: string) => {
     setExpandedByAssignmentId((prev) => ({ ...prev, [assignmentId]: !prev[assignmentId] }));
@@ -185,6 +202,38 @@ export default function StudentProfileTabs({
     }
   };
 
+  const updateAssignmentTracking = async (
+    assignmentId: string,
+    updates: { dateAwarded?: string | null; datePaid?: string | null }
+  ) => {
+    if (savingSkillKey || savingAssignmentId || isDeletingBadge) return;
+
+    setSavingAssignmentId(assignmentId);
+    setSkillError(null);
+
+    try {
+      const response = await fetch("/api/admin/child-badges", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ assignmentId, ...updates }),
+      });
+      const payload = (await response.json()) as BadgeApiResponse;
+
+      if (!response.ok) {
+        throw new Error(payload.error ?? "Badge tracking fields could not be saved.");
+      }
+
+      setAssignedBadges(payload.assignedBadges ?? []);
+      setAvailableBadges(payload.availableBadges ?? []);
+    } catch (error) {
+      setSkillError(
+        error instanceof Error ? error.message : "Badge tracking fields could not be saved."
+      );
+    } finally {
+      setSavingAssignmentId(null);
+    }
+  };
+
   const deleteAssignedBadge = async () => {
     if (!deleteCandidate || isMutating || isAssigning) return;
 
@@ -257,11 +306,12 @@ export default function StudentProfileTabs({
           <header className="border-b border-[#e8e0f2] px-5 py-5 md:px-6">
             <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[#726587]">
-                  Coach badge tracker
+                <p className="text-xs font-semibold uppercase tracking-[0.1em] text-[#6f6287]">
+                  Student profile
                 </p>
-                <p className="mt-1 text-sm font-medium text-[#5f5177]">
-                  {assignedBadges.length} assigned | {completeCount} complete
+                <h1 className="mt-2 text-2xl font-bold text-[#221833]">{studentName}</h1>
+                <p className="mt-1 text-sm text-[#5f5177]">
+                  {dateOfBirthLabel} | {ageLabel}
                 </p>
               </div>
               <Link
@@ -271,6 +321,18 @@ export default function StudentProfileTabs({
                 <ArrowLeft className="h-4 w-4" aria-hidden="true" />
                 Back to Student Management
               </Link>
+            </div>
+          </header>
+          <header className="border-b border-[#e8e0f2] px-5 py-5 md:px-6">
+            <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[#726587]">
+                  Coach badge tracker
+                </p>
+                <p className="mt-1 text-sm font-medium text-[#5f5177]">
+                  {assignedBadges.length} assigned | {completeCount} complete
+                </p>
+              </div>
             </div>
 
             <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
@@ -455,6 +517,10 @@ export default function StudentProfileTabs({
                 const status = badgeStatus(done, total, badge.isCompleted);
                 const isExpanded = expandedByAssignmentId[badge.assignmentId] === true;
                 const isThisBadgeDeleting = deletingAssignmentId === badge.assignmentId;
+                const isThisAssignmentSaving = savingAssignmentId === badge.assignmentId;
+                const dateAwardedValue = formatDateInputValue(badge.dateAwarded);
+                const datePaidValue = formatDateInputValue(badge.datePaid);
+                const isTrackingLocked = !badge.isCompleted;
 
                 return (
                   <article
@@ -534,54 +600,143 @@ export default function StudentProfileTabs({
 
                     {isExpanded ? (
                       <div className="border-t border-[#ece4f5] px-4 py-3">
-                        {badge.skills.length === 0 ? (
-                          <p className="text-sm text-[#5f5177]">No skills have been defined for this badge.</p>
-                        ) : (
+                        <section className="mb-4 border border-[#e3d8f0] bg-[#faf7ff] px-3 py-3">
+                          <div className="mb-2 flex items-center justify-between gap-2">
+                            <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[#5f4b83]">
+                              Award & payment tracking
+                            </p>
+                            {isThisAssignmentSaving ? (
+                              <span className="inline-flex h-4 w-4 animate-spin rounded-full border-2 border-[#d6c9e7] border-t-[#6c35c3]" />
+                            ) : null}
+                          </div>
+                          <p className="mb-3 text-xs text-[#6f6384]">
+                            {isTrackingLocked
+                              ? "Complete all badge skills to enable these date fields."
+                              : "Track when the badge was awarded and when payment was received."}
+                          </p>
                           <div className="grid gap-3 sm:grid-cols-2">
-                            {badge.skills.map((skill) => {
-                              const isChecked = Boolean(skill.completedAt);
-                              const mutationKey = `${badge.assignmentId}:${skill.id}`;
-                              const isThisSkillSaving = savingSkillKey === mutationKey;
-                              return (
-                                <label
-                                  key={skill.id}
+                            <label className="flex flex-col gap-1 text-sm text-[#2a203c]">
+                              <span className="font-medium text-[#574b69]">Date awarded</span>
+                              <div className="flex items-center gap-2">
+                                <input
+                                  type="date"
+                                  value={dateAwardedValue}
+                                  disabled={isMutating || isTrackingLocked}
+                                  onChange={(event) =>
+                                    updateAssignmentTracking(badge.assignmentId, {
+                                      dateAwarded: event.target.value || null,
+                                    })
+                                  }
+                                  className="h-9 min-w-0 flex-1 border border-[#d8ceeb] bg-white px-2 text-sm text-[#2a203c] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6e2ac0]/35 disabled:cursor-not-allowed disabled:bg-[#f3eefb]"
+                                />
+                                <button
+                                  type="button"
+                                  disabled={isMutating || isTrackingLocked || !dateAwardedValue}
+                                  onClick={() =>
+                                    updateAssignmentTracking(badge.assignmentId, {
+                                      dateAwarded: null,
+                                    })
+                                  }
                                   className={[
-                                    "relative flex items-start gap-2 overflow-hidden border px-3 py-2.5 text-sm text-[#2a203c]",
-                                    isMutating ? "cursor-wait" : "cursor-pointer",
-                                    isChecked ? "border-[#cfe8db] bg-[#eef8f2]" : "border-[#ece4f5] bg-[#fefcff]",
+                                    "h-9 border px-2.5 text-xs font-semibold transition",
+                                    !isMutating && !isTrackingLocked && dateAwardedValue
+                                      ? "cursor-pointer border-[#ddd4ea] bg-white text-[#6f6384] hover:bg-[#faf7ff]"
+                                      : "cursor-not-allowed border-[#e9e4f0] bg-[#f8f6fb] text-[#a095b0]",
                                   ].join(" ")}
                                 >
-                                  <input
-                                    type="checkbox"
-                                    checked={isChecked}
-                                    disabled={isMutating}
-                                    onChange={(event) =>
-                                      setSkillCompleted(
-                                        badge.assignmentId,
-                                        skill.id,
-                                        event.target.checked
-                                      )
-                                    }
-                                    className="relative z-10 mt-0.5 h-4 w-4 accent-[#6c35c3]"
-                                  />
-                                  <span className="relative z-10">
-                                    <span className="flex items-center gap-2">
-                                      <span>{skill.name}</span>
-                                      {isThisSkillSaving ? (
-                                        <span className="inline-flex h-4 w-4 animate-spin rounded-full border-2 border-[#d6c9e7] border-t-[#6c35c3]" />
+                                  Clear
+                                </button>
+                              </div>
+                            </label>
+                            <label className="flex flex-col gap-1 text-sm text-[#2a203c]">
+                              <span className="font-medium text-[#574b69]">Date paid</span>
+                              <div className="flex items-center gap-2">
+                                <input
+                                  type="date"
+                                  value={datePaidValue}
+                                  disabled={isMutating || isTrackingLocked}
+                                  onChange={(event) =>
+                                    updateAssignmentTracking(badge.assignmentId, {
+                                      datePaid: event.target.value || null,
+                                    })
+                                  }
+                                  className="h-9 min-w-0 flex-1 border border-[#d8ceeb] bg-white px-2 text-sm text-[#2a203c] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6e2ac0]/35 disabled:cursor-not-allowed disabled:bg-[#f3eefb]"
+                                />
+                                <button
+                                  type="button"
+                                  disabled={isMutating || isTrackingLocked || !datePaidValue}
+                                  onClick={() =>
+                                    updateAssignmentTracking(badge.assignmentId, {
+                                      datePaid: null,
+                                    })
+                                  }
+                                  className={[
+                                    "h-9 border px-2.5 text-xs font-semibold transition",
+                                    !isMutating && !isTrackingLocked && datePaidValue
+                                      ? "cursor-pointer border-[#ddd4ea] bg-white text-[#6f6384] hover:bg-[#faf7ff]"
+                                      : "cursor-not-allowed border-[#e9e4f0] bg-[#f8f6fb] text-[#a095b0]",
+                                  ].join(" ")}
+                                >
+                                  Clear
+                                </button>
+                              </div>
+                            </label>
+                          </div>
+                        </section>
+
+                        <section className="border border-[#ece4f5] bg-[#fefcff] px-3 py-3">
+                          <p className="mb-3 text-xs font-semibold uppercase tracking-[0.08em] text-[#5f4b83]">
+                            Skills checklist
+                          </p>
+                          {badge.skills.length === 0 ? (
+                            <p className="text-sm text-[#5f5177]">No skills have been defined for this badge.</p>
+                          ) : (
+                            <div className="grid gap-3 sm:grid-cols-2">
+                              {badge.skills.map((skill) => {
+                                const isChecked = Boolean(skill.completedAt);
+                                const mutationKey = `${badge.assignmentId}:${skill.id}`;
+                                const isThisSkillSaving = savingSkillKey === mutationKey;
+                                return (
+                                  <label
+                                    key={skill.id}
+                                    className={[
+                                      "relative flex items-start gap-2 overflow-hidden border px-3 py-2.5 text-sm text-[#2a203c]",
+                                      isMutating ? "cursor-wait" : "cursor-pointer",
+                                      isChecked ? "border-[#cfe8db] bg-[#eef8f2]" : "border-[#ece4f5] bg-[#fefcff]",
+                                    ].join(" ")}
+                                  >
+                                    <input
+                                      type="checkbox"
+                                      checked={isChecked}
+                                      disabled={isMutating}
+                                      onChange={(event) =>
+                                        setSkillCompleted(
+                                          badge.assignmentId,
+                                          skill.id,
+                                          event.target.checked
+                                        )
+                                      }
+                                      className="relative z-10 mt-0.5 h-4 w-4 accent-[#6c35c3]"
+                                    />
+                                    <span className="relative z-10">
+                                      <span className="flex items-center gap-2">
+                                        <span>{skill.name}</span>
+                                        {isThisSkillSaving ? (
+                                          <span className="inline-flex h-4 w-4 animate-spin rounded-full border-2 border-[#d6c9e7] border-t-[#6c35c3]" />
+                                        ) : null}
+                                      </span>
+                                      {skill.description ? (
+                                        <span className="mt-0.5 block text-xs text-[#6c607d]">
+                                          {skill.description}
+                                        </span>
                                       ) : null}
                                     </span>
-                                    {skill.description ? (
-                                      <span className="mt-0.5 block text-xs text-[#6c607d]">
-                                        {skill.description}
-                                      </span>
-                                    ) : null}
-                                  </span>
-                                </label>
-                              );
-                            })}
-                          </div>
-                        )}
+                                  </label>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </section>
                         <div className="mt-4 flex justify-end border-t border-[#f0eaf6] pt-3">
                           <button
                             type="button"

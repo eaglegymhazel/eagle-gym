@@ -15,14 +15,12 @@ export default function FeaturedProfileCard({
   onOpen,
   reducedMotion,
 }: FeaturedProfileCardProps) {
-  const specialties = member.qualifications.slice(0, 4);
-
   return (
-    <section className="mb-8">
+    <section className="my-12">
       <button
         type="button"
         onClick={(event) => onOpen(member.id, event.currentTarget)}
-        className="group block w-full rounded-3xl text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6c35c3] focus-visible:ring-offset-2 focus-visible:ring-offset-[#faf7fb]"
+        className="group block w-full text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6c35c3] focus-visible:ring-offset-2 focus-visible:ring-offset-[#faf7fb]"
         aria-label={`View profile for ${member.name}`}
       >
         <motion.div
@@ -33,64 +31,57 @@ export default function FeaturedProfileCard({
               : { type: "spring", stiffness: 350, damping: 34, mass: 0.7 }
           }
           whileHover={reducedMotion ? undefined : { y: -2 }}
-          className={[
-            "overflow-hidden rounded-3xl border border-[#6c35c3]/20",
-            "bg-gradient-to-r from-white via-[#fbf8ff] to-[#f6f0ff]",
-            "shadow-[0_20px_45px_-34px_rgba(45,26,78,0.55)]",
-          ].join(" ")}
+          className="grid overflow-hidden rounded-lg border border-[#6c35c3]/18 bg-white shadow-[0_18px_42px_-32px_rgba(45,26,78,0.5)] md:grid-cols-[minmax(0,0.72fr)_minmax(0,1.28fr)]"
         >
-          <div className="grid gap-0 md:grid-cols-[260px,1fr]">
+          <div className="flex items-center justify-center bg-[#f3ecfb] px-6 py-8">
             <motion.div
               layoutId={`team-photo-${member.id}`}
-              className="relative aspect-[4/5] w-full overflow-hidden bg-[#f3e7ff] md:aspect-auto md:min-h-[320px]"
+              className="relative aspect-[4/5] w-full max-w-[180px] overflow-hidden rounded-lg bg-[#faf7fb]"
             >
               <Image
                 src={member.photoUrl}
                 alt={`${member.name} portrait`}
                 fill
-                className="object-cover transition duration-200 ease-out group-hover:scale-[1.02]"
-                sizes="(max-width: 768px) 100vw, 260px"
+                className="object-contain transition duration-200 ease-out group-hover:scale-[1.015]"
+                sizes="180px"
+                priority
               />
-              <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-[#1f14320f] to-transparent" />
             </motion.div>
+          </div>
 
-            <div className="space-y-4 p-6 md:p-8">
-              <motion.h3
-                layoutId={`team-name-${member.id}`}
-                className="text-3xl font-bold tracking-[-0.02em] text-[#231739]"
-              >
-                {member.name}
-              </motion.h3>
-              <motion.p
-                layoutId={`team-role-${member.id}`}
-                className="text-base font-semibold text-[#6c35c3]"
-              >
-                {member.roleTitle}
-              </motion.p>
-              {member.bio ? (
-                <p className="max-w-2xl text-base leading-7 text-[#2a0c4f]/80">
-                  {member.bio}
-                </p>
-              ) : (
-                <p className="max-w-2xl text-base leading-7 text-[#2a0c4f]/80">
-                  Supporting every gymnast with safe progress, strong
-                  fundamentals, and a positive training environment.
-                </p>
-              )}
-              <div className="flex flex-wrap gap-2">
-                {specialties.map((item) => (
-                  <span
-                    key={item}
-                    className="rounded-full border border-[#6c35c3]/20 bg-white/85 px-3 py-1 text-xs font-semibold text-[#4c297a]"
-                  >
-                    {item}
-                  </span>
-                ))}
-              </div>
-              <span className="inline-flex rounded-full border border-[#6c35c3]/30 bg-[#f7f1ff] px-4 py-1.5 text-sm font-semibold text-[#4c297a] transition group-hover:bg-[#efe4ff]">
-                View profile
-              </span>
+          <div className="flex flex-col justify-center p-6 sm:p-8">
+            <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#6c35c3]">
+              Head Coach
+            </p>
+            <motion.h2
+              layoutId={`team-name-${member.id}`}
+              className="mt-3 text-[clamp(34px,4vw,54px)] font-extrabold leading-[0.98] tracking-[0.01em] text-[#143271]"
+            >
+              {member.name}
+            </motion.h2>
+            <motion.p
+              layoutId={`team-role-${member.id}`}
+              className="mt-2 text-base font-bold text-[#6c35c3]"
+            >
+              {member.roleTitle}
+            </motion.p>
+            <p className="mt-5 max-w-2xl text-base leading-8 text-[#2E2A33]/76">
+              Leading a supportive coaching environment where gymnasts can
+              develop confidence, coordination, and safe technique over time.
+            </p>
+            <div className="mt-5 flex flex-wrap gap-2">
+              {member.qualifications.slice(0, 4).map((item) => (
+                <span
+                  key={item}
+                  className="rounded-md border border-[#6c35c3]/20 bg-[#f8f3ff] px-3 py-1 text-xs font-semibold text-[#45276f]"
+                >
+                  {item}
+                </span>
+              ))}
             </div>
+            <span className="mt-6 inline-flex w-fit rounded-md border border-[#2E2A33] bg-white/55 px-5 py-2.5 text-xs font-bold uppercase tracking-[0.08em] text-[#2E2A33] transition group-hover:-translate-y-0.5 group-hover:bg-[#2E2A33] group-hover:text-white">
+              View profile
+            </span>
           </div>
         </motion.div>
       </button>

@@ -84,7 +84,7 @@ export default function TeamProfileModal({
           <motion.button
             type="button"
             onClick={onClose}
-            className="absolute inset-0 bg-[#120a22]/45 backdrop-blur-[2px]"
+            className="absolute inset-0 bg-[#120a22]/48 backdrop-blur-[2px]"
             aria-label="Close profile dialog"
           />
 
@@ -99,72 +99,78 @@ export default function TeamProfileModal({
                 ? { duration: 0.12 }
                 : { type: "spring", stiffness: 330, damping: 35, mass: 0.7 }
             }
-            className="relative z-10 w-full max-w-3xl overflow-hidden rounded-3xl border border-[#6c35c3]/20 bg-white shadow-[0_38px_70px_-38px_rgba(21,10,37,0.65)]"
+            className="relative z-10 w-full max-w-3xl overflow-hidden rounded-lg border border-[#6c35c3]/20 bg-white shadow-[0_38px_70px_-38px_rgba(21,10,37,0.65)]"
           >
             <button
               ref={closeButtonRef}
               type="button"
               onClick={onClose}
-              className="absolute top-4 right-4 z-20 inline-flex h-9 w-9 items-center justify-center rounded-full border border-[#6c35c3]/20 bg-white/95 text-[#38205a] transition hover:bg-[#f6f0ff] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6c35c3] focus-visible:ring-offset-2"
+              className="absolute right-4 top-4 z-20 inline-flex h-9 w-9 items-center justify-center rounded-md border border-[#6c35c3]/20 bg-white/95 text-[#38205a] transition hover:bg-[#f6f0ff] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6c35c3] focus-visible:ring-offset-2"
               aria-label="Close profile dialog"
             >
               <X className="h-4 w-4" aria-hidden="true" />
             </button>
 
-            <div className="grid max-h-[80vh] overflow-y-auto md:grid-cols-[300px,1fr]">
-              <motion.div
-                layoutId={`team-photo-${member.id}`}
-                className="relative min-h-[320px] bg-[#f3e7ff]"
-              >
-                <Image
-                  src={member.photoUrl}
-                  alt={`${member.name} portrait`}
-                  fill
-                  className="object-cover"
-                  sizes="(max-width: 768px) 100vw, 300px"
-                />
-              </motion.div>
+            <div className="grid max-h-[80vh] overflow-y-auto md:grid-cols-[240px,1fr]">
+              <div className="flex items-center justify-center bg-[#f3ecfb] p-6">
+                <motion.div
+                  layoutId={`team-photo-${member.id}`}
+                  className="relative aspect-[4/5] w-full max-w-[180px] overflow-hidden rounded-lg bg-[#faf7fb]"
+                >
+                  <Image
+                    src={member.photoUrl}
+                    alt={`${member.name} portrait`}
+                    fill
+                    className="object-contain"
+                    sizes="180px"
+                  />
+                </motion.div>
+              </div>
 
               <div className="space-y-5 p-6 sm:p-8">
-                <motion.h2
-                  id={`team-modal-title-${member.id}`}
-                  layoutId={`team-name-${member.id}`}
-                  className="text-3xl font-bold tracking-[-0.02em] text-[#211535]"
-                >
-                  {member.name}
-                </motion.h2>
-                <motion.p
-                  layoutId={`team-role-${member.id}`}
-                  className="text-base font-semibold text-[#6c35c3]"
-                >
-                  {member.roleTitle}
-                </motion.p>
-
-                {member.bio ? (
-                  <section className="space-y-2">
-                    <h3 className="text-xs font-semibold uppercase tracking-[0.08em] text-[#6f5a8d]">
-                      About
-                    </h3>
-                    <p className="text-base leading-7 text-[#2a0c4f]/80">
-                      {member.bio}
-                    </p>
-                  </section>
-                ) : null}
+                <div>
+                  <motion.h2
+                    id={`team-modal-title-${member.id}`}
+                    layoutId={`team-name-${member.id}`}
+                    className="text-4xl font-extrabold leading-tight tracking-[0.01em] text-[#143271]"
+                  >
+                    {member.name}
+                  </motion.h2>
+                  <motion.p
+                    layoutId={`team-role-${member.id}`}
+                    className="mt-2 text-base font-bold text-[#6c35c3]"
+                  >
+                    {member.roleTitle}
+                  </motion.p>
+                </div>
 
                 <section className="space-y-2">
-                  <h3 className="text-xs font-semibold uppercase tracking-[0.08em] text-[#6f5a8d]">
+                  <h3 className="text-xs font-bold uppercase tracking-[0.14em] text-[#6c35c3]">
+                    About
+                  </h3>
+                  <p className="text-base leading-7 text-[#2a0c4f]/80">
+                    {member.bio ??
+                      "Supporting every gymnast with safe progress, strong fundamentals, and a positive training environment."}
+                  </p>
+                </section>
+
+                <section className="space-y-2">
+                  <h3 className="text-xs font-bold uppercase tracking-[0.14em] text-[#6c35c3]">
                     Qualifications
                   </h3>
-                  <ul className="list-disc space-y-1 pl-5 text-sm leading-6 text-[#2a0c4f]/85">
+                  <ul className="space-y-2 text-sm leading-6 text-[#2a0c4f]/85">
                     {member.qualifications.map((qualification) => (
-                      <li key={qualification}>{qualification}</li>
+                      <li key={qualification} className="flex gap-2">
+                        <span aria-hidden="true">-</span>
+                        <span>{qualification}</span>
+                      </li>
                     ))}
                   </ul>
                 </section>
 
                 {member.funFact ? (
                   <section className="space-y-2">
-                    <h3 className="text-xs font-semibold uppercase tracking-[0.08em] text-[#6f5a8d]">
+                    <h3 className="text-xs font-bold uppercase tracking-[0.14em] text-[#6c35c3]">
                       Fun Fact
                     </h3>
                     <p className="text-sm leading-6 text-[#2a0c4f]/85">
@@ -180,4 +186,3 @@ export default function TeamProfileModal({
     </AnimatePresence>
   );
 }
-

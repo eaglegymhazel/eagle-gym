@@ -13,7 +13,9 @@ export default function TeamPage() {
   const lastTriggerRef = useRef<HTMLElement | null>(null);
 
   const featuredCoach = useMemo(
-    () => teamMembers.find((member) => member.roleTitle === "Head Coach") ?? teamMembers[0],
+    () =>
+      teamMembers.find((member) => member.roleTitle === "Head Coach") ??
+      teamMembers[0],
     [],
   );
   const remainingTeam = useMemo(
@@ -41,25 +43,36 @@ export default function TeamPage() {
   };
 
   return (
-    <section className="mx-auto w-full max-w-6xl px-4 py-12 sm:px-6 sm:py-14">
-      <FeaturedProfileCard
-        member={featuredCoach}
-        onOpen={handleOpen}
-        reducedMotion={!!reducedMotion}
-      />
+    <main className="w-full bg-[#faf7fb]">
+      <section className="mx-auto w-full max-w-6xl px-4 py-10 sm:px-6 sm:py-12">
+        <div className="mx-auto max-w-4xl text-center">
+          <h1 className="text-[clamp(38px,5vw,68px)] font-extrabold leading-[0.96] tracking-[0.01em] text-[#143271]">
+            Meet the coaching team
+          </h1>
+          <p className="mx-auto mt-6 max-w-3xl text-base leading-8 text-[#2E2A33]/76 sm:text-[17px]">
+            Supportive coaching, clear progressions, and a consistent training
+            environment for every gymnast.
+          </p>
+        </div>
 
-      <TeamGrid
-        members={remainingTeam}
-        onOpen={handleOpen}
-        reducedMotion={!!reducedMotion}
-      />
+        <FeaturedProfileCard
+          member={featuredCoach}
+          onOpen={handleOpen}
+          reducedMotion={!!reducedMotion}
+        />
 
-      <TeamProfileModal
-        member={activeMember}
-        onClose={handleClose}
-        reducedMotion={!!reducedMotion}
-      />
-    </section>
+        <TeamGrid
+          members={remainingTeam}
+          onOpen={handleOpen}
+          reducedMotion={!!reducedMotion}
+        />
+
+        <TeamProfileModal
+          member={activeMember}
+          onClose={handleClose}
+          reducedMotion={!!reducedMotion}
+        />
+      </section>
+    </main>
   );
 }
-

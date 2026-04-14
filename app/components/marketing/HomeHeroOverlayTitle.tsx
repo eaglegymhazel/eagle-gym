@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { Barlow_Condensed } from "next/font/google";
 
@@ -29,16 +28,5 @@ export default function HomeHeroOverlayTitle() {
     );
   }
 
-  return (
-    <div className="pointer-events-none mt-2 mb-2 px-4 text-center sm:mt-3 sm:mb-3">
-      <Image
-        src="/brand/overlay.png"
-        alt="Welcome to Eagle Gymnastics"
-        width={880}
-        height={260}
-        priority
-        className="mx-auto h-auto w-[min(58vw,450px)] object-contain drop-shadow-[0_10px_20px_rgba(18,10,35,0.25)]"
-      />
-    </div>
-  );
+  return null;
 }

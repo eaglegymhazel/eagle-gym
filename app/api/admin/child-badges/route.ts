@@ -125,82 +125,154 @@ export async function PATCH(request: NextRequest) {
       assignmentId?: unknown;
       badgeSkillId?: unknown;
       completed?: unknown;
+      dateAwarded?: unknown;
+      datePaid?: unknown;
     };
     const assignmentId = typeof body.assignmentId === "string" ? body.assignmentId.trim() : "";
     const badgeSkillId = typeof body.badgeSkillId === "string" ? body.badgeSkillId.trim() : "";
-    const completed = body.completed === true;
+    const hasSkillUpdate = badgeSkillId.length > 0 || typeof body.completed === "boolean";
+    const hasAssignmentUpdate =
+      Object.prototype.hasOwnProperty.call(body, "dateAwarded") ||
+      Object.prototype.hasOwnProperty.call(body, "datePaid");
 
-    if (!assignmentId || !badgeSkillId || typeof body.completed !== "boolean") {
+    if (!assignmentId) {
+      return applyCookies(jsonError("assignmentId is required.", 400));
+    }
+
+    if (!hasSkillUpdate && !hasAssignmentUpdate) {
       return applyCookies(
-        jsonError("assignmentId, badgeSkillId and completed are required.", 400)
+        jsonError(
+          "Provide either badgeSkillId/completed or one of dateAwarded/datePaid.",
+          400
+        )
       );
     }
 
     const { data: assignment, error: assignmentError } = await supabaseAdmin
       .from("child_badge_assignments")
-      .select("id,child_id,badge_id")
+      .select("id,child_id,badge_id,is_completed")
       .eq("id", assignmentId)
       .maybeSingle();
 
     if (assignmentError) return applyCookies(jsonError(assignmentError.message, 500));
     if (!assignment) return applyCookies(jsonError("Badge assignment not found.", 404));
 
-    const { data: skill, error: skillError } = await supabaseAdmin
-      .from("badge_skills")
-      .select("id,badge_id")
-      .eq("id", badgeSkillId)
-      .maybeSingle();
-
-    if (skillError) return applyCookies(jsonError(skillError.message, 500));
-    if (!skill || skill.badge_id !== assignment.badge_id) {
-      return applyCookies(jsonError("Badge skill not found for this assignment.", 404));
-    }
-
-    if (completed) {
-      const { error: insertError } = await supabaseAdmin
-        .from("child_badge_skill_progress")
-        .insert({ assignment_id: assignmentId, badge_skill_id: badgeSkillId });
-
-      if (insertError && insertError.code !== "23505") {
-        return applyCookies(jsonError(insertError.message, 500));
+    if (hasSkillUpdate) {
+      if (!badgeSkillId || typeof body.completed !== "boolean") {
+        return applyCookies(jsonError("badgeSkillId and completed are required.", 400));
       }
-    } else {
-      const { error: deleteError } = await supabaseAdmin
-        .from("child_badge_skill_progress")
-        .delete()
-        .eq("assignment_id", assignmentId)
-        .eq("badge_skill_id", badgeSkillId);
 
-      if (deleteError) return applyCookies(jsonError(deleteError.message, 500));
+      const { data: skill, error: skillError } = await supabaseAdmin
+        .from("badge_skills")
+        .select("id,badge_id")
+        .eq("id", badgeSkillId)
+        .maybeSingle();
+
+      if (skillError) return applyCookies(jsonError(skillError.message, 500));
+      if (!skill || skill.badge_id !== assignment.badge_id) {
+        return applyCookies(jsonError("Badge skill not found for this assignment.", 404));
+      }
+
+      if (body.completed === true) {
+        const { error: insertError } = await supabaseAdmin
+          .from("child_badge_skill_progress")
+          .insert({ assignment_id: assignmentId, badge_skill_id: badgeSkillId });
+
+        if (insertError && insertError.code !== "23505") {
+          return applyCookies(jsonError(insertError.message, 500));
+        }
+      } else {
+        const { error: deleteError } = await supabaseAdmin
+          .from("child_badge_skill_progress")
+          .delete()
+          .eq("assignment_id", assignmentId)
+          .eq("badge_skill_id", badgeSkillId);
+
+        if (deleteError) return applyCookies(jsonError(deleteError.message, 500));
+      }
+
+      const [
+        { count: totalSkills, error: totalError },
+        { count: completedSkills, error: completedError },
+      ] = await Promise.all([
+        supabaseAdmin
+          .from("badge_skills")
+          .select("id", { count: "exact", head: true })
+          .eq("badge_id", assignment.badge_id),
+        supabaseAdmin
+          .from("child_badge_skill_progress")
+          .select("id", { count: "exact", head: true })
+          .eq("assignment_id", assignmentId),
+      ]);
+
+      if (totalError) return applyCookies(jsonError(totalError.message, 500));
+      if (completedError) return applyCookies(jsonError(completedError.message, 500));
+
+      const isCompleted = (totalSkills ?? 0) > 0 && (completedSkills ?? 0) >= (totalSkills ?? 0);
+      const { error: updateError } = await supabaseAdmin
+        .from("child_badge_assignments")
+        .update({
+          is_completed: isCompleted,
+          completed_at: isCompleted ? new Date().toISOString() : null,
+        })
+        .eq("id", assignmentId);
+
+      if (updateError) return applyCookies(jsonError(updateError.message, 500));
     }
 
-    const [
-      { count: totalSkills, error: totalError },
-      { count: completedSkills, error: completedError },
-    ] = await Promise.all([
-      supabaseAdmin
-        .from("badge_skills")
-        .select("id", { count: "exact", head: true })
-        .eq("badge_id", assignment.badge_id),
-      supabaseAdmin
-        .from("child_badge_skill_progress")
-        .select("id", { count: "exact", head: true })
-        .eq("assignment_id", assignmentId),
-    ]);
+    if (hasAssignmentUpdate) {
+      if (assignment.is_completed !== true) {
+        return applyCookies(
+          jsonError(
+            "Award and payment dates can only be updated after the badge is complete.",
+            400
+          )
+        );
+      }
 
-    if (totalError) return applyCookies(jsonError(totalError.message, 500));
-    if (completedError) return applyCookies(jsonError(completedError.message, 500));
+      const assignmentPatch: { date_awarded?: string | null; date_paid?: string | null } = {};
 
-    const isCompleted = (totalSkills ?? 0) > 0 && (completedSkills ?? 0) >= (totalSkills ?? 0);
-    const { error: updateError } = await supabaseAdmin
-      .from("child_badge_assignments")
-      .update({
-        is_completed: isCompleted,
-        completed_at: isCompleted ? new Date().toISOString() : null,
-      })
-      .eq("id", assignmentId);
+      if (Object.prototype.hasOwnProperty.call(body, "dateAwarded")) {
+        if (body.dateAwarded === null || body.dateAwarded === "") {
+          assignmentPatch.date_awarded = null;
+        } else if (typeof body.dateAwarded === "string") {
+          const parsed = new Date(body.dateAwarded);
+          if (Number.isNaN(parsed.getTime())) {
+            return applyCookies(jsonError("dateAwarded must be a valid date or null.", 400));
+          }
+          assignmentPatch.date_awarded = parsed.toISOString();
+        } else {
+          return applyCookies(jsonError("dateAwarded must be a valid date or null.", 400));
+        }
+      }
 
-    if (updateError) return applyCookies(jsonError(updateError.message, 500));
+      if (Object.prototype.hasOwnProperty.call(body, "datePaid")) {
+        if (body.datePaid === null || body.datePaid === "") {
+          assignmentPatch.date_paid = null;
+        } else if (typeof body.datePaid === "string") {
+          const parsed = new Date(body.datePaid);
+          if (Number.isNaN(parsed.getTime())) {
+            return applyCookies(jsonError("datePaid must be a valid date or null.", 400));
+          }
+          assignmentPatch.date_paid = parsed.toISOString();
+        } else {
+          return applyCookies(jsonError("datePaid must be a valid date or null.", 400));
+        }
+      }
+
+      if (Object.keys(assignmentPatch).length === 0) {
+        return applyCookies(jsonError("No assignment fields were provided to update.", 400));
+      }
+
+      const { error: assignmentUpdateError } = await supabaseAdmin
+        .from("child_badge_assignments")
+        .update(assignmentPatch)
+        .eq("id", assignmentId);
+
+      if (assignmentUpdateError) {
+        return applyCookies(jsonError(assignmentUpdateError.message, 500));
+      }
+    }
 
     const data = await getAdminBadgeDataForChild(assignment.child_id);
     return applyCookies(NextResponse.json(data));

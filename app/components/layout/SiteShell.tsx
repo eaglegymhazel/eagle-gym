@@ -30,7 +30,7 @@ export default function SiteShell({
                   alt="Eagle Gymnastics Academy"
                   width={180}
                   height={184}
-                  className="w-[4.2rem] max-w-none object-contain drop-shadow-[0_10px_14px_rgba(0,0,0,0.22)] transition-transform duration-200 hover:scale-105 sm:w-[4.9rem] lg:w-[5.4rem]"
+                  className="w-[5rem] max-w-none object-contain drop-shadow-[0_10px_14px_rgba(0,0,0,0.22)] transition-transform duration-200 hover:scale-105 sm:w-[5.8rem] lg:w-[6.4rem]"
                   priority
                 />
               </Link>

@@ -1,98 +1,66 @@
 import ContactForm from "./ContactForm";
-import MarketingPageIntro from "@/app/components/marketing/MarketingPageIntro";
 
 const ADDRESS = "11 Knox St, Paisley PA1 2QJ, United Kingdom";
-const PHONE_DISPLAY = "+44 141 840 1454";
-const PHONE_TEL = "+441418401454";
+const PHONE_DISPLAY = "0141 840 1454";
+const PHONE_TEL = "01418401454";
 const MAP_QUERY = encodeURIComponent(ADDRESS);
 
 export default function ContactPage() {
   return (
-    <main className="mx-auto max-w-5xl px-6 py-10">
-            <MarketingPageIntro
-        eyebrow="Get in Touch"
-        title="Contact us"
-        description="Questions about classes, availability, or which pathway is right? Send a message and we'll get back to you."
-      />
+    <main className="w-full bg-[#faf7fb]">
+      <section className="mx-auto w-full max-w-5xl px-4 py-10 sm:px-6">
+        <h1 className="text-4xl font-extrabold leading-tight text-[#143271] sm:text-5xl">
+          Speak to Eagle Gymnastics Academy
+        </h1>
+        <p className="mt-4 max-w-3xl text-base leading-8 text-[#2E2A33]/78 sm:text-[17px]">
+          Questions about classes, pathways, or availability? Reach out and we
+          will help you find the right next step.
+        </p>
+      </section>
 
-      <section className="mt-10 grid gap-6 lg:grid-cols-2">
-        {/* Left: details + hours */}
-        <div className="rounded-3xl border border-black/5 bg-white p-7 shadow-sm sm:p-8">
-          <h2 className="text-xl font-semibold tracking-tight text-gray-900">
-            Visit or call
+      <section className="mx-auto grid w-full max-w-5xl gap-6 px-4 pb-10 sm:px-6 lg:grid-cols-[1.05fr_0.95fr]">
+        <div className="border border-[#d9cde7] bg-white p-5 sm:p-6">
+          <h2 className="text-2xl font-extrabold leading-tight text-[#143271]">
+            Send a Message
           </h2>
-
-          <dl className="mt-5 space-y-4 text-sm">
-            <div>
-              <dt className="font-medium text-gray-900">Address</dt>
-              <dd className="mt-1 text-gray-700">{ADDRESS}</dd>
-              <div className="mt-2">
-                <a
-                  className="text-sm font-semibold text-gray-900 hover:underline"
-                  href={`https://www.google.com/maps/search/?api=1&query=${MAP_QUERY}`}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  Open in Google Maps
-                </a>
-              </div>
-            </div>
-
-            <div>
-              <dt className="font-medium text-gray-900">Phone</dt>
-              <dd className="mt-1">
-                <a className="text-gray-700 hover:underline" href={`tel:${PHONE_TEL}`}>
-                  {PHONE_DISPLAY}
-                </a>
-              </dd>
-            </div>
-          </dl>
-
-          <div className="mt-8">
-            <h3 className="text-sm font-semibold text-gray-900">Opening times</h3>
-            <div className="mt-3 rounded-2xl bg-gray-50 p-4 ring-1 ring-black/5">
-              <ul className="space-y-2 text-sm text-gray-700">
-                <li className="flex items-center justify-between">
-                  <span>Monday</span>
-                  <span className="font-medium text-gray-900">9:00–17:00</span>
-                </li>
-                <li className="flex items-center justify-between">
-                  <span>Tuesday</span>
-                  <span className="font-medium text-gray-900">9:00–17:00</span>
-                </li>
-                <li className="flex items-center justify-between">
-                  <span>Wednesday</span>
-                  <span className="font-medium text-gray-900">9:00–17:00</span>
-                </li>
-                <li className="flex items-center justify-between">
-                  <span>Thursday</span>
-                  <span className="font-medium text-gray-900">9:00–17:00</span>
-                </li>
-                <li className="flex items-center justify-between">
-                  <span>Friday</span>
-                  <span className="font-medium text-gray-900">9:00–17:00</span>
-                </li>
-                <li className="flex items-center justify-between">
-                  <span>Saturday</span>
-                  <span className="font-medium text-gray-900">9:00–17:00</span>
-                </li>
-                <li className="flex items-center justify-between">
-                  <span>Sunday</span>
-                  <span className="font-medium text-gray-900">9:00–17:00</span>
-                </li>
-              </ul>
-            </div>
-
-            <p className="mt-3 text-xs text-gray-500">
-              Times shown are placeholders for now. We can later pull these from Sanity without changing the layout.
-            </p>
+          <p className="mt-3 text-sm leading-7 text-[#2E2A33]/78">
+            Share your child&apos;s age and experience level and we&apos;ll point you
+            to the most suitable class options.
+          </p>
+          <div className="mt-5">
+            <ContactForm />
           </div>
         </div>
 
-        {/* Right: map + form */}
         <div className="space-y-6">
-          <div className="overflow-hidden rounded-3xl border border-black/5 bg-white shadow-sm">
-            <div className="aspect-[4/3] w-full">
+          <div className="border border-[#d9cde7] bg-white px-5 py-5 sm:px-6">
+            <p className="text-xs font-bold uppercase tracking-[0.14em] text-[#143271]">
+              Phone
+            </p>
+            <a
+              className="mt-2 inline-block text-base font-semibold text-[#2E2A33] hover:underline"
+              href={`tel:${PHONE_TEL}`}
+            >
+              {PHONE_DISPLAY}
+            </a>
+
+            <p className="mt-5 text-xs font-bold uppercase tracking-[0.14em] text-[#143271]">
+              Address
+            </p>
+            <p className="mt-2 text-sm font-semibold text-[#2E2A33]">{ADDRESS}</p>
+
+            <a
+              className="mt-5 inline-flex min-h-11 items-center justify-center border border-[#143271] px-5 py-2.5 text-xs font-bold uppercase tracking-[0.08em] text-[#143271] transition hover:bg-[#143271] hover:text-[#f9f6fa]"
+              href={`https://www.google.com/maps/search/?api=1&query=${MAP_QUERY}`}
+              target="_blank"
+              rel="noreferrer"
+            >
+              Open in Google Maps
+            </a>
+          </div>
+
+          <div className="overflow-hidden border border-[#d9cde7] bg-white">
+            <div className="aspect-[16/10] w-full min-h-[260px]">
               <iframe
                 title="Map: Eagle Gymnastics Academy"
                 className="h-full w-full"
@@ -102,22 +70,8 @@ export default function ContactPage() {
               />
             </div>
           </div>
-
-          <div className="rounded-3xl border border-black/5 bg-white p-7 shadow-sm sm:p-8">
-            <h2 className="text-xl font-semibold tracking-tight text-gray-900">
-              Send a message
-            </h2>
-            <p className="mt-2 text-sm text-gray-700">
-              Leave your details and we’ll reply as soon as we can.
-            </p>
-
-            <div className="mt-6">
-              <ContactForm />
-            </div>
-          </div>
         </div>
       </section>
     </main>
   );
 }
-

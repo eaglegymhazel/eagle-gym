@@ -203,6 +203,9 @@ export default async function StudentProfilePage({ params }: StudentProfilePageP
     <main className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:py-8">
       <StudentProfileTabs
         childId={child.id}
+        studentName={studentName}
+        dateOfBirthLabel={formatDate(child.dateOfBirth)}
+        ageLabel={computeAge(child.dateOfBirth)}
         initialAssignedBadges={badgeData.assignedBadges}
         initialAvailableBadges={badgeData.availableBadges}
       >

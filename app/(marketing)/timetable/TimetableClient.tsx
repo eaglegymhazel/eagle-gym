@@ -1,6 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
+import { useAuth } from "@/app/components/auth/AuthProvider";
 
 export type TimetableSession = {
   title: string;
@@ -83,10 +85,12 @@ function recreationalAgeBucket(label: string): "Preschool" | "4-7 years" | "8-18
 }
 
 export default function TimetableClient({ timetable }: TimetableClientProps) {
+  const { user } = useAuth();
   const [activeFilter, setActiveFilter] = useState<string>("all");
   const [activeAgeGroup, setActiveAgeGroup] = useState<string>("all");
   const [activeWeekday, setActiveWeekday] = useState<string>("All days");
   const [viewMode, setViewMode] = useState<"day" | "list">("list");
+  const classLinkHref = user ? "/account" : "/login";
 
   const recreationalAgeGroups = useMemo(() => {
     const groups = new Set<"Preschool" | "4-7 years" | "8-18 years">();
@@ -367,33 +371,36 @@ export default function TimetableClient({ timetable }: TimetableClientProps) {
                               : "Recreational";
 
                         return (
-                          <article
+                          <Link
                             key={`${day.day}-${session.title}-${session.time}-${index}`}
-                            className="relative overflow-hidden rounded-lg border border-[#6c35c3]/10 bg-white px-3 py-3"
+                            href={classLinkHref}
+                            className="block rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6c35c3]/45 focus-visible:ring-offset-2"
                           >
-                            <span
-                              aria-hidden="true"
-                              className={`absolute inset-y-0 left-0 w-1 ${typeStyles[type].rail}`}
-                            />
-                            <div className={type === "recreational" ? "flex flex-col gap-2" : "flex min-h-[46px] items-center"}>
-                              <div className="flex items-center justify-between gap-2">
-                                <p className="text-[16px] font-extrabold text-[#251341]">{session.time}</p>
-                                <span
-                                  className={`inline-flex items-center gap-1 rounded-full border px-2 py-1 text-[11px] font-semibold ${typeStyles[type].pill}`}
-                                >
-                                  {type === "special" ? specialIcon : null}
-                                  {cleanTitle}
-                                </span>
-                              </div>
-                              {type === "recreational" ? (
-                                <div className="flex flex-wrap items-center gap-2">
-                                  <span className="text-xs font-medium text-[#2a0c4f]/80">
-                                    {normalizeAgeLabel(session.age)}
+                            <article className="relative overflow-hidden rounded-lg border border-[#6c35c3]/10 bg-white px-3 py-3 transition hover:bg-[#fcfaff]">
+                              <span
+                                aria-hidden="true"
+                                className={`absolute inset-y-0 left-0 w-1 ${typeStyles[type].rail}`}
+                              />
+                              <div className={type === "recreational" ? "flex flex-col gap-2" : "flex min-h-[46px] items-center"}>
+                                <div className="flex items-center justify-between gap-2">
+                                  <p className="text-[16px] font-extrabold text-[#251341]">{session.time}</p>
+                                  <span
+                                    className={`inline-flex items-center gap-1 rounded-full border px-2 py-1 text-[11px] font-semibold ${typeStyles[type].pill}`}
+                                  >
+                                    {type === "special" ? specialIcon : null}
+                                    {cleanTitle}
                                   </span>
                                 </div>
-                              ) : null}
-                            </div>
-                          </article>
+                                {type === "recreational" ? (
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <span className="text-xs font-medium text-[#2a0c4f]/80">
+                                      {normalizeAgeLabel(session.age)}
+                                    </span>
+                                  </div>
+                                ) : null}
+                              </div>
+                            </article>
+                          </Link>
                         );
                       })}
                     </div>
@@ -419,33 +426,36 @@ export default function TimetableClient({ timetable }: TimetableClientProps) {
                             : "Recreational";
 
                       return (
-                        <article
+                        <Link
                           key={`${day.day}-${session.title}-${session.time}-${index}`}
-                          className="relative overflow-hidden rounded-xl border border-[#6c35c3]/12 bg-white px-3 py-3 pl-4 shadow-[0_8px_18px_-18px_rgba(54,22,93,0.55)]"
+                          href={classLinkHref}
+                          className="block rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6c35c3]/45 focus-visible:ring-offset-2"
                         >
-                          <span
-                            aria-hidden="true"
-                            className={`absolute inset-y-0 left-0 w-1 ${typeStyles[type].rail}`}
-                          />
-                          <div className={type === "recreational" ? "flex flex-col gap-1.5" : "flex min-h-[44px] items-center"}>
-                            <div className="flex items-center justify-between gap-2">
-                              <p className="text-[15px] font-extrabold text-[#251341]">{session.time}</p>
-                              <span
-                                className={`inline-flex items-center gap-1 rounded-full border px-2 py-1 text-[11px] font-semibold ${typeStyles[type].pill}`}
-                              >
-                                {type === "special" ? specialIcon : null}
-                                {cleanTitle}
-                              </span>
-                            </div>
-                            {type === "recreational" ? (
-                              <div className="flex flex-wrap items-center gap-2">
-                                <span className="text-xs font-medium text-[#2a0c4f]/80">
-                                  {normalizeAgeLabel(session.age)}
+                          <article className="relative overflow-hidden rounded-xl border border-[#6c35c3]/12 bg-white px-3 py-3 pl-4 shadow-[0_8px_18px_-18px_rgba(54,22,93,0.55)] transition hover:bg-[#fcfaff]">
+                            <span
+                              aria-hidden="true"
+                              className={`absolute inset-y-0 left-0 w-1 ${typeStyles[type].rail}`}
+                            />
+                            <div className={type === "recreational" ? "flex flex-col gap-1.5" : "flex min-h-[44px] items-center"}>
+                              <div className="flex items-center justify-between gap-2">
+                                <p className="text-[15px] font-extrabold text-[#251341]">{session.time}</p>
+                                <span
+                                  className={`inline-flex items-center gap-1 rounded-full border px-2 py-1 text-[11px] font-semibold ${typeStyles[type].pill}`}
+                                >
+                                  {type === "special" ? specialIcon : null}
+                                  {cleanTitle}
                                 </span>
                               </div>
-                            ) : null}
-                          </div>
-                        </article>
+                              {type === "recreational" ? (
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <span className="text-xs font-medium text-[#2a0c4f]/80">
+                                    {normalizeAgeLabel(session.age)}
+                                  </span>
+                                </div>
+                              ) : null}
+                            </div>
+                          </article>
+                        </Link>
                       );
                     })}
                   </div>
