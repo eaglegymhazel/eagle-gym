@@ -15,6 +15,7 @@ type ChildRow = {
 type AccountRow = {
   id: string | number;
   email: string | null;
+  accTelNo: string | null;
 };
 
 type BookingJoinRow = {
@@ -48,6 +49,35 @@ type ClassRow = {
 type BookingRow = {
   classId: string;
   status: string | null;
+};
+
+type WaitlistEntryRow = {
+  childId: string | null;
+  classId: string | null;
+  timestamp: string | null;
+  status: string | null;
+};
+
+type WaitlistChildRow = {
+  id: string;
+  accountId: string | number | null;
+  firstName: string | null;
+  lastName: string | null;
+};
+
+type WaitlistClassRow = {
+  id: string;
+  className: string | null;
+};
+
+export type AdminWaitlistRow = {
+  childId: string;
+  classId: string;
+  childName: string;
+  className: string;
+  accountEmail: string;
+  accountTelNo: string;
+  requestedOn: string;
 };
 
 const QUERY_PAGE_SIZE = 1000;
@@ -268,4 +298,109 @@ export async function getAdminRegisterClasses(): Promise<RegisterClassTemplate[]
     durationMinutes: row.durationMinutes,
     enrolledCount: enrolledCountByClassId.get(row.id) ?? 0,
   }));
+}
+
+export async function getAdminWaitlist(): Promise<AdminWaitlistRow[]> {
+  const { data: waitlistData, error: waitlistError } = await supabaseAdmin
+    .from("WaitlistEntries")
+    .select("childId,classId,timestamp,status")
+    .eq("status", "waiting")
+    .order("timestamp", { ascending: true });
+
+  if (waitlistError) throw new Error(waitlistError.message);
+
+  const waitlistRows = (waitlistData ?? []) as WaitlistEntryRow[];
+  if (waitlistRows.length === 0) return [];
+
+  const childIds = [
+    ...new Set(
+      waitlistRows
+        .map((row) => row.childId)
+        .filter((id): id is string => typeof id === "string" && id.length > 0)
+    ),
+  ];
+  const classIds = [
+    ...new Set(
+      waitlistRows
+        .map((row) => row.classId)
+        .filter((id): id is string => typeof id === "string" && id.length > 0)
+    ),
+  ];
+
+  const childNameById = new Map<string, string>();
+  const childAccountIdById = new Map<string, string>();
+  if (childIds.length > 0) {
+    for (const chunk of chunkArray(childIds, IN_CLAUSE_CHUNK_SIZE)) {
+      const { data: childrenData, error: childrenError } = await supabaseAdmin
+        .from("Children")
+        .select("id,accountId,firstName,lastName")
+        .in("id", chunk);
+      if (childrenError) throw new Error(childrenError.message);
+
+      (childrenData as WaitlistChildRow[] | null)?.forEach((row) => {
+        const first = row.firstName?.trim() || "";
+        const last = row.lastName?.trim() || "";
+        const name = `${first} ${last}`.trim() || "Unknown child";
+        childNameById.set(row.id, name);
+        if (row.accountId != null) {
+          childAccountIdById.set(row.id, String(row.accountId));
+        }
+      });
+    }
+  }
+
+  const classNameById = new Map<string, string>();
+  if (classIds.length > 0) {
+    for (const chunk of chunkArray(classIds, IN_CLAUSE_CHUNK_SIZE)) {
+      const { data: classesData, error: classesError } = await supabaseAdmin
+        .from("Classes")
+        .select("id,className")
+        .in("id", chunk);
+      if (classesError) throw new Error(classesError.message);
+
+      (classesData as WaitlistClassRow[] | null)?.forEach((row) => {
+        classNameById.set(row.id, row.className?.trim() || "Unknown class");
+      });
+    }
+  }
+
+  const accountIds = [...new Set(Array.from(childAccountIdById.values()))];
+  const accountById = new Map<string, { email: string; accTelNo: string }>();
+  if (accountIds.length > 0) {
+    for (const chunk of chunkArray(accountIds, IN_CLAUSE_CHUNK_SIZE)) {
+      const { data: accountsData, error: accountsError } = await supabaseAdmin
+        .from("Accounts")
+        .select("id,email,accTelNo")
+        .in("id", chunk);
+      if (accountsError) throw new Error(accountsError.message);
+
+      (accountsData as AccountRow[] | null)?.forEach((row) => {
+        accountById.set(String(row.id), {
+          email: row.email?.trim() || "",
+          accTelNo: row.accTelNo?.trim() || "",
+        });
+      });
+    }
+  }
+
+  return waitlistRows
+    .map((row) => {
+      const childId = row.childId?.trim() ?? "";
+      const classId = row.classId?.trim() ?? "";
+      if (!childId || !classId) return null;
+
+      const accountId = childAccountIdById.get(childId) ?? "";
+      const account = accountById.get(accountId) ?? { email: "", accTelNo: "" };
+
+      return {
+        childId,
+        classId,
+        childName: childNameById.get(childId) ?? "Unknown child",
+        className: classNameById.get(classId) ?? "Unknown class",
+        accountEmail: account.email,
+        accountTelNo: account.accTelNo,
+        requestedOn: row.timestamp ?? "",
+      } satisfies AdminWaitlistRow;
+    })
+    .filter((row): row is AdminWaitlistRow => row !== null);
 }

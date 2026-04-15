@@ -1,7 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
 import DaySection from "../recreational/components/DaySection";
 import SelectionTray from "../recreational/components/SelectionTray";
 import type { ClassCardItem, SelectedClassDetail, WeekdayGroup } from "../recreational/types";
@@ -51,6 +53,52 @@ export default function CompetitionClassesClient({
     )
   );
   const [trayExpanded, setTrayExpanded] = useState(initialSelectedClassIds.length > 0);
+  const [waitlistStateByClassId, setWaitlistStateByClassId] = useState<
+    Record<string, "idle" | "saving" | "added">
+  >({});
+  const [waitlistMessage, setWaitlistMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    let isActive = true;
+
+    const hydrateWaitlistState = async () => {
+      try {
+        const response = await fetch(
+          `/api/waitlist?childId=${encodeURIComponent(childId)}`,
+          { method: "GET" }
+        );
+        const payload = (await response.json()) as {
+          classIds?: string[];
+          error?: string;
+        };
+
+        if (!response.ok) {
+          throw new Error(payload.error ?? "Could not load waitlist.");
+        }
+
+        const nextState: Record<string, "idle" | "saving" | "added"> = {};
+        (payload.classIds ?? []).forEach((classId) => {
+          if (typeof classId === "string" && classId) {
+            nextState[classId] = "added";
+          }
+        });
+
+        if (isActive) {
+          setWaitlistStateByClassId(nextState);
+        }
+      } catch {
+        if (isActive) {
+          setWaitlistStateByClassId({});
+        }
+      }
+    };
+
+    void hydrateWaitlistState();
+
+    return () => {
+      isActive = false;
+    };
+  }, [childId]);
 
   const selectedSet = useMemo(() => new Set(selectedClassIds), [selectedClassIds]);
   const selectedCount = selectedClassIds.length;
@@ -123,6 +171,46 @@ export default function CompetitionClassesClient({
     );
   };
 
+  const addToWaitlist = async (classId: string) => {
+    const currentState = waitlistStateByClassId[classId] ?? "idle";
+    if (currentState === "saving" || currentState === "added") return;
+
+    setWaitlistStateByClassId((prev) => ({ ...prev, [classId]: "saving" }));
+    setWaitlistMessage(null);
+
+    try {
+      const response = await fetch("/api/waitlist", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ childId, classId }),
+      });
+      const payload = (await response.json()) as { status?: string; error?: string };
+
+      if (!response.ok) {
+        throw new Error(payload.error ?? "Could not add to waitlist.");
+      }
+
+      if (payload.status === "already_exists") {
+        setWaitlistStateByClassId((prev) => ({ ...prev, [classId]: "added" }));
+        setWaitlistMessage("This child is already on the waitlist for that class.");
+        return;
+      }
+
+      if (payload.status === "added") {
+        setWaitlistStateByClassId((prev) => ({ ...prev, [classId]: "added" }));
+        setWaitlistMessage("Added to waitlist.");
+        return;
+      }
+
+      throw new Error("Could not add to waitlist.");
+    } catch (error) {
+      setWaitlistStateByClassId((prev) => ({ ...prev, [classId]: "idle" }));
+      setWaitlistMessage(
+        error instanceof Error ? error.message : "Could not add to waitlist."
+      );
+    }
+  };
+
   if (groups.length === 0) {
     return (
       <div className="rounded-2xl border border-[#e8ddf8] bg-white p-8 text-center shadow-[0_14px_30px_-24px_rgba(42,32,60,0.42)]">
@@ -164,6 +252,18 @@ export default function CompetitionClassesClient({
           <div className="pt-1">
             <div className="h-[0.5px] w-full bg-black/20" />
           </div>
+          {waitlistMessage ? (
+            <p className="pl-4 text-sm font-semibold text-[#2a203c]">{waitlistMessage}</p>
+          ) : null}
+          <div className="pt-2 pl-4">
+            <Link
+              href="/account"
+              className="inline-flex items-center gap-2 rounded-full border border-[#d8c7f4] bg-white px-4 py-2 text-sm font-semibold text-[#5b2ca7] transition hover:bg-[#faf6ff]"
+            >
+              <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+              Back to account
+            </Link>
+          </div>
         </header>
 
         <div className="space-y-5 pt-3 sm:space-y-6 sm:pt-5">
@@ -174,6 +274,8 @@ export default function CompetitionClassesClient({
               classes={group.classes}
               selectedIds={selectedSet}
               onToggleClass={toggleClass}
+              waitlistStateByClassId={waitlistStateByClassId}
+              onAddToWaitlist={addToWaitlist}
             />
           ))}
         </div>

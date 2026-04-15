@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { createPortal } from "react-dom";
+import * as Dialog from "@radix-ui/react-dialog";
 import { ClipboardList, Clock3, Users } from "lucide-react";
 import styles from "@/app/(portal)/(protected)/account/account.module.css";
 import ChildPicker from "@/components/admin/ChildPicker";
@@ -11,6 +12,7 @@ import type { Child } from "@/components/admin/mockChildren";
 import ClassRegisterPicker from "@/components/admin/ClassRegisterPicker";
 import { buildUpcomingSessions, type RegisterClassTemplate } from "@/components/admin/sessionBuild";
 import AdminNavItem from "@/components/admin/AdminNavItem";
+import type { AdminWaitlistRow } from "@/lib/server/adminDashboard";
 
 type AdminTabKey = "students" | "register" | "waiting";
 
@@ -21,8 +23,12 @@ type NavItem = {
 };
 
 type WaitingRow = {
+  childId: string;
+  classId: string;
   childName: string;
   className: string;
+  accountEmail: string;
+  accountTelNo: string;
   requestedOn: string;
 };
 
@@ -32,22 +38,20 @@ const navItems: NavItem[] = [
   { key: "waiting", label: "Waiting List", icon: Clock3 },
 ];
 
-const waitingList: WaitingRow[] = [
-  { childName: "Noah Taylor", className: "Tuesday Recreational", requestedOn: "2026-02-14" },
-  { childName: "Sophia Williams", className: "Thursday Tumbling", requestedOn: "2026-02-20" },
-  { childName: "Lucas Davis", className: "Saturday Development", requestedOn: "2026-02-22" },
-];
-
 export default function AdminShell({
   initialChildrenData,
   initialRegisterClasses,
+  initialWaitlistRows,
   initialChildrenLoadError,
   initialRegisterClassesError,
+  initialWaitlistLoadError,
 }: {
   initialChildrenData: Child[];
   initialRegisterClasses: RegisterClassTemplate[];
+  initialWaitlistRows: AdminWaitlistRow[];
   initialChildrenLoadError: string | null;
   initialRegisterClassesError: string | null;
+  initialWaitlistLoadError: string | null;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -66,10 +70,19 @@ export default function AdminShell({
 
   const [tab, setTab] = useState<AdminTabKey>(initialTab);
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
+  const [waitlistRowsState, setWaitlistRowsState] = useState<WaitingRow[]>(initialWaitlistRows);
+  const [waitlistQuery, setWaitlistQuery] = useState("");
+  const [waitlistClassFilter, setWaitlistClassFilter] = useState("all");
+  const [waitlistSort, setWaitlistSort] = useState<"oldest" | "newest">("oldest");
+  const [waitlistActionError, setWaitlistActionError] = useState<string | null>(null);
+  const [waitlistActionMessage, setWaitlistActionMessage] = useState<string | null>(null);
+  const [waitlistRemovingKey, setWaitlistRemovingKey] = useState<string | null>(null);
+  const [waitlistDeleteCandidate, setWaitlistDeleteCandidate] = useState<WaitingRow | null>(null);
   const childrenData = initialChildrenData;
   const childrenLoadError = initialChildrenLoadError;
   const registerClasses = initialRegisterClasses;
   const registerClassesError = initialRegisterClassesError;
+  const waitlistLoadError = initialWaitlistLoadError;
 
   const registerSessions = useMemo(
     () => buildUpcomingSessions(registerClasses, 14),
@@ -91,7 +104,88 @@ export default function AdminShell({
   }, [tab]);
   const isStudentTab = tab === "students";
   const isRegisterTab = tab === "register";
-  const isFlatContentTab = isStudentTab || isRegisterTab;
+  const isFlatContentTab = isStudentTab || isRegisterTab || tab === "waiting";
+
+  const formatWaitlistDate = (value: string) => {
+    if (!value) return "Unknown";
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return value;
+    return new Intl.DateTimeFormat("en-GB", {
+      year: "numeric",
+      month: "short",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+    }).format(parsed);
+  };
+
+  const waitlistClassOptions = useMemo(
+    () =>
+      Array.from(new Set(waitlistRowsState.map((row) => row.className)))
+        .filter(Boolean)
+        .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" })),
+    [waitlistRowsState]
+  );
+
+  const filteredWaitlistRows = useMemo(() => {
+    const query = waitlistQuery.trim().toLowerCase();
+    const rows = waitlistRowsState.filter((row) => {
+      if (waitlistClassFilter !== "all" && row.className !== waitlistClassFilter) return false;
+      if (!query) return true;
+      return [
+        row.childName,
+        row.className,
+        row.accountEmail,
+        row.accountTelNo,
+        row.requestedOn,
+      ]
+        .join(" ")
+        .toLowerCase()
+        .includes(query);
+    });
+
+    rows.sort((a, b) => {
+      const aTime = Date.parse(a.requestedOn || "");
+      const bTime = Date.parse(b.requestedOn || "");
+      const aSafe = Number.isNaN(aTime) ? Number.MAX_SAFE_INTEGER : aTime;
+      const bSafe = Number.isNaN(bTime) ? Number.MAX_SAFE_INTEGER : bTime;
+      return waitlistSort === "oldest" ? aSafe - bSafe : bSafe - aSafe;
+    });
+
+    return rows;
+  }, [waitlistClassFilter, waitlistQuery, waitlistRowsState, waitlistSort]);
+
+  const removeFromWaitlist = async (row: WaitingRow) => {
+    const rowKey = `${row.childId}-${row.classId}`;
+    setWaitlistRemovingKey(rowKey);
+    setWaitlistActionError(null);
+    setWaitlistActionMessage(null);
+
+    try {
+      const response = await fetch("/api/admin/waitlist", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ childId: row.childId, classId: row.classId }),
+      });
+
+      const payload = (await response.json().catch(() => null)) as { error?: string } | null;
+      if (!response.ok) {
+        throw new Error(payload?.error ?? "Could not remove waitlist entry.");
+      }
+
+      setWaitlistRowsState((prev) =>
+        prev.filter((entry) => !(entry.childId === row.childId && entry.classId === row.classId))
+      );
+      setWaitlistActionMessage(`${row.childName} removed from waitlist.`);
+      setWaitlistDeleteCandidate(null);
+    } catch (error) {
+      setWaitlistActionError(
+        error instanceof Error ? error.message : "Could not remove waitlist entry."
+      );
+    } finally {
+      setWaitlistRemovingKey(null);
+    }
+  };
 
   useEffect(() => {
     if (!isMobileNavOpen) return;
@@ -252,16 +346,150 @@ export default function AdminShell({
             ) : null}
 
             {tab === "waiting" ? (
-              <dl className={styles.details}>
-                {waitingList.map((row) => (
-                  <div key={`${row.childName}-${row.className}`} className={styles.detailRow}>
-                    <dt>{row.childName}</dt>
-                    <dd>
-                      {row.className} | Requested {row.requestedOn}
-                    </dd>
+              <div className="space-y-4">
+                {waitlistLoadError ? (
+                  <div className={styles.errorBanner} role="alert">
+                    <span>{waitlistLoadError}</span>
                   </div>
-                ))}
-              </dl>
+                ) : null}
+                {waitlistActionError ? (
+                  <div className={styles.errorBanner} role="alert">
+                    <span>{waitlistActionError}</span>
+                  </div>
+                ) : null}
+                {waitlistActionMessage ? (
+                  <div className="rounded-lg border border-[#d7c7ef] bg-[#f6f1ff] px-3 py-2 text-sm text-[#2a203c]">
+                    {waitlistActionMessage}
+                  </div>
+                ) : null}
+                {!waitlistLoadError ? (
+                  waitlistRowsState.length > 0 ? (
+                    <div className="space-y-3">
+                      <div className="flex flex-col gap-2 rounded-xl border border-[#e6e0ee] bg-white p-3 md:flex-row md:items-center md:justify-between">
+                        <div className="grid w-full grid-cols-1 gap-2 md:grid-cols-[minmax(0,1fr)_220px_220px]">
+                          <input
+                            type="text"
+                            value={waitlistQuery}
+                            onChange={(event) => setWaitlistQuery(event.target.value)}
+                            placeholder="Search child, class, email or phone"
+                            className="h-10 rounded-lg border border-[#d7c7ef] bg-white px-3 text-sm text-[#2a203c] outline-none ring-[#6e2ac0]/25 transition focus:ring-2"
+                          />
+                          <select
+                            value={waitlistClassFilter}
+                            onChange={(event) => setWaitlistClassFilter(event.target.value)}
+                            className="h-10 rounded-lg border border-[#d7c7ef] bg-white px-3 text-sm text-[#2a203c] outline-none ring-[#6e2ac0]/25 transition focus:ring-2"
+                          >
+                            <option value="all">All classes</option>
+                            {waitlistClassOptions.map((className) => (
+                              <option key={className} value={className}>
+                                {className}
+                              </option>
+                            ))}
+                          </select>
+                          <select
+                            value={waitlistSort}
+                            onChange={(event) =>
+                              setWaitlistSort(event.target.value === "newest" ? "newest" : "oldest")
+                            }
+                            className="h-10 rounded-lg border border-[#d7c7ef] bg-white px-3 text-sm text-[#2a203c] outline-none ring-[#6e2ac0]/25 transition focus:ring-2"
+                          >
+                            <option value="oldest">Oldest first</option>
+                            <option value="newest">Newest first</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <p className="text-sm text-[#2a203c]/80">
+                        Showing {filteredWaitlistRows.length} of {waitlistRowsState.length} entries.
+                      </p>
+
+                      <div className="hidden overflow-hidden rounded-xl border border-[#e6e0ee] md:block">
+                        <table className="min-w-full border-collapse">
+                          <thead className="bg-[#f6f1ff]">
+                            <tr className="text-left text-xs uppercase tracking-[0.08em] text-[#2a203c]/75">
+                              <th className="px-3 py-2 font-semibold">Student</th>
+                              <th className="px-3 py-2 font-semibold">Class</th>
+                              <th className="px-3 py-2 font-semibold">Date added</th>
+                              <th className="px-3 py-2 font-semibold">Email</th>
+                              <th className="px-3 py-2 font-semibold">Phone</th>
+                              <th className="px-3 py-2 text-right font-semibold">Actions</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-[#ece6f4] bg-white text-sm text-[#2a203c]">
+                            {filteredWaitlistRows.map((row) => {
+                              const rowKey = `${row.childId}-${row.classId}`;
+                              const isRemoving = waitlistRemovingKey === rowKey;
+                              return (
+                                <tr key={`${rowKey}-${row.requestedOn}`}>
+                                  <td className="px-3 py-3 font-semibold">{row.childName}</td>
+                                  <td className="px-3 py-3">{row.className}</td>
+                                  <td className="px-3 py-3">{formatWaitlistDate(row.requestedOn)}</td>
+                                  <td className="px-3 py-3">
+                                    {row.accountEmail || <span className="text-[#2a203c]/55">Not set</span>}
+                                  </td>
+                                  <td className="px-3 py-3">
+                                    {row.accountTelNo || <span className="text-[#2a203c]/55">Not set</span>}
+                                  </td>
+                                  <td className="px-3 py-3 text-right">
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setWaitlistActionError(null);
+                                        setWaitlistDeleteCandidate(row);
+                                      }}
+                                      disabled={isRemoving}
+                                      className="inline-flex h-9 cursor-pointer items-center justify-center rounded-lg border border-[#dfcfe9] bg-white px-3 text-xs font-semibold text-[#6a1f35] transition hover:bg-[#fff4f7] disabled:cursor-not-allowed disabled:opacity-55"
+                                    >
+                                      {isRemoving ? "Removing..." : "Remove"}
+                                    </button>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+
+                      <div className="space-y-2 md:hidden">
+                        {filteredWaitlistRows.map((row) => {
+                          const rowKey = `${row.childId}-${row.classId}`;
+                          const isRemoving = waitlistRemovingKey === rowKey;
+                          return (
+                            <div key={`${rowKey}-${row.requestedOn}`} className="rounded-xl border border-[#e6e0ee] bg-white p-3">
+                              <div className="space-y-1.5 text-sm text-[#2a203c]">
+                                <p className="font-semibold">{row.childName}</p>
+                                <p>{row.className}</p>
+                                <p>{formatWaitlistDate(row.requestedOn)}</p>
+                                <p>{row.accountEmail || "Email not set"}</p>
+                                <p>{row.accountTelNo || "Phone not set"}</p>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setWaitlistActionError(null);
+                                  setWaitlistDeleteCandidate(row);
+                                }}
+                                disabled={isRemoving}
+                                className="mt-3 inline-flex h-9 cursor-pointer items-center justify-center rounded-lg border border-[#dfcfe9] bg-white px-3 text-xs font-semibold text-[#6a1f35] transition hover:bg-[#fff4f7] disabled:cursor-not-allowed disabled:opacity-55"
+                              >
+                                {isRemoving ? "Removing..." : "Remove"}
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      {filteredWaitlistRows.length === 0 ? (
+                        <p className="rounded-lg border border-[#e6e0ee] bg-white px-3 py-5 text-sm text-[#2a203c]/75">
+                          No waitlist entries match your current filters.
+                        </p>
+                      ) : null}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-[#2a203c]/75">No children are currently on the waiting list.</p>
+                  )
+                ) : null}
+              </div>
             ) : null}
           </div>
         </section>
@@ -345,6 +573,79 @@ export default function AdminShell({
             document.body,
           )
         : null}
+
+      <Dialog.Root
+        open={waitlistDeleteCandidate !== null}
+        onOpenChange={(open) => {
+          if (!open && !waitlistRemovingKey) {
+            setWaitlistDeleteCandidate(null);
+            setWaitlistActionError(null);
+          }
+        }}
+      >
+        <Dialog.Portal>
+          <Dialog.Overlay className="fixed inset-0 z-[100] bg-black/45" />
+          <Dialog.Content className="fixed inset-x-3 top-1/2 z-[101] max-h-[86vh] -translate-y-1/2 overflow-hidden border border-[#d8ceeb] bg-white shadow-2xl sm:left-1/2 sm:right-auto sm:w-[min(520px,calc(100vw-32px))] sm:-translate-x-1/2">
+            <div className="border-b border-[#e8e0f2] px-4 py-4 sm:px-5">
+              <div>
+                <Dialog.Title className="text-lg font-bold text-[#24193a]">
+                  Remove waitlist entry
+                </Dialog.Title>
+                <Dialog.Description className="mt-1 text-sm text-[#5f5177]">
+                  This will remove the student from the waiting list for this class.
+                </Dialog.Description>
+              </div>
+            </div>
+
+            <div className="px-4 py-4 sm:px-5">
+              <p className="text-sm text-[#342744]">
+                Remove{" "}
+                <span className="font-semibold text-[#24193a]">
+                  {waitlistDeleteCandidate?.childName ?? "this student"}
+                </span>{" "}
+                from{" "}
+                <span className="font-semibold text-[#24193a]">
+                  {waitlistDeleteCandidate?.className ?? "this class"}
+                </span>
+                ?
+              </p>
+              <p className="mt-2 text-sm text-[#6c607d]">
+                Warning, this action is permanent and cannot be undone.
+              </p>
+            </div>
+
+            <div className="border-t border-[#e8e0f2] px-4 py-4 sm:px-5">
+              <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                <Dialog.Close asChild>
+                  <button
+                    type="button"
+                    disabled={waitlistRemovingKey !== null}
+                    className="h-10 border border-[#ddd4ea] bg-white px-4 text-sm font-semibold text-[#6f6384] hover:bg-[#faf7ff] disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    Cancel
+                  </button>
+                </Dialog.Close>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!waitlistDeleteCandidate) return;
+                    void removeFromWaitlist(waitlistDeleteCandidate);
+                  }}
+                  disabled={!waitlistDeleteCandidate || waitlistRemovingKey !== null}
+                  className={[
+                    "h-10 border px-4 text-sm font-semibold transition",
+                    waitlistDeleteCandidate && waitlistRemovingKey === null
+                      ? "cursor-pointer border-[#d93636] bg-[#d93636] text-white hover:bg-[#bd2d2d]"
+                      : "cursor-not-allowed border-[#eadada] bg-[#f8f6fb] text-[#b79a9a]",
+                  ].join(" ")}
+                >
+                  {waitlistRemovingKey !== null ? "Removing..." : "Remove entry"}
+                </button>
+              </div>
+            </div>
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
     </div>
   );
 }

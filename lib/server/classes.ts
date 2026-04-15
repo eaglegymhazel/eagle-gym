@@ -16,6 +16,12 @@ export type RecreationalClassRow = {
   isCompetitionClass: boolean | null;
 };
 
+export type CompetitionPricingRow = {
+  hoursPerWeek: number | string | null;
+  monthlyPrice: number | string | null;
+  stripePriceId: string | null;
+};
+
 const getRecreationalClassesCached = unstable_cache(
   async (): Promise<RecreationalClassRow[]> => {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -90,4 +96,40 @@ const getCompetitionClassesCached = unstable_cache(
 
 export async function getCompetitionClasses(): Promise<RecreationalClassRow[]> {
   return getCompetitionClassesCached();
+}
+
+const getCompetitionPricingCached = unstable_cache(
+  async (): Promise<CompetitionPricingRow[]> => {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (!supabaseUrl || !supabaseServiceRoleKey) {
+      throw new Error("Supabase environment variables are not configured.");
+    }
+
+    const serviceRole = createServerClient(supabaseUrl, supabaseServiceRoleKey, {
+      cookies: {
+        getAll() {
+          return [];
+        },
+        setAll() {},
+      },
+    });
+
+    const { data, error } = await serviceRole
+      .from("CompetitionPricing")
+      .select("hoursPerWeek,monthlyPrice,stripePriceId")
+      .order("hoursPerWeek", { ascending: true });
+
+    if (error) {
+      throw new Error(error.message);
+    }
+
+    return (data ?? []) as CompetitionPricingRow[];
+  },
+  ["competition-pricing-catalog"],
+  { revalidate: 60 }
+);
+
+export async function getCompetitionPricing(): Promise<CompetitionPricingRow[]> {
+  return getCompetitionPricingCached();
 }

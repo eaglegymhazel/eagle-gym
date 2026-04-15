@@ -155,7 +155,6 @@ export default async function RecreationalReviewPage({
   const resolvedSearchParams = await searchParams;
   const childId = resolvedSearchParams?.childId;
   const parsedSelection = parseSelection(resolvedSearchParams?.classIds);
-  const showDebug = process.env.NODE_ENV !== "production";
 
   if (!childId) {
     return (
@@ -204,7 +203,6 @@ export default async function RecreationalReviewPage({
         initialItems={[]}
         initialBackHref={buildBackHref(childId, [])}
         hasDuplicateSelections={parsedSelection.hasDuplicates}
-        showDebug={showDebug}
       />
     );
   }
@@ -230,6 +228,8 @@ export default async function RecreationalReviewPage({
           startTime: "",
           endTime: "",
           durationMinutes: null,
+          minAge: null,
+          maxAge: null,
           spotsLeft: 0,
           isCompetitionClass: false,
           isUnavailable: true,
@@ -255,6 +255,8 @@ export default async function RecreationalReviewPage({
         endTime: row.endTime ?? "",
         durationMinutes:
           typeof row.durationMinutes === "number" ? row.durationMinutes : null,
+        minAge,
+        maxAge,
         spotsLeft,
         isCompetitionClass: !!row.isCompetitionClass,
         isUnavailable: spotsLeft != null && spotsLeft <= 0,
@@ -272,7 +274,6 @@ export default async function RecreationalReviewPage({
         reviewItems.map((item) => item.id)
       )}
       hasDuplicateSelections={parsedSelection.hasDuplicates}
-      showDebug={showDebug}
     />
   );
 }

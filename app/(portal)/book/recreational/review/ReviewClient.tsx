@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { AlertCircle, ArrowLeft, Trash2 } from "lucide-react";
-import { DAY_SHORT, formatTime, getAvailabilityState } from "../utils";
+import { formatTime, getAvailabilityState } from "../utils";
 import { getReviewValidation } from "./validation";
 import TermsAcceptance from "../../components/TermsAcceptance";
 
@@ -13,6 +13,8 @@ export type ReviewClassItem = {
   startTime: string;
   endTime: string;
   durationMinutes: number | null;
+  minAge: number | null;
+  maxAge: number | null;
   spotsLeft: number | null;
   isCompetitionClass: boolean;
   isUnavailable: boolean;
@@ -25,7 +27,6 @@ type ReviewClientProps = {
   initialItems: ReviewClassItem[];
   initialBackHref: string;
   hasDuplicateSelections: boolean;
-  showDebug: boolean;
 };
 
 function badgeStyles(spotsLeft: number | null, unavailable: boolean): string {
@@ -42,13 +43,38 @@ function badgeStyles(spotsLeft: number | null, unavailable: boolean): string {
   return "bg-[#e9f7ec] text-[#256a38] border-[#b8e2c1]";
 }
 
+const STANDARD_MONTHLY_PRICE = 32.9;
+const PRESCHOOL_MONTHLY_PRICE = 20;
+const DISPLAY_GROUP_MONTHLY_PRICE = 49.35;
+
+function isDisplayGroupClass(item: ReviewClassItem): boolean {
+  return item.name.trim().toLowerCase() === "display group";
+}
+
+function isPreschoolClass(item: ReviewClassItem): boolean {
+  if (item.minAge == null || item.maxAge == null) return false;
+  return Math.abs(item.minAge - 1.5) < 0.001 && Math.abs(item.maxAge - 3) < 0.001;
+}
+
+function getRecreationalClassLabel(item: ReviewClassItem): string {
+  if (isDisplayGroupClass(item)) return "Display Group Class";
+  if (isPreschoolClass(item)) return "Preschool Class";
+  return "Recreational Class";
+}
+
+function formatCurrency(value: number): string {
+  return new Intl.NumberFormat("en-GB", {
+    style: "currency",
+    currency: "GBP",
+  }).format(value);
+}
+
 export default function ReviewClient({
   childId,
   childName,
   initialItems,
   initialBackHref,
   hasDuplicateSelections,
-  showDebug,
 }: ReviewClientProps) {
   const [items, setItems] = useState<ReviewClassItem[]>(initialItems);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -72,6 +98,55 @@ export default function ReviewClient({
 
   const selectedCount = items.length;
   const selectedClassIds = items.map((item) => item.id);
+  const pricingBreakdown = useMemo(() => {
+    const displayCount = items.filter(isDisplayGroupClass).length;
+    const preschoolCount = items.filter(
+      (item) => !isDisplayGroupClass(item) && isPreschoolClass(item)
+    ).length;
+    const standardCount = Math.max(0, items.length - displayCount - preschoolCount);
+
+    const lines: Array<{
+      key: "standard" | "preschool" | "display";
+      label: string;
+      count: number;
+      unitPrice: number;
+      lineTotal: number;
+    }> = [];
+
+    if (standardCount > 0) {
+      lines.push({
+        key: "standard",
+        label: "Standard recreational classes",
+        count: standardCount,
+        unitPrice: STANDARD_MONTHLY_PRICE,
+        lineTotal: standardCount * STANDARD_MONTHLY_PRICE,
+      });
+    }
+
+    if (preschoolCount > 0) {
+      lines.push({
+        key: "preschool",
+        label: "Preschool class",
+        count: preschoolCount,
+        unitPrice: PRESCHOOL_MONTHLY_PRICE,
+        lineTotal: preschoolCount * PRESCHOOL_MONTHLY_PRICE,
+      });
+    }
+
+    if (displayCount > 0) {
+      lines.push({
+        key: "display",
+        label: "Display Group",
+        count: displayCount,
+        unitPrice: DISPLAY_GROUP_MONTHLY_PRICE,
+        lineTotal: displayCount * DISPLAY_GROUP_MONTHLY_PRICE,
+      });
+    }
+
+    const total = lines.reduce((sum, line) => sum + line.lineTotal, 0);
+    return { lines, total };
+  }, [items]);
+
   const backHref = useMemo(() => {
     if (!childId) return initialBackHref;
     const classIdsPart =
@@ -157,12 +232,6 @@ export default function ReviewClient({
           <div className="pt-1">
             <div className="h-[0.5px] w-full bg-black/20" />
           </div>
-          {showDebug ? (
-            <details className="rounded-xl border border-dashed border-[#d9c8f1] bg-[#fcf9ff] px-3 py-2 text-xs text-[#5f4a82]">
-              <summary className="cursor-pointer font-semibold">Debug details</summary>
-              <p className="mt-2 break-all">childId: {childId}</p>
-            </details>
-          ) : null}
         </header>
 
         <div className="flex items-center justify-between gap-4">
@@ -219,6 +288,7 @@ export default function ReviewClient({
                     ? "No longer available"
                     : availability.label;
                 const isDisplayClass = item.name.toLowerCase().includes("display");
+                const classLabel = getRecreationalClassLabel(item);
 
                 return (
                   <article
@@ -234,21 +304,20 @@ export default function ReviewClient({
                     <div className="flex flex-wrap items-start justify-between gap-4">
                       <div className="space-y-2">
                         <p className="text-sm font-semibold uppercase tracking-[0.08em] text-[#6e2ac0]">
-                          {DAY_SHORT[item.weekday] ?? item.weekday} · {formatTime(item.startTime)}
+                          {classLabel}
                         </p>
                         <h2 className="text-xl font-bold tracking-tight text-[#1f1a25]">
-                          {item.name}
+                          {item.weekday}
                         </h2>
-                        {isDisplayClass ? (
-                          <span className="inline-flex items-center rounded-full border border-[#f4d978] bg-[#fff8dc] px-2 py-0.5 text-[10px] font-semibold text-[#6a4a00]">
-                            Display class · Special pricing
-                          </span>
-                        ) : null}
                         <p className="text-sm text-[#2E2A33]/75">
                           {item.startTime && item.endTime
-                            ? `${formatTime(item.startTime)}-${formatTime(item.endTime)}`
+                            ? `${formatTime(item.startTime)} - ${formatTime(item.endTime)}`
                             : "Time to be confirmed"}
-                          {item.durationMinutes ? ` · ${item.durationMinutes} min` : ""}
+                        </p>
+                        <p className="text-sm text-[#2E2A33]/75">
+                          {typeof item.durationMinutes === "number" && item.durationMinutes > 0
+                            ? `Duration: ${item.durationMinutes} min`
+                            : "Duration: TBC"}
                         </p>
                         <span
                           className={[
@@ -256,13 +325,13 @@ export default function ReviewClient({
                             badgeStyles(item.spotsLeft, item.isUnavailable),
                           ].join(" ")}
                         >
-                          {spotLabel}
+                          Spots left: {spotLabel}
                         </span>
                       </div>
                       <button
                         type="button"
                         onClick={() => handleRemove(item.id)}
-                        className="inline-flex items-center gap-1.5 rounded-full border border-[#d4c7e6] bg-white px-3 py-1.5 text-xs font-semibold text-[#4c3f62] transition hover:border-[#c4b3dc] hover:bg-[#f7f4fb]"
+                        className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-[#d4c7e6] bg-white px-3 py-1.5 text-xs font-semibold text-[#4c3f62] transition hover:border-[#c4b3dc] hover:bg-[#f7f4fb]"
                       >
                         <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
                         Remove
@@ -282,8 +351,33 @@ export default function ReviewClient({
                   <dt className="text-[#2E2A33]/70">Selected classes</dt>
                   <dd className="font-semibold text-[#2E2A33]">{selectedCount}</dd>
                 </div>
-                <div className="rounded-xl border border-dashed border-[#d9c8f1] bg-[#fcf9ff] px-3 py-2 text-xs text-[#5f4a82]">
-                  Pricing will be confirmed at checkout.
+                <div className="rounded-xl border border-dashed border-[#d9c8f1] bg-[#fcf9ff] px-3 py-3 text-xs text-[#5f4a82]">
+                  <p className="font-semibold uppercase tracking-[0.08em] text-[#4f3f6e]">
+                    Monthly pricing
+                  </p>
+                  {pricingBreakdown.lines.length === 0 ? (
+                    <p className="mt-2 text-[#5f4a82]">No classes selected.</p>
+                  ) : (
+                    <div className="mt-2 space-y-1.5">
+                      {pricingBreakdown.lines.map((line) => (
+                        <div key={line.key} className="flex items-start justify-between gap-2">
+                          <p className="text-[#4f3f6e]">
+                            {line.label} ({line.count} x {formatCurrency(line.unitPrice)})
+                          </p>
+                          <p className="shrink-0 font-semibold text-[#2E2A33]">
+                            {formatCurrency(line.lineTotal)}
+                          </p>
+                        </div>
+                      ))}
+                      <div className="mt-2 h-px w-full bg-[#d9c8f1]" />
+                      <div className="flex items-center justify-between">
+                        <p className="font-semibold text-[#2E2A33]">Total per month</p>
+                        <p className="font-bold text-[#2E2A33]">
+                          {formatCurrency(pricingBreakdown.total)}
+                        </p>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </dl>
 

@@ -115,7 +115,7 @@ export default function TermsAcceptance({ accepted, onAccept }: TermsAcceptanceP
               <button
                 type="button"
                 onClick={() => setIsOpen(false)}
-                className="inline-flex h-10 items-center justify-center rounded-full border border-[#d7c9ef] bg-white px-5 text-sm font-semibold text-[#5f4a82] transition hover:bg-[#faf6ff] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6c35c3]/30"
+                className="inline-flex h-10 cursor-pointer items-center justify-center rounded-full border border-[#d7c9ef] bg-white px-5 text-sm font-semibold text-[#5f4a82] transition hover:bg-[#faf6ff] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6c35c3]/30"
               >
                 Close
               </button>
@@ -125,7 +125,7 @@ export default function TermsAcceptance({ accepted, onAccept }: TermsAcceptanceP
                   onAccept();
                   setIsOpen(false);
                 }}
-                className="inline-flex h-10 items-center justify-center rounded-full bg-[#6c35c3] px-6 text-sm font-semibold text-white shadow-[0_12px_24px_-12px_rgba(69,34,124,0.78)] transition hover:bg-[#5b2ca7] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6c35c3]/35"
+                className="inline-flex h-10 cursor-pointer items-center justify-center rounded-full bg-[#6c35c3] px-6 text-sm font-semibold text-white shadow-[0_12px_24px_-12px_rgba(69,34,124,0.78)] transition hover:bg-[#5b2ca7] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6c35c3]/35"
               >
                 I accept
               </button>

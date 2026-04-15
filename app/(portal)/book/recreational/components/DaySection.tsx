@@ -8,6 +8,8 @@ type DaySectionProps = {
   classes: ClassCardItem[];
   selectedIds: Set<string>;
   onToggleClass: (item: ClassCardItem) => void;
+  waitlistStateByClassId: Record<string, "idle" | "saving" | "added">;
+  onAddToWaitlist: (classId: string) => void;
 };
 
 export default function DaySection({
@@ -15,6 +17,8 @@ export default function DaySection({
   classes,
   selectedIds,
   onToggleClass,
+  waitlistStateByClassId,
+  onAddToWaitlist,
 }: DaySectionProps) {
   return (
     <section
@@ -40,6 +44,8 @@ export default function DaySection({
               item={item}
               selected={selectedIds.has(item.id)}
               onToggle={onToggleClass}
+              waitlistState={waitlistStateByClassId[item.id] ?? "idle"}
+              onAddToWaitlist={onAddToWaitlist}
             />
           ))}
         </div>

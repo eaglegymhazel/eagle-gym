@@ -25,6 +25,11 @@ export default function SelectionTray({
   const previewRemaining = Math.max(0, selectedItems.length - previewItems.length);
   const canExpand = selectedCount > 0;
   const expandedOpen = expanded && canExpand;
+  const collapsedSummary = previewItems
+    .map((item) => `${DAY_SHORT[item.weekday] ?? item.weekday} ${formatTime(item.startTime)}`)
+    .join(" | ");
+  const collapsedMoreLabel =
+    previewRemaining > 0 ? `+${previewRemaining} more` : null;
 
   return (
     <div className="fixed inset-x-0 bottom-0 z-40 border-t border-[#ddd4eb] bg-[linear-gradient(180deg,_rgba(255,255,255,0.96),_rgba(249,246,253,0.98))] px-3 py-1.5 shadow-[0_-10px_24px_-22px_rgba(40,22,74,0.3)] backdrop-blur-md sm:px-5">
@@ -32,27 +37,18 @@ export default function SelectionTray({
         <div className="bg-[linear-gradient(180deg,_#ffffff_0%,_#f7f3fb_100%)] p-1 shadow-[0_10px_22px_-20px_rgba(57,33,102,0.44)]">
           <div className="flex items-center gap-1.5">
             <div className="min-w-0 flex-1 rounded-xl bg-white px-3 py-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)]">
-              {selectedCount > 0 && (
-                <p className="truncate text-sm font-bold text-[#2a203c]">
-                  Class selection
+              <p className="truncate text-sm font-bold text-[#2a203c]">
+                Class selection{selectedCount > 0 ? ` (${selectedCount})` : ""}
+              </p>
+              {selectedCount > 0 ? (
+                <p className="mt-0.5 truncate text-xs font-medium text-[#5f5776]">
+                  {collapsedSummary}
+                  {collapsedMoreLabel ? ` | ${collapsedMoreLabel}` : ""}
                 </p>
-              )}
-              {previewItems.length > 0 && (
-                <div className="mt-0.5 flex flex-wrap items-center gap-1">
-                  {previewItems.map((item) => (
-                    <span
-                      key={item.id}
-                      className="inline-flex max-w-[145px] items-center rounded-full bg-[#f6f1ff] px-2 py-0.5 text-[10px] font-semibold text-[#5b2ca7]"
-                    >
-                      <span className="truncate">
-                        {(DAY_SHORT[item.weekday] ?? item.weekday)} {formatTime(item.startTime)}
-                      </span>
-                    </span>
-                  ))}
-                  {previewRemaining > 0 && (
-                    <span className="text-[10px] font-semibold text-[#6e5894]">+{previewRemaining}</span>
-                  )}
-                </div>
+              ) : (
+                <p className="mt-0.5 truncate text-xs font-medium text-[#7b7391]">
+                  No classes selected.
+                </p>
               )}
             </div>
 
@@ -85,7 +81,7 @@ export default function SelectionTray({
               type="button"
               onClick={onContinue}
               disabled={selectedCount === 0}
-              className="inline-flex h-9 items-center justify-center gap-1 rounded-full bg-[#6c35c3] px-4 text-xs font-bold !text-white shadow-[0_12px_24px_-12px_rgba(69,34,124,0.78)] transition hover:bg-[#5b2ca7] disabled:cursor-not-allowed disabled:opacity-50 disabled:!text-white [&>*]:!text-white"
+              className="inline-flex h-9 cursor-pointer items-center justify-center gap-1 rounded-full bg-[#6c35c3] px-4 text-xs font-bold !text-white shadow-[0_12px_24px_-12px_rgba(69,34,124,0.78)] transition hover:bg-[#5b2ca7] disabled:cursor-not-allowed disabled:opacity-50 disabled:!text-white [&>*]:!text-white"
             >
               {selectedCount === 0
                 ? "Select classes to review"
@@ -99,28 +95,34 @@ export default function SelectionTray({
 
         <div
           className={`overflow-hidden transition-[max-height,opacity,margin] duration-180 ease-out motion-reduce:transition-none ${
-            expandedOpen ? "mt-1.5 max-h-48 opacity-100" : "mt-0 max-h-0 opacity-0"
+            expandedOpen ? "mt-1.5 max-h-72 opacity-100" : "mt-0 max-h-0 opacity-0"
           }`}
         >
           <div className="rounded-lg border border-[#e6daf8] bg-[#fcfaff] p-1.5">
             {selectedItems.length === 0 ? (
               <p className="px-1 py-2 text-xs text-[#2E2A33]/65">No classes selected.</p>
             ) : (
-              <ul className="flex flex-wrap gap-1.5">
+              <ul className="max-h-60 space-y-1.5 overflow-auto pr-0.5">
                 {selectedItems.map((item) => (
                   <li
                     key={item.id}
-                    className="inline-flex max-w-full items-center gap-1 rounded-full border border-[#e1d3f7] bg-white px-2.5 py-1"
+                    className="flex items-center justify-between gap-3 border border-[#e1d3f7] bg-white px-2.5 py-2"
                   >
-                    <span className="truncate text-xs font-semibold text-[#2a203c]">
-                      {(DAY_SHORT[item.weekday] ?? item.weekday)} {formatTime(item.startTime)}
-                      {typeof item.durationMinutes === "number" ? ` | ${item.durationMinutes}m` : ""}
-                      {item.isFull ? " | Fully booked" : ""}
-                    </span>
+                    <div className="min-w-0">
+                      <p className="truncate text-xs font-semibold text-[#2a203c]">
+                        {(DAY_SHORT[item.weekday] ?? item.weekday)} {formatTime(item.startTime)}
+                      </p>
+                      <p className="mt-0.5 truncate text-[11px] text-[#6e5894]">
+                        {typeof item.durationMinutes === "number"
+                          ? `${item.durationMinutes} min`
+                          : "Duration TBC"}
+                        {item.isFull ? " | Fully booked" : ""}
+                      </p>
+                    </div>
                     <button
                       type="button"
                       onClick={() => onRemove(item.id)}
-                      className="inline-flex h-5 w-5 items-center justify-center rounded-full border border-[#d9c8f3] text-[10px] font-black text-[#6c35c3] transition hover:bg-[#f4ecff]"
+                      className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-[#d9c8f3] text-[10px] font-black text-[#6c35c3] transition hover:bg-[#f4ecff]"
                       aria-label={`Remove ${item.name}`}
                     >
                       {"\u00D7"}

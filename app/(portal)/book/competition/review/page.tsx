@@ -1,5 +1,5 @@
 import { getBookingContext } from "@/lib/server/bookingContext";
-import { getCompetitionClasses } from "@/lib/server/classes";
+import { getCompetitionClasses, getCompetitionPricing } from "@/lib/server/classes";
 import { getActiveBookingCountsForClassIds } from "@/lib/server/availability";
 import ReviewClient, { type ReviewClassItem } from "./ReviewClient";
 
@@ -152,7 +152,6 @@ export default async function CompetitionReviewPage({
   const resolvedSearchParams = await searchParams;
   const childId = resolvedSearchParams?.childId;
   const parsedSelection = parseSelection(resolvedSearchParams?.classIds);
-  const showDebug = process.env.NODE_ENV !== "production";
 
   if (!childId) {
     return (
@@ -175,7 +174,10 @@ export default async function CompetitionReviewPage({
     );
   }
 
-  const classCatalog = await getCompetitionClasses();
+  const [classCatalog, competitionPricingRows] = await Promise.all([
+    getCompetitionClasses(),
+    getCompetitionPricing(),
+  ]);
   const children = bookingContext.children;
   const child = children.find((item) => item.id === childId);
 
@@ -191,6 +193,15 @@ export default async function CompetitionReviewPage({
 
   const childName = `${child.firstName ?? ""} ${child.lastName ?? ""}`.trim();
   const childAge = computeAge(child.dateOfBirth ?? null);
+  const competitionPricing = competitionPricingRows
+    .map((row) => ({
+      hoursPerWeek: toNullableNumber(row.hoursPerWeek),
+      monthlyPrice: toNullableNumber(row.monthlyPrice),
+    }))
+    .filter(
+      (row): row is { hoursPerWeek: number; monthlyPrice: number } =>
+        row.hoursPerWeek != null && row.monthlyPrice != null
+    );
 
   if (parsedSelection.uniqueIds.length === 0) {
     return (
@@ -198,9 +209,9 @@ export default async function CompetitionReviewPage({
         childId={childId}
         childName={childName || "Selected child"}
         initialItems={[]}
+        pricingOptions={competitionPricing}
         initialBackHref={buildBackHref(childId, [])}
         hasDuplicateSelections={parsedSelection.hasDuplicates}
-        showDebug={showDebug}
       />
     );
   }
@@ -259,13 +270,12 @@ export default async function CompetitionReviewPage({
       childId={childId}
       childName={childName || "Selected child"}
       initialItems={reviewItems}
+      pricingOptions={competitionPricing}
       initialBackHref={buildBackHref(
         childId,
         reviewItems.map((item) => item.id)
       )}
       hasDuplicateSelections={parsedSelection.hasDuplicates}
-      showDebug={showDebug}
     />
   );
 }
-

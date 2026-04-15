@@ -1,12 +1,13 @@
 import type { ClassCardItem } from "../types";
-import { getAvailabilityState } from "../utils";
-import { Check, Plus, XCircle } from "lucide-react";
+import { Check, Plus } from "lucide-react";
 
 type ClassRowProps = {
   weekday: string;
   item: ClassCardItem;
   selected: boolean;
   onToggle: (item: ClassCardItem) => void;
+  waitlistState: "idle" | "saving" | "added";
+  onAddToWaitlist: (classId: string) => void;
 };
 
 export default function ClassRow({
@@ -14,10 +15,11 @@ export default function ClassRow({
   item,
   selected,
   onToggle,
+  waitlistState,
+  onAddToWaitlist,
 }: ClassRowProps) {
-  const blocked = item.isFull && !selected;
+  const blocked = item.isFull;
   const isDisplayClass = item.name.toLowerCase().includes("display");
-  const availability = getAvailabilityState(item.spotsLeft);
   const checkboxId = `class-toggle-${item.id}`;
   const startTime = formatStartTime(item.startTime);
   const timeParts = splitTime(startTime);
@@ -40,16 +42,17 @@ export default function ClassRow({
     event.stopPropagation();
     toggleSelection();
   };
+  const handleWaitlistClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (waitlistState === "saving" || waitlistState === "added") return;
+    onAddToWaitlist(item.id);
+  };
 
   const availabilityId = `availability-${item.id}`;
-  const availabilityTextClass =
-    availability.variant === "full" || availability.variant === "critical"
-      ? "text-[#b91c1c]"
-      : availability.variant === "low"
-      ? "text-[#b45309]"
-      : "text-[#15803d]";
-  const capacityPercent = getCapacityPercent(item.spotsLeft, item.capacity);
-  const capacityFillClass = getCapacityFillClass(item.spotsLeft);
+  const availabilityTextClass = "text-[#1f1a25]";
+  const capacityPercent = getCapacityPercent(item.spotsTaken, item.capacity);
+  const capacityFillColor = getCapacityFillColor(capacityPercent);
   const timeTextClass = selected ? "text-white" : "text-[#161321]";
   const periodTextClass = selected ? "text-white/90" : "text-[#5e556f]";
   const nextClassTextClass = selected ? "text-[#4c3f62]" : "text-[#5e556f]";
@@ -150,8 +153,8 @@ export default function ClassRow({
       <div className="relative z-10 col-start-1 row-start-2 mt-1 flex items-center gap-2 pl-1 pr-2 lg:hidden">
         <div className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-[#e5e7eb]">
           <span
-            className={`block h-full rounded-full transition-[width] duration-300 ease-out ${capacityFillClass}`}
-            style={{ width: `${capacityPercent}%` }}
+            className="block h-full rounded-full transition-[width,background-color] duration-300 ease-out"
+            style={{ width: `${capacityPercent}%`, backgroundColor: capacityFillColor }}
             aria-hidden="true"
           />
         </div>
@@ -178,8 +181,8 @@ export default function ClassRow({
         </span>
         <div className="h-1.5 min-w-0 overflow-hidden rounded-full bg-[#e5e7eb]">
           <span
-            className={`block h-full rounded-full transition-[width] duration-300 ease-out ${capacityFillClass}`}
-            style={{ width: `${capacityPercent}%` }}
+            className="block h-full rounded-full transition-[width,background-color] duration-300 ease-out"
+            style={{ width: `${capacityPercent}%`, backgroundColor: capacityFillColor }}
             aria-hidden="true"
           />
         </div>
@@ -190,16 +193,28 @@ export default function ClassRow({
           Next class: {nextClassDateLabel}
         </p>
         {blocked ? (
-          <span className="inline-flex h-8 w-[104px] items-center justify-center gap-1 rounded-full border border-[#e2dfe9] bg-[#f5f4f8] px-3 text-xs font-semibold text-[#706d7a]">
-            <XCircle className="h-3.5 w-3.5" aria-hidden="true" />
-            Booked out
-          </span>
+          <button
+            type="button"
+            onClick={handleWaitlistClick}
+            disabled={waitlistState === "saving" || waitlistState === "added"}
+            className={`inline-flex h-8 w-[104px] items-center justify-center rounded-full border px-3 text-xs font-semibold transition ${
+              waitlistState === "saving" || waitlistState === "added"
+                ? "cursor-not-allowed border-[#d7cfde] bg-[#f4f2f7] text-[#7a7388]"
+                : "cursor-pointer border-[#d4c7e6] bg-white text-[#4c3f62] hover:border-[#c4b3dc] hover:bg-[#f7f4fb]"
+            }`}
+          >
+            {waitlistState === "saving"
+              ? "Adding..."
+              : waitlistState === "added"
+              ? "On waitlist"
+              : "Add to waitlist"}
+          </button>
         ) : (
           <button
             type="button"
             onClick={handleSelectControlClick}
             aria-pressed={selected}
-            className={`inline-flex h-8 w-[104px] items-center justify-center gap-1.5 rounded-full border px-3 text-xs font-semibold transition-all duration-180 motion-reduce:transition-none focus-within:ring-2 focus-within:ring-[#6c35c3]/35 ${
+            className={`inline-flex h-8 w-[104px] cursor-pointer items-center justify-center gap-1.5 rounded-full border px-3 text-xs font-semibold transition-all duration-180 motion-reduce:transition-none focus-within:ring-2 focus-within:ring-[#6c35c3]/35 ${
               selected
                 ? "border-[#c4b3dc] bg-white text-[#4c3f62] shadow-[0_0_0_2px_rgba(124,106,147,0.14)]"
                 : "border-[#d4c7e6] bg-white text-[#4c3f62] hover:border-[#c4b3dc] hover:bg-[#f7f4fb]"
@@ -263,29 +278,31 @@ function buildSpacesText(spotsLeft: number | null): string {
 }
 
 function getCapacityPercent(
-  spotsLeft: number | null,
+  spotsTaken: number | null,
   capacity: number | null
 ): number {
   if (
-    typeof spotsLeft !== "number" ||
+    typeof spotsTaken !== "number" ||
     typeof capacity !== "number" ||
-    !Number.isFinite(spotsLeft) ||
+    !Number.isFinite(spotsTaken) ||
     !Number.isFinite(capacity) ||
     capacity <= 0
   ) {
     return 0;
   }
 
-  const clampedSpots = Math.min(Math.max(spotsLeft, 0), capacity);
-  return (clampedSpots / capacity) * 100;
+  const clampedTaken = Math.min(Math.max(spotsTaken, 0), capacity);
+  return (clampedTaken / capacity) * 100;
 }
 
-function getCapacityFillClass(spotsLeft: number | null): string {
-  if (spotsLeft === 1) return "bg-[#ef4444]";
-  if (typeof spotsLeft === "number" && spotsLeft > 0 && spotsLeft < 5) {
-    return "bg-[#f59e0b]";
-  }
-  return "bg-[#22c55e]";
+function getCapacityFillColor(percent: number): string {
+  const clamped = Math.min(Math.max(percent, 0), 100);
+  // 0% booked -> green (120deg), 50% -> amber (45deg), 100% -> red (0deg)
+  const hue =
+    clamped <= 50
+      ? 120 - (75 * clamped) / 50
+      : 45 - (45 * (clamped - 50)) / 50;
+  return `hsl(${hue}, 72%, 46%)`;
 }
 
 function buildEndTimeLabel(
