@@ -7,7 +7,9 @@ import { useAuth } from "@/app/components/auth/AuthProvider";
 export type TimetableSession = {
   title: string;
   age: string;
+  startTime: string;
   time: string;
+  duration: string;
   isSpecial?: boolean;
 };
 
@@ -84,6 +86,12 @@ function recreationalAgeBucket(label: string): "Preschool" | "4-7 years" | "8-18
   return null;
 }
 
+function getClassLabel(type: "recreational" | "competition" | "special"): string {
+  if (type === "special") return "Special";
+  if (type === "competition") return "Competition";
+  return "Recreational";
+}
+
 export default function TimetableClient({ timetable }: TimetableClientProps) {
   const { user } = useAuth();
   const [activeFilter, setActiveFilter] = useState<string>("all");
@@ -133,11 +141,6 @@ export default function TimetableClient({ timetable }: TimetableClientProps) {
       .filter((day) => day.sessions.length > 0);
   }, [activeFilter, activeWeekday, effectiveAgeFilter, timetable]);
 
-  const totalSessions = useMemo(
-    () => filteredTimetable.reduce((sum, day) => sum + day.sessions.length, 0),
-    [filteredTimetable],
-  );
-
   const showEmptyState = filteredTimetable.length === 0;
 
   const specialIcon = (
@@ -149,48 +152,57 @@ export default function TimetableClient({ timetable }: TimetableClientProps) {
   );
 
   return (
-    <section className="mx-auto w-full max-w-[1880px] px-3 pb-10 pt-6 sm:px-4 sm:pt-8 md:px-6">
-      <div className="sticky top-[66px] z-20 mb-5 -mx-3 bg-[#faf7fb]/95 px-3 py-2 backdrop-blur sm:top-[74px] sm:mx-0 sm:px-0 md:mb-6 md:top-[82px] relative">
-        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="inline-flex items-center rounded-full bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.06em] text-[#3c2266] shadow-[0_1px_4px_rgba(0,0,0,0.06)]">
-              {totalSessions} sessions
-            </span>
-          </div>
-
-          <div className="flex items-center gap-2 rounded-full border border-[#6c35c3]/16 bg-white p-1 md:hidden">
-            <button
-              type="button"
-              onClick={() => setViewMode("list")}
-              className={[
-                "rounded-full px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.05em] transition-colors duration-200",
-                viewMode === "list"
-                  ? "bg-[#6c35c3] text-white"
-                  : "text-[#4a267a] hover:bg-[#f4efff]",
-              ].join(" ")}
-              aria-pressed={viewMode === "list"}
-            >
-              List
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewMode("day")}
-              className={[
-                "rounded-full px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.05em] transition-colors duration-200",
-                viewMode === "day"
-                  ? "bg-[#6c35c3] text-white"
-                  : "text-[#4a267a] hover:bg-[#f4efff]",
-              ].join(" ")}
-              aria-pressed={viewMode === "day"}
-            >
-              By day
-            </button>
-          </div>
+    <section className="mx-auto w-full max-w-[1500px] px-4 pb-12 pt-8 sm:px-6 sm:pt-10 lg:px-8">
+      <header className="mb-2">
+        <div>
+          <h1 className="max-w-3xl text-[clamp(36px,4.5vw,62px)] font-extrabold leading-[0.95] tracking-[0.01em] text-[#143271]">
+            Weekly Timetable
+          </h1>
+          <p className="mt-4 max-w-2xl text-base leading-[1.75] text-[#2E2A33]/78 sm:text-[17px]">
+            Browse recreational and competition sessions by time and day.
+          </p>
         </div>
+      </header>
 
-        <div className="mt-5 pb-1">
-          <div className="flex flex-wrap gap-2">
-            {filters.map((filter) => {
+      <div className="sticky top-[66px] z-20 mb-6 -mx-4 border-y border-[#dfd3e8] bg-[#faf7fb]/96 px-4 py-2 backdrop-blur sm:top-[74px] sm:-mx-6 sm:px-6 md:top-[82px] lg:static lg:mx-0 lg:ml-[calc(50%-50vw)] lg:mr-[calc(50%-50vw)] lg:w-screen lg:px-8">
+        <div className="mx-auto max-w-[1500px]">
+          <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div className="flex items-center gap-1 border border-[#ded2ea] bg-white p-1 md:hidden">
+              <button
+                type="button"
+                onClick={() => setViewMode("list")}
+                className={[
+                  "px-3 py-1.5 text-xs font-bold uppercase tracking-[0.05em] transition-colors duration-200",
+                  viewMode === "list"
+                    ? "bg-[#6c35c3] text-white"
+                    : "text-[#4a267a] hover:bg-[#f4efff]",
+                ].join(" ")}
+                aria-pressed={viewMode === "list"}
+              >
+                List
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode("day")}
+                className={[
+                  "px-3 py-1.5 text-xs font-bold uppercase tracking-[0.05em] transition-colors duration-200",
+                  viewMode === "day"
+                    ? "bg-[#6c35c3] text-white"
+                    : "text-[#4a267a] hover:bg-[#f4efff]",
+                ].join(" ")}
+                aria-pressed={viewMode === "day"}
+              >
+                By day
+              </button>
+            </div>
+          </div>
+
+          <div className="mt-4 pb-1">
+            <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.08em] text-[#5f5177]">
+              Class type
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {filters.map((filter) => {
               const isActive = activeFilter === filter.key;
               const baseStyle =
                 filter.key === "all"
@@ -225,11 +237,11 @@ export default function TimetableClient({ timetable }: TimetableClientProps) {
                     }
                   }}
                   className={[
-                    "inline-flex min-h-10 cursor-pointer items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold transition-all duration-160",
+                    "inline-flex min-h-10 cursor-pointer items-center gap-2 rounded-md border px-4 py-2 text-sm font-bold transition-all duration-160",
                     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6c35c3]/45 focus-visible:ring-offset-2",
                     isActive
-                      ? "shadow-[0_2px_8px_-6px_rgba(31,18,57,0.35)]"
-                      : "opacity-95 hover:opacity-100 hover:shadow-[0_8px_18px_-14px_rgba(31,18,57,0.45)]",
+                      ? "shadow-[0_7px_18px_-16px_rgba(31,18,57,0.45)]"
+                      : "opacity-95 hover:opacity-100",
                     baseStyle,
                   ].join(" ")}
                 >
@@ -241,18 +253,21 @@ export default function TimetableClient({ timetable }: TimetableClientProps) {
                   {filter.label}
                 </button>
               );
-            })}
+              })}
+            </div>
           </div>
-        </div>
 
-        {activeFilter === "recreational" ? (
-          <div className="mt-2.5 pb-1">
+          {activeFilter === "recreational" ? (
+            <div className="mt-2.5 pb-1">
+            <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.08em] text-[#5f5177]">
+              Age group
+            </p>
             <div className="flex flex-wrap gap-2">
               <button
                 type="button"
                 onClick={() => setActiveAgeGroup("all")}
                 className={[
-                  "inline-flex min-h-9 cursor-pointer items-center rounded-full border px-3 py-1.5 text-xs font-semibold transition-all duration-160",
+                  "inline-flex min-h-9 cursor-pointer items-center rounded-md border px-3 py-1.5 text-xs font-bold transition-all duration-160",
                   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#138a4b]/40 focus-visible:ring-offset-2",
                   activeAgeGroup === "all"
                     ? "border-[#138a4b]/30 bg-[#dff5e8] text-[#106f3d] ring-1 ring-[#138a4b]/18 shadow-[0_2px_8px_-6px_rgba(31,18,57,0.35)]"
@@ -269,7 +284,7 @@ export default function TimetableClient({ timetable }: TimetableClientProps) {
                     type="button"
                     onClick={() => setActiveAgeGroup(age)}
                     className={[
-                      "inline-flex min-h-9 cursor-pointer items-center rounded-full border px-3 py-1.5 text-xs font-semibold transition-all duration-160",
+                      "inline-flex min-h-9 cursor-pointer items-center rounded-md border px-3 py-1.5 text-xs font-bold transition-all duration-160",
                       "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#138a4b]/40 focus-visible:ring-offset-2",
                       isActive
                         ? "border-[#138a4b]/30 bg-[#dff5e8] text-[#106f3d] ring-1 ring-[#138a4b]/18 shadow-[0_2px_8px_-6px_rgba(31,18,57,0.35)]"
@@ -282,10 +297,13 @@ export default function TimetableClient({ timetable }: TimetableClientProps) {
                 );
               })}
             </div>
-          </div>
-        ) : null}
+            </div>
+          ) : null}
 
-        <div className="mt-2.5 pb-1">
+          <div className="mt-2.5 pb-1">
+          <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.08em] text-[#5f5177]">
+            Day
+          </p>
           <div className="grid grid-cols-3 gap-2 sm:flex sm:flex-wrap">
             {weekdayFilters.map((day) => {
               const isActive = activeWeekday === day;
@@ -295,7 +313,7 @@ export default function TimetableClient({ timetable }: TimetableClientProps) {
                   type="button"
                   onClick={() => setActiveWeekday(day)}
                   className={[
-                    "inline-flex min-h-9 cursor-pointer items-center justify-center rounded-full border px-3 py-1.5 text-xs font-semibold transition-all duration-160",
+                    "inline-flex min-h-9 cursor-pointer items-center justify-center rounded-md border px-3 py-1.5 text-xs font-bold transition-all duration-160",
                     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6c35c3]/35 focus-visible:ring-offset-2",
                     isActive
                       ? "border-[#6c35c3]/30 bg-[#efe8fb] text-[#41216f] shadow-[0_2px_8px_-6px_rgba(31,18,57,0.35)]"
@@ -308,6 +326,7 @@ export default function TimetableClient({ timetable }: TimetableClientProps) {
               );
             })}
           </div>
+          </div>
         </div>
         <div
           aria-hidden="true"
@@ -317,7 +336,7 @@ export default function TimetableClient({ timetable }: TimetableClientProps) {
 
       <div>
         {showEmptyState ? (
-          <div className="rounded-2xl border border-dashed border-[#6c35c3]/20 bg-[#faf5ff] px-5 py-10 text-center">
+          <div className="rounded-lg border border-dashed border-[#6c35c3]/20 bg-[#faf5ff] px-5 py-10 text-center">
             <p className="text-base font-semibold text-[#2a0c4f]">No sessions match this filter.</p>
             <p className="mt-2 text-sm text-[#2a0c4f]/75">
               Try another class type or clear your filter to view all sessions.
@@ -330,13 +349,13 @@ export default function TimetableClient({ timetable }: TimetableClientProps) {
                   setActiveAgeGroup("all");
                   setActiveWeekday("All days");
                 }}
-                className="inline-flex cursor-pointer items-center rounded-full bg-[#6c35c3] px-4 py-2 text-xs font-semibold uppercase tracking-[0.06em] text-white transition-colors duration-160 hover:bg-[#5f2eb6] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6c35c3]/40 focus-visible:ring-offset-2"
+                className="inline-flex cursor-pointer items-center rounded-md bg-[#6c35c3] px-4 py-2 text-xs font-semibold uppercase tracking-[0.06em] text-white transition-colors duration-160 hover:bg-[#5f2eb6] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6c35c3]/40 focus-visible:ring-offset-2"
               >
                 Clear filters
               </button>
               <a
                 href="/contact"
-                className="inline-flex items-center rounded-full border border-[#6c35c3]/25 bg-white px-4 py-2 text-xs font-semibold uppercase tracking-[0.06em] text-[#4a267a] transition hover:bg-[#f8f2ff] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6c35c3]/40 focus-visible:ring-offset-2"
+                className="inline-flex items-center rounded-md border border-[#6c35c3]/25 bg-white px-4 py-2 text-xs font-semibold uppercase tracking-[0.06em] text-[#4a267a] transition hover:bg-[#f8f2ff] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6c35c3]/40 focus-visible:ring-offset-2"
               >
                 Contact us
               </a>
@@ -345,30 +364,25 @@ export default function TimetableClient({ timetable }: TimetableClientProps) {
         ) : (
           <>
             <div className={viewMode === "day" ? "overflow-x-auto pb-1 md:block" : "hidden md:block"}>
-              <div className="grid min-w-[1700px] grid-cols-6 gap-3">
+              <div className="grid min-w-[1500px] grid-cols-6 gap-4">
                 {filteredTimetable.map((day) => (
                   <section
                     key={day.day}
-                    className="rounded-xl border border-[#6c35c3]/10 bg-white p-3 shadow-[0_6px_18px_-18px_rgba(54,22,93,0.55)]"
+                    className="rounded-lg border border-[#ded2ea] bg-white p-3 shadow-[0_12px_28px_-26px_rgba(54,22,93,0.6)]"
                     aria-label={`${day.day} sessions`}
                   >
                     <div className="mb-2 flex items-center justify-between border-b border-[#6c35c3]/10 pb-1.5">
-                      <h2 className="text-[19px] font-extrabold tracking-[0.01em] text-[#3d1b70]">
+                      <h2 className="text-[19px] font-extrabold tracking-[0.01em] text-[#143271]">
                         {day.day}
                       </h2>
-                      <span className="rounded-full bg-[#f4efff] px-2.5 py-1 text-[11px] font-semibold text-[#5f2eb6]">
+                      <span className="rounded-md bg-[#f4efff] px-2.5 py-1 text-[11px] font-semibold text-[#5f2eb6]">
                         {day.sessions.length}
                       </span>
                     </div>
                     <div className="space-y-2.5">
                       {day.sessions.map((session, index) => {
                         const type = getType(session);
-                        const cleanTitle =
-                          type === "special"
-                            ? "Display class"
-                            : type === "competition"
-                              ? "Competition"
-                              : "Recreational";
+                        const cleanTitle = getClassLabel(type);
 
                         return (
                           <Link
@@ -376,28 +390,29 @@ export default function TimetableClient({ timetable }: TimetableClientProps) {
                             href={classLinkHref}
                             className="block rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6c35c3]/45 focus-visible:ring-offset-2"
                           >
-                            <article className="relative overflow-hidden rounded-lg border border-[#6c35c3]/10 bg-white px-3 py-3 transition hover:bg-[#fcfaff]">
+                            <article className="relative overflow-hidden rounded-lg border border-[#ded2ea] bg-[#fff] px-3 py-3 transition hover:border-[#cbbde2] hover:bg-[#fcfaff]">
                               <span
                                 aria-hidden="true"
                                 className={`absolute inset-y-0 left-0 w-1 ${typeStyles[type].rail}`}
                               />
-                              <div className={type === "recreational" ? "flex flex-col gap-2" : "flex min-h-[46px] items-center"}>
-                                <div className="flex items-center justify-between gap-2">
-                                  <p className="text-[16px] font-extrabold text-[#251341]">{session.time}</p>
-                                  <span
-                                    className={`inline-flex items-center gap-1 rounded-full border px-2 py-1 text-[11px] font-semibold ${typeStyles[type].pill}`}
-                                  >
-                                    {type === "special" ? specialIcon : null}
-                                    {cleanTitle}
-                                  </span>
-                                </div>
-                                {type === "recreational" ? (
-                                  <div className="flex flex-wrap items-center gap-2">
-                                    <span className="text-xs font-medium text-[#2a0c4f]/80">
-                                      {normalizeAgeLabel(session.age)}
-                                    </span>
+                              <div className="flex min-h-[94px] flex-col justify-between gap-3">
+                                <span
+                                  className={`inline-flex w-fit items-center gap-1 rounded-md border px-2 py-1 text-[11px] font-semibold ${typeStyles[type].pill}`}
+                                >
+                                  {type === "special" ? specialIcon : null}
+                                  {cleanTitle}
+                                </span>
+                                <div>
+                                  <p className="text-[18px] font-extrabold leading-tight text-[#251341]">
+                                    {session.startTime}
+                                  </p>
+                                  <div className="mt-2 grid gap-1 text-xs font-semibold text-[#2a0c4f]/75">
+                                    <span>{session.duration}</span>
+                                    {type === "recreational" ? (
+                                      <span>{normalizeAgeLabel(session.age)}</span>
+                                    ) : null}
                                   </div>
-                                ) : null}
+                                </div>
                               </div>
                             </article>
                           </Link>
@@ -418,41 +433,37 @@ export default function TimetableClient({ timetable }: TimetableClientProps) {
                   <div className="space-y-2.5">
                     {day.sessions.map((session, index) => {
                       const type = getType(session);
-                      const cleanTitle =
-                        type === "special"
-                          ? "Display class"
-                          : type === "competition"
-                            ? "Competition"
-                            : "Recreational";
+                      const cleanTitle = getClassLabel(type);
 
                       return (
                         <Link
                           key={`${day.day}-${session.title}-${session.time}-${index}`}
                           href={classLinkHref}
-                          className="block rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6c35c3]/45 focus-visible:ring-offset-2"
+                          className="block rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6c35c3]/45 focus-visible:ring-offset-2"
                         >
-                          <article className="relative overflow-hidden rounded-xl border border-[#6c35c3]/12 bg-white px-3 py-3 pl-4 shadow-[0_8px_18px_-18px_rgba(54,22,93,0.55)] transition hover:bg-[#fcfaff]">
+                          <article className="relative overflow-hidden rounded-lg border border-[#ded2ea] bg-white px-3 py-3 pl-4 shadow-[0_8px_18px_-18px_rgba(54,22,93,0.55)] transition hover:border-[#cbbde2] hover:bg-[#fcfaff]">
                             <span
                               aria-hidden="true"
                               className={`absolute inset-y-0 left-0 w-1 ${typeStyles[type].rail}`}
                             />
-                            <div className={type === "recreational" ? "flex flex-col gap-1.5" : "flex min-h-[44px] items-center"}>
-                              <div className="flex items-center justify-between gap-2">
-                                <p className="text-[15px] font-extrabold text-[#251341]">{session.time}</p>
-                                <span
-                                  className={`inline-flex items-center gap-1 rounded-full border px-2 py-1 text-[11px] font-semibold ${typeStyles[type].pill}`}
-                                >
-                                  {type === "special" ? specialIcon : null}
-                                  {cleanTitle}
-                                </span>
-                              </div>
-                              {type === "recreational" ? (
-                                <div className="flex flex-wrap items-center gap-2">
-                                  <span className="text-xs font-medium text-[#2a0c4f]/80">
-                                    {normalizeAgeLabel(session.age)}
-                                  </span>
+                            <div className="flex min-h-[92px] flex-col justify-between gap-3">
+                              <span
+                                className={`inline-flex w-fit items-center gap-1 rounded-md border px-2 py-1 text-[11px] font-semibold ${typeStyles[type].pill}`}
+                              >
+                                {type === "special" ? specialIcon : null}
+                                {cleanTitle}
+                              </span>
+                              <div>
+                                <p className="text-[17px] font-extrabold leading-tight text-[#251341]">
+                                  {session.startTime}
+                                </p>
+                                <div className="mt-2 grid gap-1 text-xs font-semibold text-[#2a0c4f]/75">
+                                  <span>{session.duration}</span>
+                                  {type === "recreational" ? (
+                                    <span>{normalizeAgeLabel(session.age)}</span>
+                                  ) : null}
                                 </div>
-                              ) : null}
+                              </div>
                             </div>
                           </article>
                         </Link>

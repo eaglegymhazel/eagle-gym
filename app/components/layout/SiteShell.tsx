@@ -2,6 +2,7 @@
 import Link from "next/link";
 import LoginBadge from "../LoginBadge";
 import Nav from "../Nav";
+import FooterAuthLink from "./FooterAuthLink";
 
 export default function SiteShell({
   children,
@@ -15,6 +16,8 @@ export default function SiteShell({
     label: string;
   };
 }) {
+  const currentYear = new Date().getFullYear();
+
   return (
     <div
       className="min-h-screen bg-[#faf7fb]"
@@ -22,8 +25,8 @@ export default function SiteShell({
     >
       <div className="sticky top-0 z-50 bg-[#faf7fb]/95 backdrop-blur">
         <div className="mx-auto w-full max-w-6xl px-3 sm:px-4 lg:px-6">
-          <div className="relative flex w-full items-center gap-2 py-2 sm:gap-4">
-            <div className="shrink-0">
+          <div className="relative flex w-full items-center gap-2 py-2 sm:gap-4 lg:grid lg:grid-cols-[1fr_auto_1fr] lg:gap-0">
+            <div className="shrink-0 lg:justify-self-start">
               <Link href="/" aria-label="Eagle Gymnastics Academy home">
                 <Image
                   src="/brand/new_logo1.png"
@@ -35,7 +38,7 @@ export default function SiteShell({
                 />
               </Link>
             </div>
-            <div className="min-w-0 flex-1">
+            <div className="min-w-0 flex-1 lg:min-w-fit lg:flex-none lg:justify-self-center">
               <Nav
                 disableMobileMenu={disableMobileNavMenu}
                 mobileRightLink={mobileRightLink}
@@ -44,7 +47,7 @@ export default function SiteShell({
             <div className="absolute right-16 top-1/2 -translate-y-1/2 lg:hidden">
               <LoginBadge />
             </div>
-            <div className="hidden shrink-0 lg:block">
+            <div className="hidden lg:block lg:justify-self-end">
               <LoginBadge />
             </div>
           </div>
@@ -54,65 +57,88 @@ export default function SiteShell({
 
       <main className="mt-0 w-full px-0 pt-0 pb-4">{children}</main>
 
-      <footer className="border-t border-black/5">
-        <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-center gap-4 px-6 py-6 text-sm font-semibold text-[#2a0c4f]/80 sm:justify-between">
-          <div className="flex flex-wrap items-center justify-center gap-2">
-            <span>Call:</span>
-            <a
-              href="tel:01418401454"
-              className="underline-offset-4 hover:underline"
-            >
-              0141 840 1454
-            </a>
-            <span className="hidden sm:inline">|</span>
-            <span>Email:</span>
-            <a
-              href="mailto:Eaglegym1@gmail.com"
-              className="underline-offset-4 hover:underline"
-            >
-              Eaglegym1@gmail.com
-            </a>
+      <footer className="border-t border-black/10 bg-[#f7f2fb]">
+        <div className="mx-auto grid w-full max-w-6xl gap-5 px-4 py-5 sm:px-6 md:grid-cols-2 md:gap-8">
+
+          <div className="space-y-2">
+            <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[#5f5177]">
+              Contact
+            </p>
+            <div className="space-y-1 text-sm text-[#2E2A33]/85">
+              <p>
+                Phone:{" "}
+                <a href="tel:01418401454" className="font-semibold hover:underline">
+                  0141 840 1454
+                </a>
+              </p>
+              <p>
+                Email:{" "}
+                <a href="mailto:Eaglegym1@gmail.com" className="font-semibold hover:underline">
+                  Eaglegym1@gmail.com
+                </a>
+              </p>
+            </div>
           </div>
-          <a
-            href="https://www.facebook.com/eaglegymnasticsacademy/"
-            aria-label="Facebook"
-            className="inline-flex items-center justify-center hover:opacity-80"
-          >
-            <Image
-              src="/brand/socialmedia/facebook.png"
-              alt="Facebook"
-              width={20}
-              height={20}
-              className="h-5 w-5"
-            />
-          </a>
-          <span className="inline-flex items-center justify-center">
-            <Image
-              src="/brand/socialmedia/instagram.png"
-              alt="Instagram"
-              width={20}
-              height={20}
-              className="h-5 w-5"
-            />
-          </span>
-          <span className="inline-flex items-center justify-center">
-            <Image
-              src="/brand/socialmedia/youtube.png"
-              alt="YouTube"
-              width={20}
-              height={20}
-              className="h-5 w-5"
-            />
-          </span>
-          <span className="inline-flex items-center justify-center">
-            <Image
-              src="/brand/socialmedia/tiktok.png"
-              alt="TikTok"
-              width={20}
-              height={20}
-              className="h-5 w-5"
-            />
-          </span>
+
+          <div className="space-y-3">
+            <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[#5f5177]">
+              Quick links
+            </p>
+            <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm font-semibold text-[#143271]">
+              <Link href="/about" className="hover:underline">
+                About
+              </Link>
+              <Link href="/timetable" className="hover:underline">
+                Timetable
+              </Link>
+              <Link href="/news" className="hover:underline">
+                Club News
+              </Link>
+              <Link href="/contact" className="hover:underline">
+                Contact
+              </Link>
+              <FooterAuthLink />
+            </div>
+            <div className="flex items-center gap-3 pt-1">
+              <a
+                href="https://www.facebook.com/eaglegymnasticsacademy/"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Facebook"
+                className="inline-flex h-9 w-9 items-center justify-center border border-[#d9cde7] bg-white transition hover:opacity-80"
+              >
+                <Image
+                  src="/brand/socialmedia/facebook.png"
+                  alt="Facebook"
+                  width={20}
+                  height={20}
+                  className="h-5 w-5"
+                />
+              </a>
+              <a
+                href="https://www.instagram.com/eaglegymnasticsacademy/"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Instagram"
+                className="inline-flex h-9 w-9 items-center justify-center border border-[#d9cde7] bg-white transition hover:opacity-80"
+              >
+                <Image
+                  src="/brand/socialmedia/instagram.png"
+                  alt="Instagram"
+                  width={20}
+                  height={20}
+                  className="h-5 w-5"
+                />
+              </a>
+            </div>
+          </div>
+        </div>
+
+        <div className="border-t border-black/10">
+          <div className="mx-auto flex w-full max-w-6xl flex-col gap-1 px-4 py-3 text-xs text-[#2E2A33]/75 sm:px-6 md:flex-row md:items-center md:justify-between">
+            <p>© {currentYear} Eagle Gymnastics Academy. All rights reserved.</p>
+            <p>Registered coaching and class operations in Paisley.</p>
+          </div>
         </div>
       </footer>
     </div>

@@ -126,6 +126,23 @@ function formatTimeRange(startTime: string | null, endTime: string | null): stri
   return "Time TBC";
 }
 
+function formatDuration(minutes: number | string | null): string {
+  const parsed =
+    typeof minutes === "number"
+      ? minutes
+      : typeof minutes === "string"
+        ? Number.parseInt(minutes, 10)
+        : null;
+
+  if (!parsed || !Number.isFinite(parsed)) return "Duration TBC";
+  if (parsed < 60) return `${parsed} mins`;
+
+  const hours = Math.floor(parsed / 60);
+  const remainingMinutes = parsed % 60;
+  if (remainingMinutes === 0) return `${hours} ${hours === 1 ? "hour" : "hours"}`;
+  return `${hours}h ${remainingMinutes}m`;
+}
+
 function toTimetable(rows: RecreationalClassRow[]): TimetableDay[] {
   const groupedMap = new Map<string, TimetableDay["sessions"]>();
   WEEKDAY_ORDER.forEach((day) => {
@@ -156,7 +173,9 @@ function toTimetable(rows: RecreationalClassRow[]): TimetableDay[] {
     bucket.push({
       title: isCompetition ? "Competition Class" : "Recreational",
       age: formatAgeLabel(item.minAge, item.maxAge),
+      startTime: formatTimePart(item.startTime) || "Time TBC",
       time: formatTimeRange(item.startTime, item.endTime),
+      duration: formatDuration(item.durationMinutes),
       isSpecial: (item.name ?? "").toLowerCase().includes("display"),
     });
   });

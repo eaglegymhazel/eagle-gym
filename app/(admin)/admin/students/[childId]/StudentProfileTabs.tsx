@@ -85,6 +85,19 @@ function categoryLabel(category: string | null): string {
   return category?.trim() || "Uncategorised";
 }
 
+const ASSIGN_CATEGORY_ORDER = [
+  "Little Gem",
+  "Junior Gem",
+  "Recreational",
+  "Centre Scheme Bronze",
+  "Centre Scheme Silver",
+  "Centre Scheme Gold",
+  "Emerald Awards",
+  "Sapphire Awards",
+  "Ruby Awards",
+  "Diamond Awards",
+] as const;
+
 export default function StudentProfileTabs({
   children,
   childId,
@@ -98,6 +111,9 @@ export default function StudentProfileTabs({
   const [assignedBadges, setAssignedBadges] = useState(initialAssignedBadges);
   const [availableBadges, setAvailableBadges] = useState(initialAvailableBadges);
   const [selectedBadgeId, setSelectedBadgeId] = useState(initialAvailableBadges[0]?.id ?? "");
+  const [expandedAssignCategories, setExpandedAssignCategories] = useState<Record<string, boolean>>(
+    {}
+  );
   const [expandedByAssignmentId, setExpandedByAssignmentId] = useState<Record<string, boolean>>({});
   const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
   const [isAssigning, setIsAssigning] = useState(false);
@@ -118,6 +134,39 @@ export default function StudentProfileTabs({
   const selectedBadgeStillAvailable = availableBadges.some((badge) => badge.id === selectedBadgeId);
   const selectedValue = selectedBadgeStillAvailable ? selectedBadgeId : availableBadges[0]?.id ?? "";
   const selectedBadge = availableBadges.find((badge) => badge.id === selectedValue) ?? null;
+  const groupedAvailableBadges = useMemo(() => {
+    const order: string[] = [];
+    const byCategory = new Map<string, AdminBadgeDefinitionOption[]>();
+
+    availableBadges.forEach((badge) => {
+      const category = categoryLabel(badge.category);
+      if (!byCategory.has(category)) {
+        byCategory.set(category, []);
+        order.push(category);
+      }
+      byCategory.get(category)?.push(badge);
+    });
+
+    const orderedCategories = [...order].sort((a, b) => {
+      const aIndex = ASSIGN_CATEGORY_ORDER.findIndex(
+        (label) => label.toLowerCase() === a.toLowerCase()
+      );
+      const bIndex = ASSIGN_CATEGORY_ORDER.findIndex(
+        (label) => label.toLowerCase() === b.toLowerCase()
+      );
+      const aKnown = aIndex !== -1;
+      const bKnown = bIndex !== -1;
+      if (aKnown && bKnown) return aIndex - bIndex;
+      if (aKnown) return -1;
+      if (bKnown) return 1;
+      return a.localeCompare(b, undefined, { sensitivity: "base" });
+    });
+
+    return orderedCategories.map((category) => ({
+      category,
+      badges: byCategory.get(category) ?? [],
+    }));
+  }, [availableBadges]);
   const isSavingSkill = savingSkillKey !== null;
   const isSavingAssignment = savingAssignmentId !== null;
   const isDeletingBadge = deletingAssignmentId !== null;
@@ -129,6 +178,22 @@ export default function StudentProfileTabs({
 
   const collapseAll = () => {
     setExpandedByAssignmentId({});
+  };
+
+  const initializeAssignCategoryExpansion = () => {
+    const next: Record<string, boolean> = {};
+    groupedAvailableBadges.forEach((group) => {
+      next[group.category] = false;
+    });
+
+    setExpandedAssignCategories(next);
+  };
+
+  const toggleAssignCategory = (category: string) => {
+    setExpandedAssignCategories((prev) => ({
+      ...prev,
+      [category]: !(prev[category] ?? false),
+    }));
   };
 
   const assignBadge = async () => {
@@ -342,7 +407,9 @@ export default function StudentProfileTabs({
                   setIsAssignDialogOpen(open);
                   if (open) {
                     setAssignError(null);
-                    setSelectedBadgeId(availableBadges[0]?.id ?? "");
+                    const nextSelectedBadgeId = availableBadges[0]?.id ?? "";
+                    setSelectedBadgeId(nextSelectedBadgeId);
+                    initializeAssignCategoryExpansion();
                   }
                 }}
               >
@@ -406,34 +473,82 @@ export default function StudentProfileTabs({
                         </div>
                       ) : (
                         <div className="space-y-2" role="radiogroup" aria-label="Available badges">
-                          {availableBadges.map((badge) => {
-                            const isSelected = selectedValue === badge.id;
+                          {groupedAvailableBadges.map((group) => {
+                            const isExpanded = expandedAssignCategories[group.category] ?? true;
                             return (
-                              <button
-                                key={badge.id}
-                                type="button"
-                                onClick={() => setSelectedBadgeId(badge.id)}
-                                className={[
-                                  "w-full border px-3 py-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6e2ac0]/35",
-                                  isSelected
-                                    ? "border-[#6e2ac0] bg-[#f7f2ff]"
-                                    : "border-[#ece4f5] bg-white hover:bg-[#fcfafe]",
-                                ].join(" ")}
-                                role="radio"
-                                aria-checked={isSelected}
-                              >
-                                <span className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-2">
-                                  <span className="inline-flex w-fit items-center border border-[#d7cbe8] bg-white px-2 py-1 text-[11px] font-semibold uppercase tracking-[0.04em] text-[#4f2390]">
-                                    {categoryLabel(badge.category)}
+                              <section key={group.category} className="border border-[#ece4f5] bg-white">
+                                <button
+                                  type="button"
+                                  onClick={() => toggleAssignCategory(group.category)}
+                                  className={[
+                                    "flex w-full cursor-pointer items-center justify-between gap-3 px-3 py-2.5 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6e2ac0]/35",
+                                    isExpanded ? "bg-[#f7f2ff] hover:bg-[#f1e8ff]" : "hover:bg-[#fcfafe]",
+                                  ].join(" ")}
+                                  aria-expanded={isExpanded}
+                                  aria-controls={`assign-category-${group.category.replace(/\s+/g, "-").toLowerCase()}`}
+                                >
+                                  <span
+                                    className={[
+                                      "inline-flex w-fit items-center border px-2 py-1 text-[11px] font-semibold uppercase tracking-[0.04em]",
+                                      isExpanded
+                                        ? "border-[#c9b3ec] bg-[#ece2ff] text-[#4f2390]"
+                                        : "border-[#d7cbe8] bg-[#f7f2ff] text-[#4f2390]",
+                                    ].join(" ")}
+                                  >
+                                    {group.category}
                                   </span>
-                                  <span className="text-sm font-semibold text-[#24193a]">{badge.name}</span>
-                                </span>
-                                {badge.description ? (
-                                  <span className="mt-1 block text-sm text-[#6c607d]">
-                                    {badge.description}
-                                  </span>
+                                  <svg
+                                    viewBox="0 0 20 20"
+                                    className={[
+                                      "h-4 w-4 text-[#6f6384] transition-transform duration-200",
+                                      isExpanded ? "rotate-180" : "rotate-0",
+                                    ].join(" ")}
+                                    aria-hidden="true"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth="2"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                  >
+                                    <path d="M5 7l5 5 5-5" />
+                                  </svg>
+                                </button>
+
+                                {isExpanded ? (
+                                  <div
+                                    id={`assign-category-${group.category.replace(/\s+/g, "-").toLowerCase()}`}
+                                    className="space-y-1 border-t border-[#ece4f5] p-2"
+                                  >
+                                    {group.badges.map((badge) => {
+                                      const isSelected = selectedValue === badge.id;
+                                      return (
+                                        <button
+                                          key={badge.id}
+                                          type="button"
+                                          onClick={() => setSelectedBadgeId(badge.id)}
+                                          className={[
+                                            "w-full border px-3 py-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6e2ac0]/35",
+                                            isSelected
+                                              ? "border-[#6e2ac0] bg-[#f7f2ff]"
+                                              : "border-[#ece4f5] bg-white hover:bg-[#fcfafe]",
+                                          ].join(" ")}
+                                          role="radio"
+                                          aria-checked={isSelected}
+                                        >
+                                          <span className="text-sm font-semibold text-[#24193a]">
+                                            {badge.name}
+                                          </span>
+                                          {badge.description ? (
+                                            <span className="mt-1 block text-sm text-[#6c607d]">
+                                              {badge.description}
+                                            </span>
+                                          ) : null}
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
                                 ) : null}
-                              </button>
+                              </section>
                             );
                           })}
                         </div>

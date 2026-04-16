@@ -34,7 +34,7 @@ const sections = [
     copy: "Exclusive video library and technique tips to help gymnasts practise safely at home.",
     cta: "VIEW RESOURCES",
     href: "/members",
-    image: "/brand/placeholderImg/test1.png",
+    image: "/brand/img3.JPG",
     tone: "bg-[#f3e7ff] text-[#2E2A33]",
   },
 ];

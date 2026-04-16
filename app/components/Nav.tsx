@@ -3,32 +3,34 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import {
-  CalendarDays,
-  Home,
-  IdCard,
-  Info,
-  Mail,
-  Newspaper,
-  Users,
-  type LucideIcon,
-} from "lucide-react";
+import { BookOpen, CalendarDays, ChevronDown, IdCard, Info, Mail, type LucideIcon } from "lucide-react";
+import { useAuth } from "./auth/AuthProvider";
 
-const links = [
-  { href: "/about", label: "About", icon: Info },
-  { href: "/team", label: "Team", icon: Users },
-  { href: "/news", label: "Club News", icon: Newspaper },
-  { href: "/timetable", label: "Timetable", icon: CalendarDays },
-  { href: "/members", label: "Members", icon: IdCard },
-  { href: "/contact", label: "Contact", icon: Mail },
+const aboutItems = [
+  { href: "/about", label: "About the Club" },
+  { href: "/team", label: "Coaches" },
+  { href: "/news", label: "News" },
 ] as const satisfies ReadonlyArray<{
   href: string;
   label: string;
-  icon: LucideIcon;
 }>;
-const mobileLinks = [{ href: "/", label: "Home", icon: Home }, ...links];
+
+const navItems = [
+  { key: "classes", href: "/timetable", label: "Classes", icon: CalendarDays, type: "link" as const },
+  { key: "book", href: "/book", label: "Book", icon: BookOpen, type: "link" as const, matchPrefix: "/book" },
+  { key: "members", href: "/members", label: "Members", icon: IdCard, type: "link" as const },
+  { key: "about", href: "/about", label: "About", icon: Info, type: "about" as const },
+  { key: "contact", href: "/contact", label: "Contact", icon: Mail, type: "link" as const },
+] as const satisfies ReadonlyArray<{
+  key: string;
+  href: string;
+  label: string;
+  icon: LucideIcon;
+  type: "link" | "about";
+  matchPrefix?: string;
+}>;
 
 type MobileRightLink = {
   href: string;
@@ -42,15 +44,35 @@ export default function Nav({
   disableMobileMenu?: boolean;
   mobileRightLink?: MobileRightLink;
 }) {
+  const { user } = useAuth();
   const pathname = usePathname();
   const isRecreationalBooking = pathname?.startsWith("/book/recreational");
+  const isLoggedIn = Boolean(user?.email);
+  const resolvedNavItems = useMemo(
+    () =>
+      navItems.map((item) =>
+        item.key === "book"
+          ? { ...item, href: isLoggedIn ? "/book" : "/login", matchPrefix: "/book" }
+          : { ...item, matchPrefix: item.matchPrefix ?? item.href }
+      ),
+    [isLoggedIn]
+  );
+  const isAboutActive = useMemo(
+    () => aboutItems.some((item) => pathname?.startsWith(item.href)),
+    [pathname]
+  );
   const [isOpen, setIsOpen] = useState(false);
+  const [isMobileAboutOpen, setIsMobileAboutOpen] = useState(false);
   const navRef = useRef<HTMLElement | null>(null);
   const drawerRef = useRef<HTMLElement | null>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const closeRef = useRef<HTMLButtonElement | null>(null);
   const restoreFocusRef = useRef<HTMLElement | null>(null);
   const reduceMotion = useReducedMotion();
+  const closeMobileMenu = () => {
+    setIsOpen(false);
+    setIsMobileAboutOpen(false);
+  };
 
   useEffect(() => {
     if (!isOpen) return;
@@ -74,16 +96,16 @@ export default function Nav({
       const clickedInsideNav = !!navRef.current?.contains(target);
       const clickedInsideDrawer = !!drawerRef.current?.contains(target);
       if (!clickedInsideNav && !clickedInsideDrawer) {
-        setIsOpen(false);
+        closeMobileMenu();
       }
     };
 
     const handleWindowScroll = () => {
-      setIsOpen(false);
+      closeMobileMenu();
     };
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
-        setIsOpen(false);
+        closeMobileMenu();
         return;
       }
       if (event.key !== "Tab") return;
@@ -137,18 +159,72 @@ export default function Nav({
           }}
         >
           <div
-            className="hidden items-center justify-center lg:flex -translate-y-[5px]"
+            className="hidden items-center justify-center lg:flex"
             style={{ columnGap: "clamp(16px, 2vw, 32px)" }}
           >
-            {links.map((link) => {
+            {resolvedNavItems.map((item) => {
               const isActive =
-                link.href === "/"
-                  ? pathname === "/"
-                  : pathname?.startsWith(link.href);
+                item.type === "about"
+                  ? isAboutActive
+                  : item.matchPrefix === "/"
+                    ? pathname === "/"
+                    : pathname?.startsWith(item.matchPrefix ?? item.href);
+
+              if (item.type === "about") {
+                return (
+                  <div key={item.key} className="group relative">
+                    <button
+                      type="button"
+                      className={[
+                        "relative inline-flex cursor-pointer items-center gap-1 whitespace-nowrap px-1 py-1 uppercase tracking-[0.06em]",
+                        isRecreationalBooking
+                          ? "text-[15px] font-medium"
+                          : "text-[16px] font-semibold",
+                        "transition-colors duration-200",
+                        "after:absolute after:left-1/2 after:bottom-[-9px] after:h-[2px] after:w-0 after:-translate-x-1/2 after:rounded-full after:bg-[#6c35c3] after:opacity-0 after:transition-[width,opacity] after:duration-200",
+                        "hover:text-[#6c35c3] hover:after:w-[calc(100%+14px)] hover:after:opacity-100",
+                        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6c35c3] focus-visible:ring-offset-2 focus-visible:ring-offset-[#faf7fb]",
+                        isActive
+                          ? "text-[#6c35c3] after:w-[calc(100%+14px)] after:opacity-100"
+                          : "text-[#143271]",
+                      ].join(" ")}
+                      aria-haspopup="menu"
+                      aria-expanded={isActive}
+                    >
+                      {item.label}
+                      <ChevronDown className="h-4 w-4" aria-hidden="true" />
+                    </button>
+                    <div className="pointer-events-none absolute left-1/2 top-full z-50 min-w-[240px] -translate-x-1/2 pt-3 opacity-0 transition duration-150 group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100">
+                      <div className="overflow-hidden rounded-xl bg-white shadow-[0_26px_42px_-28px_rgba(31,20,50,0.6)]">
+                        <div className="p-1.5">
+                        {aboutItems.map((aboutItem) => {
+                          const isAboutItemActive = pathname?.startsWith(aboutItem.href);
+                          return (
+                            <Link
+                              key={aboutItem.href}
+                              href={aboutItem.href}
+                              className={[
+                                "block rounded-lg px-3 py-2.5 text-sm font-semibold transition",
+                                isAboutItemActive
+                                  ? "bg-[#efe6ff] text-[#5b2ca7]"
+                                  : "text-[#143271] hover:bg-[#f7f2ff] hover:text-[#5b2ca7]",
+                              ].join(" ")}
+                            >
+                              {aboutItem.label}
+                            </Link>
+                          );
+                        })}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              }
+
               return (
                 <Link
-                  key={link.href}
-                  href={link.href}
+                  key={item.key}
+                  href={item.href}
                   className={[
                     "relative whitespace-nowrap px-1 py-1 uppercase tracking-[0.06em]",
                     isRecreationalBooking
@@ -164,7 +240,7 @@ export default function Nav({
                   ].join(" ")}
                   aria-current={isActive ? "page" : undefined}
                 >
-                  {link.label}
+                  {item.label}
                 </Link>
               );
             })}
@@ -186,7 +262,10 @@ export default function Nav({
             type="button"
             aria-label="Toggle navigation"
             aria-expanded={isOpen}
-            onClick={() => setIsOpen((prev) => !prev)}
+            onClick={() => {
+              setIsMobileAboutOpen(false);
+              setIsOpen((prev) => !prev);
+            }}
             className="absolute right-4 inline-flex h-11 w-11 items-center justify-center rounded-xl border border-black/10 bg-white text-[#2f2442] shadow-sm transition hover:bg-[#f7f4fb] active:bg-[#f1edf8] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6c35c3]/40 lg:hidden"
           >
             <span className="sr-only">Menu</span>
@@ -223,7 +302,7 @@ export default function Nav({
                 <div className="fixed inset-0 z-[90] lg:hidden" aria-hidden={false}>
                   <motion.button
                     type="button"
-                    onClick={() => setIsOpen(false)}
+                    onClick={closeMobileMenu}
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
@@ -251,7 +330,7 @@ export default function Nav({
                       <button
                         ref={closeRef}
                         type="button"
-                        onClick={() => setIsOpen(false)}
+                        onClick={closeMobileMenu}
                         className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-black/[0.08] text-black/75 transition hover:bg-black/[0.08] active:bg-black/[0.12] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6e2ac0]/40"
                         aria-label="Close navigation menu"
                       >
@@ -271,17 +350,92 @@ export default function Nav({
                     </div>
 
                     <div className="flex flex-col gap-3">
-                      {mobileLinks.map((link) => {
+                      {resolvedNavItems.map((item) => {
                         const isActive =
-                          link.href === "/"
-                            ? pathname === "/"
-                            : pathname?.startsWith(link.href);
-                        const Icon = link.icon;
+                          item.type === "about"
+                            ? isAboutActive
+                            : item.matchPrefix === "/"
+                              ? pathname === "/"
+                              : pathname?.startsWith(item.matchPrefix);
+                        const Icon = item.icon;
+
+                        if (item.type === "about") {
+                          return (
+                            <div key={item.key} className="overflow-hidden rounded-[13px] bg-white">
+                              <button
+                                type="button"
+                                onClick={() => setIsMobileAboutOpen((prev) => !prev)}
+                                className={[
+                                  "group relative flex min-h-12 w-full items-center justify-between gap-3 rounded-[13px] px-3.5 py-2.5 text-[15px] transition-colors duration-200",
+                                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6e2ac0] focus-visible:ring-offset-2",
+                                  isAboutActive
+                                    ? "bg-[rgba(110,42,192,0.08)] font-semibold text-[#6e2ac0]"
+                                    : "font-medium text-black/80 hover:bg-black/[0.04] active:bg-black/[0.08]",
+                                ].join(" ")}
+                                aria-expanded={isMobileAboutOpen}
+                                aria-controls="mobile-about-submenu"
+                              >
+                                <span className="flex items-center gap-3">
+                                  <span
+                                    aria-hidden
+                                    className={[
+                                      "absolute left-1 top-1 bottom-1 w-1 rounded-full transition-opacity",
+                                      isAboutActive ? "bg-[#6e2ac0] opacity-100" : "bg-[#6e2ac0] opacity-0",
+                                    ].join(" ")}
+                                  />
+                                  <Icon
+                                    className={[
+                                      "h-5 w-5 shrink-0 transition-colors duration-200",
+                                      isAboutActive ? "text-[#6e2ac0]" : "text-black/65",
+                                    ].join(" ")}
+                                    aria-hidden="true"
+                                  />
+                                  {item.label}
+                                </span>
+                                <ChevronDown
+                                  className={[
+                                    "h-4 w-4 transition-transform duration-200",
+                                    isMobileAboutOpen ? "rotate-180" : "rotate-0",
+                                  ].join(" ")}
+                                  aria-hidden="true"
+                                />
+                              </button>
+
+                              {isMobileAboutOpen ? (
+                                <div
+                                  id="mobile-about-submenu"
+                                  className="mb-1 mt-0.5 bg-[#fbf9ff] px-2 py-2"
+                                >
+                                  {aboutItems.map((aboutItem) => {
+                                    const isAboutItemActive = pathname?.startsWith(aboutItem.href);
+                                    return (
+                                      <Link
+                                        key={aboutItem.href}
+                                        href={aboutItem.href}
+                                        onClick={closeMobileMenu}
+                                        className={[
+                                          "block rounded-lg px-3 py-2.5 text-sm font-semibold transition",
+                                          isAboutItemActive
+                                            ? "bg-[#efe6ff] text-[#5b2ca7]"
+                                            : "text-[#143271] hover:bg-[#f3edff] hover:text-[#5b2ca7]",
+                                        ].join(" ")}
+                                        aria-current={isAboutItemActive ? "page" : undefined}
+                                      >
+                                        {aboutItem.label}
+                                      </Link>
+                                    );
+                                  })}
+                                </div>
+                              ) : null}
+                            </div>
+                          );
+                        }
+
                         return (
                           <Link
-                            key={link.href}
-                            href={link.href}
-                            onClick={() => setIsOpen(false)}
+                            key={item.key}
+                            href={item.href}
+                            onClick={closeMobileMenu}
                             className={[
                               "group relative flex min-h-12 items-center gap-3 rounded-[13px] px-3.5 py-2.5 text-[15px] transition-colors duration-200",
                               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6e2ac0] focus-visible:ring-offset-2",
@@ -305,7 +459,7 @@ export default function Nav({
                               ].join(" ")}
                               aria-hidden="true"
                             />
-                            {link.label}
+                            {item.label}
                           </Link>
                         );
                       })}
