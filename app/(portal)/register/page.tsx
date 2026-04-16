@@ -12,15 +12,8 @@ export default async function RegisterPage() {
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
   if (supabaseUrl && supabaseAnonKey) {
-    const headersList = headers()
-    const resolvedHeaders =
-      typeof (headersList as unknown as Promise<Headers>).then === 'function'
-        ? await (headersList as Promise<Headers>)
-        : (headersList as Headers)
-    const cookieHeader =
-      typeof (resolvedHeaders as Headers).get === 'function'
-        ? resolvedHeaders.get('cookie') ?? ''
-        : ''
+    const resolvedHeaders = await headers()
+    const cookieHeader = resolvedHeaders.get('cookie') ?? ''
     let cookiesFromHeader: Array<{ name: string; value: string }> = []
 
     if (cookieHeader) {
@@ -48,7 +41,7 @@ export default async function RegisterPage() {
     logAuthValidation({
       method: 'getSession',
       source: 'app/(portal)/register/page.tsx',
-      requestKey: getServerAuthRequestKey(resolvedHeaders as Headers, '/register'),
+      requestKey: getServerAuthRequestKey(resolvedHeaders, '/register'),
     })
     const { data } = await supabase.auth.getSession()
 

@@ -1,4 +1,4 @@
-git commit -m "Describe changes here""use client";
+"use client";
 
 import * as Dialog from "@radix-ui/react-dialog";
 import type { ReactNode } from "react";

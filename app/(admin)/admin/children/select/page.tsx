@@ -1,3 +1,5 @@
+"use client";
+
 import ChildPicker from "@/components/admin/ChildPicker";
 import { MOCK_CHILDREN, type Child } from "@/components/admin/mockChildren";
 

@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import AdminShell from "./AdminShell";
 import {
   getAdminChildrenDirectory,
@@ -36,13 +37,15 @@ export default async function AdminPage() {
   }
 
   return (
-    <AdminShell
-      initialChildrenData={childrenData}
-      initialRegisterClasses={registerClasses}
-      initialWaitlistRows={waitlistRows}
-      initialChildrenLoadError={childrenLoadError}
-      initialRegisterClassesError={registerClassesError}
-      initialWaitlistLoadError={waitlistLoadError}
-    />
+    <Suspense fallback={null}>
+      <AdminShell
+        initialChildrenData={childrenData}
+        initialRegisterClasses={registerClasses}
+        initialWaitlistRows={waitlistRows}
+        initialChildrenLoadError={childrenLoadError}
+        initialRegisterClassesError={registerClassesError}
+        initialWaitlistLoadError={waitlistLoadError}
+      />
+    </Suspense>
   );
 }

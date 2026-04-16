@@ -53,13 +53,17 @@ export async function POST(request: NextRequest) {
   }
 
   const { data: authUserData, error: authError } =
-    await supabase.auth.admin.getUserByEmail(normalizedEmail);
+    await supabase.auth.admin.listUsers({ page: 1, perPage: 1000 });
 
   if (authError) {
     return NextResponse.json({ error: authError.message }, { status: 500 });
   }
 
-  if (authUserData?.user) {
+  const authUserExists = authUserData.users.some(
+    (user) => user.email?.toLowerCase() === normalizedEmail
+  );
+
+  if (authUserExists) {
     return NextResponse.json(
       { error: "An account with this email already exists." },
       { status: 409 }

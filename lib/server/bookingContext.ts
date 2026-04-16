@@ -49,15 +49,8 @@ export const getBookingContext = cache(
     return { status: "unauthorized" };
   }
 
-  const headersList = headers();
-  const resolvedHeaders =
-    typeof (headersList as unknown as Promise<Headers>).then === "function"
-      ? await (headersList as Promise<Headers>)
-      : (headersList as Headers);
-  const cookieHeader =
-    typeof (resolvedHeaders as Headers).get === "function"
-      ? resolvedHeaders.get("cookie") ?? ""
-      : "";
+  const resolvedHeaders = await headers();
+  const cookieHeader = resolvedHeaders.get("cookie") ?? "";
   const requestCookies = toCookieArray(cookieHeader);
 
   const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
@@ -72,7 +65,7 @@ export const getBookingContext = cache(
   logAuthValidation({
     method: "getUser",
     source: "lib/server/bookingContext.ts",
-    requestKey: getServerAuthRequestKey(resolvedHeaders as Headers, "/book"),
+    requestKey: getServerAuthRequestKey(resolvedHeaders, "/book"),
   });
   const { data, error } = await supabase.auth.getUser();
   if (error || !data?.user) {

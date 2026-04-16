@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createServerClient } from "@supabase/ssr";
+import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { getChildrenForAccount } from "@/lib/server/children";
 import { getMedicalInfoForChildren } from "@/lib/server/medical";
 import { getActiveBookingsForChildren } from "@/lib/server/bookings";
@@ -31,11 +31,18 @@ export async function POST(request: NextRequest) {
     const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
     const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
+    if (!supabaseUrl || !supabaseAnonKey || !supabaseServiceRoleKey) {
+      return NextResponse.json(
+        { error: "Supabase environment variables are not configured" },
+        { status: 500 }
+      );
+    }
+
     const cookieStore = request.cookies;
     const cookiesToPersist: Array<{
       name: string;
       value: string;
-      options?: Parameters<typeof cookieStore.set>[2];
+      options?: CookieOptions;
     }> = [];
     const applyCookies = (response: NextResponse) => {
       cookiesToPersist.forEach(({ name, value, options }) => {
@@ -52,7 +59,7 @@ export async function POST(request: NextRequest) {
           getAll() {
             return cookieStore.getAll();
           },
-          setAll(cookies) {
+          setAll(cookies: Array<{ name: string; value: string; options?: CookieOptions }>) {
             cookies.forEach((cookie) => {
               cookiesToPersist.push(cookie);
             });
@@ -228,7 +235,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (account?.id) {
-      let children = [];
+      let children: Awaited<ReturnType<typeof getChildrenForAccount>> = [];
       let medicalByChildId = {};
       let bookingsByChildId = {};
       let badgesByChildId = {};

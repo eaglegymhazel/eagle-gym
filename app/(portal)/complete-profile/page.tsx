@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
@@ -35,48 +35,6 @@ const schema = z.object({
       message: "Post Code is required and must be alphanumeric.",
     }),
 });
-
-type CountrySelectProps = {
-  value?: string;
-  onChange?: (value: string) => void;
-  disabled?: boolean;
-  className?: string;
-};
-
-function CountrySelect({
-  value,
-  onChange,
-  disabled,
-  className,
-}: CountrySelectProps) {
-  return (
-    <select
-      className={
-        className ??
-        "min-w-[170px] bg-transparent text-sm text-[#2E2A33] focus:outline-none"
-      }
-      value={value ?? ""}
-      onChange={(event) => onChange?.(event.target.value)}
-      disabled={disabled}
-      aria-label="Country"
-    >
-      <option value="" disabled>
-        Select country
-      </option>
-      {getCountries().map((country) => (
-        <option key={country} value={country}>
-          {en[country] ?? country} (+{getCountryCallingCode(country)})
-        </option>
-      ))}
-    </select>
-  );
-}
-
-const PhoneTextInput = React.forwardRef<HTMLInputElement, React.InputHTMLAttributes<HTMLInputElement>>(
-  function PhoneTextInput(props, ref) {
-    return <input ref={ref} {...props} />;
-  }
-);
 
 type FormValues = z.infer<typeof schema>;
 
@@ -206,7 +164,6 @@ export default function CompleteProfilePage() {
   const accTelNo = watch("accTelNo");
   const accEmergencyTelNo = watch("accEmergencyTelNo");
   const accAddressLine1 = watch("accAddressLine1");
-  const accAddressLine2 = watch("accAddressLine2");
   const accTownCity = watch("accTownCity");
   const accPostCode = watch("accPostCode");
 

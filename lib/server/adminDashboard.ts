@@ -216,7 +216,13 @@ export async function getAdminChildrenDirectory(): Promise<Child[]> {
     const firstName = child.firstName?.trim() || "Unknown";
     const lastName = child.lastName?.trim() || "Child";
     const bookings = bookingMap.get(child.id) ?? [];
-    const uniqueClasses = [...new Set(bookings.map((row) => row.className).filter(Boolean))];
+    const uniqueClasses = [
+      ...new Set(
+        bookings
+          .map((row) => row.className)
+          .filter((className): className is string => typeof className === "string" && className.length > 0)
+      ),
+    ];
     const primaryBooking = bookings[0] ?? null;
     const lastAttended = primaryBooking
       ? `${shortWeekday(primaryBooking.weekday)} ${primaryBooking.startTime ?? "TBD"}`

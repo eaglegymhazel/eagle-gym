@@ -10,15 +10,20 @@ export default function TestSupabasePage() {
   const keyPresent = (process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '').length > 0
 
   useEffect(() => {
-    supabase
-      .from('Accounts')
-      .select('*')
-      .limit(1)
-      .then(({ data, error }) => {
+    const run = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('Accounts')
+          .select('*')
+          .limit(1)
         if (error) setResult(`Error: ${error.message}`)
         else setResult(`Result: ${JSON.stringify(data)}`)
-      })
-      .catch((e) => setResult(`Error: ${String(e)}`))
+      } catch (error) {
+        setResult(`Error: ${String(error)}`)
+      }
+    }
+
+    void run()
   }, [])
 
   return (

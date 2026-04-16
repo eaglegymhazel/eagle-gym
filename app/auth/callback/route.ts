@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createServerClient } from "@supabase/ssr";
+import { createServerClient, type CookieOptions } from "@supabase/ssr";
 
 export async function GET(request: NextRequest) {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -14,11 +14,17 @@ export async function GET(request: NextRequest) {
     );
   }
 
+  if (!supabaseUrl || !supabaseAnonKey) {
+    return NextResponse.redirect(
+      new URL("/login?error=supabase_config", request.url)
+    );
+  }
+
   const cookieStore = request.cookies;
   const cookiesToPersist: Array<{
     name: string;
     value: string;
-    options?: Parameters<typeof cookieStore.set>[2];
+    options?: CookieOptions;
   }> = [];
   const applyCookies = (response: NextResponse) => {
     cookiesToPersist.forEach(({ name, value, options }) => {
@@ -32,7 +38,7 @@ export async function GET(request: NextRequest) {
       getAll() {
         return cookieStore.getAll();
       },
-      setAll(cookies) {
+      setAll(cookies: Array<{ name: string; value: string; options?: CookieOptions }>) {
         cookies.forEach((cookie) => {
           cookiesToPersist.push(cookie);
         });

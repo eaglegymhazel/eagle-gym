@@ -6,7 +6,7 @@ export const runtime = "nodejs";
 
 const stripeKey = process.env.STRIPE_SECRET_KEY || process.env.COMP_STRIPE_SECRET_KEY;
 const stripe = new Stripe(stripeKey!, {
-  apiVersion: "2024-06-20",
+  apiVersion: "2026-01-28.clover",
 });
 
 export async function POST(req: Request) {

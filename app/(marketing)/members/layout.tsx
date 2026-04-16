@@ -14,15 +14,8 @@ export default async function MembersLayout({
     redirect("/login");
   }
 
-  const headersList = headers();
-  const resolvedHeaders =
-    typeof (headersList as unknown as Promise<Headers>).then === "function"
-      ? await (headersList as Promise<Headers>)
-      : (headersList as Headers);
-  const cookieHeader =
-    typeof (resolvedHeaders as Headers).get === "function"
-      ? resolvedHeaders.get("cookie") ?? ""
-      : "";
+  const headersList = await headers();
+  const cookieHeader = headersList.get("cookie") ?? "";
 
   const cookiesFromHeader: Array<{ name: string; value: string }> = cookieHeader
     ? cookieHeader

@@ -2,12 +2,13 @@
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
+  type CountryCode,
   getCountryCallingCode,
   isValidPhoneNumber,
   parsePhoneNumberFromString,
 } from "libphonenumber-js";
 
-type Country = { code: string; name: string };
+type Country = { code: CountryCode; name: string };
 
 const COUNTRIES: Country[] = [
   { code: "US", name: "United States" },
@@ -57,7 +58,7 @@ export default function InternationalPhoneField({
   placeholder = "+1 213 373 4253",
   onBlur,
 }: InternationalPhoneFieldProps) {
-  const [country, setCountry] = useState<string>("US");
+  const [country, setCountry] = useState<CountryCode>("US");
   const [national, setNational] = useState<string>("");
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -71,6 +72,8 @@ export default function InternationalPhoneField({
     if (value.startsWith("+")) {
       const phone = parsePhoneNumberFromString(value);
       if (phone?.country) {
+        // The field needs to mirror externally supplied E.164 values, such as saved account data.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setCountry(phone.country);
         setNational(phone.nationalNumber);
       }
@@ -100,7 +103,7 @@ export default function InternationalPhoneField({
     );
   }, [expanded, query]);
 
-  const callingCode = getCountryCallingCode(country as any);
+  const callingCode = getCountryCallingCode(country);
 
   const handleNationalChange = (next: string) => {
     const cleaned = next.replace(/[^\d\s()-]/g, "");

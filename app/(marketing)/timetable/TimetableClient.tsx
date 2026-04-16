@@ -40,6 +40,8 @@ const weekdayFilters = [
   "Sunday",
 ] as const;
 
+type RecreationalAgeGroup = "Preschool" | "4-7 years" | "8-18 years";
+
 const typeStyles: Record<string, { pill: string; rail: string; dot: string }> = {
   recreational: {
     pill: "bg-[#ecfaf1] text-[#138a4b] border-[#b7e6ca]",
@@ -78,7 +80,7 @@ function normalizeAgeLabel(label: string): string {
   return label;
 }
 
-function recreationalAgeBucket(label: string): "Preschool" | "4-7 years" | "8-18 years" | null {
+function recreationalAgeBucket(label: string): RecreationalAgeGroup | null {
   const normalized = normalizeAgeLabel(label);
   if (normalized === "Preschool") return "Preschool";
   if (normalized === "4-7 years") return "4-7 years";
@@ -95,13 +97,13 @@ function getClassLabel(type: "recreational" | "competition" | "special"): string
 export default function TimetableClient({ timetable }: TimetableClientProps) {
   const { user } = useAuth();
   const [activeFilter, setActiveFilter] = useState<string>("all");
-  const [activeAgeGroup, setActiveAgeGroup] = useState<string>("all");
+  const [activeAgeGroup, setActiveAgeGroup] = useState<"all" | RecreationalAgeGroup>("all");
   const [activeWeekday, setActiveWeekday] = useState<string>("All days");
   const [viewMode, setViewMode] = useState<"day" | "list">("list");
   const classLinkHref = user ? "/account" : "/login";
 
   const recreationalAgeGroups = useMemo(() => {
-    const groups = new Set<"Preschool" | "4-7 years" | "8-18 years">();
+    const groups = new Set<RecreationalAgeGroup>();
     timetable.forEach((day) => {
       day.sessions.forEach((session) => {
         if (getType(session) === "recreational") {

@@ -8,6 +8,15 @@ import { createPortal } from "react-dom";
 import { BookOpen, CalendarDays, ChevronDown, IdCard, Info, Mail, type LucideIcon } from "lucide-react";
 import { useAuth } from "./auth/AuthProvider";
 
+type NavItem = {
+  key: string;
+  href: string;
+  label: string;
+  icon: LucideIcon;
+  type: "link" | "about";
+  matchPrefix?: string;
+};
+
 const aboutItems = [
   { href: "/about", label: "About the Club" },
   { href: "/team", label: "Coaches" },
@@ -17,20 +26,13 @@ const aboutItems = [
   label: string;
 }>;
 
-const navItems = [
+const navItems: NavItem[] = [
   { key: "classes", href: "/timetable", label: "Classes", icon: CalendarDays, type: "link" as const },
   { key: "book", href: "/book", label: "Book", icon: BookOpen, type: "link" as const, matchPrefix: "/book" },
   { key: "members", href: "/members", label: "Members", icon: IdCard, type: "link" as const },
   { key: "about", href: "/about", label: "About", icon: Info, type: "about" as const },
   { key: "contact", href: "/contact", label: "Contact", icon: Mail, type: "link" as const },
-] as const satisfies ReadonlyArray<{
-  key: string;
-  href: string;
-  label: string;
-  icon: LucideIcon;
-  type: "link" | "about";
-  matchPrefix?: string;
-}>;
+];
 
 type MobileRightLink = {
   href: string;

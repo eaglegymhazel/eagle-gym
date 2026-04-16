@@ -112,7 +112,7 @@ function toNullableNumber(value: number | string | null): number | null {
   return null;
 }
 
-function isEligibleForAge(item: ClassRow, childAge: number | null): boolean {
+function isEligibleForAge(item: RecreationalClassRow, childAge: number | null): boolean {
   if (childAge == null) return false;
   const min = toNullableNumber(item.minAge) ?? -Infinity;
   const max = toNullableNumber(item.maxAge) ?? Infinity;

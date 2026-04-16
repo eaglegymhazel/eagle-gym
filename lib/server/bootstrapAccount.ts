@@ -34,15 +34,8 @@ export const getBootstrapAccount = cache(
     return { status: 'unauthorized' }
   }
 
-  const headersList = headers()
-  const resolvedHeaders =
-    typeof (headersList as unknown as Promise<Headers>).then === 'function'
-      ? await (headersList as Promise<Headers>)
-      : (headersList as Headers)
-  const cookieHeader =
-    typeof (resolvedHeaders as Headers).get === 'function'
-      ? resolvedHeaders.get('cookie') ?? ''
-      : ''
+  const resolvedHeaders = await headers()
+  const cookieHeader = resolvedHeaders.get('cookie') ?? ''
   let cookiesFromHeader: Array<{ name: string; value: string }> = []
 
   if (cookieHeader) {
@@ -70,7 +63,7 @@ export const getBootstrapAccount = cache(
   logAuthValidation({
     method: 'getUser',
     source: 'lib/server/bootstrapAccount.ts',
-    requestKey: getServerAuthRequestKey(resolvedHeaders as Headers, '/account'),
+    requestKey: getServerAuthRequestKey(resolvedHeaders, '/account'),
   })
   const { data, error } = await supabase.auth.getUser()
 

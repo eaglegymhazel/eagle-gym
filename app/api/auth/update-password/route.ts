@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createServerClient } from "@supabase/ssr";
+import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { validatePassword } from "@/lib/passwordPolicy";
 
 export async function POST(request: NextRequest) {
@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
   const cookiesToPersist: Array<{
     name: string;
     value: string;
-    options?: Parameters<typeof cookieStore.set>[2];
+    options?: CookieOptions;
   }> = [];
   const applyCookies = (response: NextResponse) => {
     cookiesToPersist.forEach(({ name, value, options }) => {
@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
       getAll() {
         return cookieStore.getAll();
       },
-      setAll(cookies) {
+      setAll(cookies: Array<{ name: string; value: string; options?: CookieOptions }>) {
         cookies.forEach((cookie) => {
           cookiesToPersist.push(cookie);
         });
