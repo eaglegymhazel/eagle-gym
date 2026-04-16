@@ -9,7 +9,7 @@ const sections = [
     copy: "Founded by an experienced former squad gymnast, the club offers a safe, well-equipped environment for both recreational and competitive gymnastics, with a strong sense of community at its heart.",
     cta: "View Timetable",
     href: "/timetable",
-    image: "/brand/placeholderImg/test3.png",
+    image: "/brand/test3.png",
     imagePosition: "center top",
     tone: "bg-[#f7e9ff] text-[#2E2A33]",
   },
