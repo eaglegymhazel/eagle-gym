@@ -205,6 +205,7 @@ export async function POST(request: NextRequest) {
       .select("id")
       .eq("id", childId)
       .eq("accountId", accountId)
+      .or("isArchived.is.null,isArchived.eq.false")
       .maybeSingle()
 
     if (childFetchError) {

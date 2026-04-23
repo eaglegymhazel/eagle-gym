@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { supabaseAdmin } from "@/lib/admin";
+import { getWebAccountRoleForUser, isAdminRole } from "@/lib/server/webAccountRole";
 
 type RegisterRow = {
   id: string;
@@ -109,6 +110,13 @@ export async function GET(request: NextRequest) {
     const { data: authData, error: authError } = await supabase.auth.getUser();
     if (authError || !authData?.user) {
       return applyCookies(NextResponse.json({ error: "Unauthorized" }, { status: 401 }));
+    }
+    const role = await getWebAccountRoleForUser({
+      authUserId: authData.user.id,
+      email: authData.user.email ?? null,
+    });
+    if (!isAdminRole(role)) {
+      return applyCookies(NextResponse.json({ error: "Forbidden" }, { status: 403 }));
     }
 
     const { data: registerRows, error: registerError } = await supabaseAdmin

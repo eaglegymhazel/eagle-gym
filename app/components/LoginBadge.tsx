@@ -8,7 +8,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { useAuth } from "./auth/AuthProvider";
 
 export default function LoginBadge() {
-  const { user, loading } = useAuth();
+  const { user, loading, isAdmin } = useAuth();
   const [open, setOpen] = useState(false);
   const [logoutLoading, setLogoutLoading] = useState(false);
   const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -177,28 +177,30 @@ export default function LoginBadge() {
                 <span>Account</span>
               </Link>
             </li>
-            <li>
-              <Link
-                href="/admin"
-                className={`${menuItemClass} text-[#302545]`}
-                role="menuitem"
-              >
-                <svg
-                  aria-hidden="true"
-                  viewBox="0 0 24 24"
-                  className="h-4 w-4 text-[#77658f]"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
+            {isAdmin ? (
+              <li>
+                <Link
+                  href="/admin"
+                  className={`${menuItemClass} text-[#302545]`}
+                  role="menuitem"
                 >
-                  <path d="M12 3l7 3v6c0 5-3.5 8-7 9-3.5-1-7-4-7-9V6l7-3z" />
-                  <path d="M9.5 12.5l1.7 1.7 3.3-3.3" />
-                </svg>
-                <span>Admin Portal</span>
-              </Link>
-            </li>
+                  <svg
+                    aria-hidden="true"
+                    viewBox="0 0 24 24"
+                    className="h-4 w-4 text-[#77658f]"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M12 3l7 3v6c0 5-3.5 8-7 9-3.5-1-7-4-7-9V6l7-3z" />
+                    <path d="M9.5 12.5l1.7 1.7 3.3-3.3" />
+                  </svg>
+                  <span>Admin Portal</span>
+                </Link>
+              </li>
+            ) : null}
             <li className="my-2 border-t border-[#eee7f6]" />
             <li>
               <button

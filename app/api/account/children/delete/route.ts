@@ -1,27 +1,16 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createServerClient, type CookieOptions } from "@supabase/ssr"
+import { revalidateTag } from "next/cache"
 
-type UpdateChildProfilePayload = {
+type DeleteChildPayload = {
   childId?: unknown
-  firstName?: unknown
-  lastName?: unknown
-  dateOfBirth?: unknown
-  photoConsent?: unknown
-  pickedUp?: unknown
+  confirmDelete?: unknown
 }
 
-const NAME_PATTERN = /^[A-Za-z]+$/
+const BLOCKING_BOOKING_STATUSES = ["active", "confirmed", "current"] as const
 
 const sanitizeString = (value: unknown) =>
   typeof value === "string" ? value.trim() : ""
-
-function isPastDate(value: string) {
-  const parsed = new Date(value)
-  if (Number.isNaN(parsed.getTime())) return false
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-  return parsed < today
-}
 
 async function resolveAccountId({
   request,
@@ -54,9 +43,7 @@ async function resolveAccountId({
         return cookieStore.getAll()
       },
       setAll(cookies: Array<{ name: string; value: string; options?: CookieOptions }>) {
-        cookies.forEach((cookie) => {
-          cookiesToPersist.push(cookie)
-        })
+        cookiesToPersist.push(...cookies)
       },
     },
   })
@@ -163,54 +150,15 @@ export async function POST(request: NextRequest) {
     const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
     if (!supabaseUrl || !supabaseAnonKey || !supabaseServiceRoleKey) {
-      return NextResponse.json(
-        { error: "Supabase is not configured." },
-        { status: 500 }
-      )
+      return NextResponse.json({ error: "Supabase is not configured." }, { status: 500 })
     }
 
-    const payload = (await request.json()) as UpdateChildProfilePayload
+    const payload = (await request.json()) as DeleteChildPayload
     const childId = sanitizeString(payload.childId)
-    const firstName = sanitizeString(payload.firstName)
-    const lastName = sanitizeString(payload.lastName)
-    const dateOfBirth = sanitizeString(payload.dateOfBirth)
-    const photoConsent =
-      typeof payload.photoConsent === "boolean" ? payload.photoConsent : null
-    const pickedUp = sanitizeString(payload.pickedUp)
+    const confirmDelete = payload.confirmDelete === true
 
-    if (
-      !childId ||
-      !firstName ||
-      !lastName ||
-      !dateOfBirth ||
-      photoConsent === null ||
-      (pickedUp !== "Yes" && pickedUp !== "No")
-    ) {
-      return NextResponse.json(
-        {
-          error:
-            "childId, firstName, lastName, dateOfBirth, photoConsent and pickedUp are required.",
-        },
-        { status: 400 }
-      )
-    }
-    if (!NAME_PATTERN.test(firstName)) {
-      return NextResponse.json(
-        { error: "First name can contain letters only." },
-        { status: 400 }
-      )
-    }
-    if (!NAME_PATTERN.test(lastName)) {
-      return NextResponse.json(
-        { error: "Last name can contain letters only." },
-        { status: 400 }
-      )
-    }
-    if (!isPastDate(dateOfBirth)) {
-      return NextResponse.json(
-        { error: "Date of birth must be in the past." },
-        { status: 400 }
-      )
+    if (!childId) {
+      return NextResponse.json({ error: "childId is required." }, { status: 400 })
     }
 
     const accountResolution = await resolveAccountId({
@@ -219,26 +167,27 @@ export async function POST(request: NextRequest) {
       supabaseAnonKey,
       supabaseServiceRoleKey,
     })
+
     if (accountResolution.errorResponse) {
       return accountResolution.errorResponse
     }
 
     const { accountId, serviceRole, applyCookies } = accountResolution
 
-    const { data: childForAccount, error: childFetchError } = await serviceRole
+    const { data: childRecord, error: childError } = await serviceRole
       .from("Children")
-      .select("id")
+      .select("id,firstName,lastName,isArchived")
       .eq("id", childId)
       .eq("accountId", accountId)
-      .or("isArchived.is.null,isArchived.eq.false")
       .maybeSingle()
 
-    if (childFetchError) {
+    if (childError) {
       return applyCookies(
-        NextResponse.json({ error: childFetchError.message }, { status: 500 })
+        NextResponse.json({ error: childError.message }, { status: 500 })
       )
     }
-    if (!childForAccount?.id) {
+
+    if (!childRecord?.id) {
       return applyCookies(
         NextResponse.json(
           { error: "Child record not found for this account." },
@@ -247,27 +196,103 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const { data: child, error: updateError } = await serviceRole
-      .from("Children")
-      .update({
-        firstName,
-        lastName,
-        dateOfBirth,
-        photoConsent,
-        pickedUp,
-      })
-      .eq("id", childId)
-      .eq("accountId", accountId)
-      .select("id,firstName,lastName,dateOfBirth,photoConsent,pickedUp")
-      .maybeSingle()
-
-    if (updateError) {
+    if (childRecord.isArchived === true) {
       return applyCookies(
-        NextResponse.json({ error: updateError.message }, { status: 500 })
+        NextResponse.json({
+          ok: true,
+          deleted: true,
+          childId,
+        })
       )
     }
 
-    return applyCookies(NextResponse.json({ ok: true, child }))
+    const { data: activeBookings, error: bookingError } = await serviceRole
+      .from("Bookings")
+      .select("id,status,Classes(className,weekday,startTime,endTime)")
+      .eq("childId", childId)
+      .in("status", [...BLOCKING_BOOKING_STATUSES])
+
+    if (bookingError) {
+      return applyCookies(
+        NextResponse.json({ error: bookingError.message }, { status: 500 })
+      )
+    }
+
+    const blockingBookings = (activeBookings ?? []).map((booking) => {
+      const bookingClass = Array.isArray(booking.Classes)
+        ? booking.Classes[0]
+        : booking.Classes
+      return {
+        id: booking.id,
+        status: booking.status,
+        className: bookingClass?.className ?? null,
+        weekday: bookingClass?.weekday ?? null,
+        startTime: bookingClass?.startTime ?? null,
+        endTime: bookingClass?.endTime ?? null,
+      }
+    })
+
+    if (blockingBookings.length > 0) {
+      return applyCookies(
+        NextResponse.json({
+          ok: true,
+          blocked: true,
+          child: childRecord,
+          activeBookings: blockingBookings,
+          message:
+            "This child cannot be removed while they still have an active or future booking.",
+        })
+      )
+    }
+
+    if (!confirmDelete) {
+      return applyCookies(
+        NextResponse.json({
+          ok: true,
+          blocked: false,
+          child: childRecord,
+        })
+      )
+    }
+
+    const archivedAt = new Date().toISOString()
+
+    const { error: waitlistDeleteError } = await serviceRole
+      .from("WaitlistEntries")
+      .delete()
+      .eq("childId", childId)
+
+    if (waitlistDeleteError) {
+      return applyCookies(
+        NextResponse.json({ error: waitlistDeleteError.message }, { status: 500 })
+      )
+    }
+
+    const { error: childArchiveError } = await serviceRole
+      .from("Children")
+      .update({
+        isArchived: true,
+        archivedAt,
+      })
+      .eq("id", childId)
+      .eq("accountId", accountId)
+
+    if (childArchiveError) {
+      return applyCookies(
+        NextResponse.json({ error: childArchiveError.message }, { status: 500 })
+      )
+    }
+
+    revalidateTag("children-for-account", "max")
+
+    return applyCookies(
+      NextResponse.json({
+        ok: true,
+        deleted: true,
+        archived: true,
+        childId,
+      })
+    )
   } catch (err) {
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "Unknown error" },

@@ -47,7 +47,7 @@ export function PolicyModal({
               <Dialog.Close asChild>
                 <button
                   type="button"
-                  className="inline-flex h-10 items-center justify-center rounded-xl border border-[#d8c7f4] bg-white px-4 text-sm font-semibold text-[#5b2ca7] transition hover:bg-[#faf6ff]"
+                  className="inline-flex h-10 cursor-pointer items-center justify-center rounded-xl border border-[#d8c7f4] bg-white px-4 text-sm font-semibold text-[#5b2ca7] transition hover:bg-[#faf6ff]"
                 >
                   Close
                 </button>
@@ -59,7 +59,7 @@ export function PolicyModal({
                     onTertiaryAction();
                     onOpenChange(false);
                   }}
-                  className="inline-flex h-10 items-center justify-center rounded-xl border border-rose-300 bg-rose-50 px-4 text-sm font-semibold text-rose-700 transition hover:bg-rose-100"
+                  className="inline-flex h-10 cursor-pointer items-center justify-center rounded-xl border border-rose-300 bg-rose-50 px-4 text-sm font-semibold text-rose-700 transition hover:bg-rose-100"
                 >
                   {tertiaryActionLabel}
                 </button>
@@ -70,7 +70,7 @@ export function PolicyModal({
                   onPrimaryAction();
                   onOpenChange(false);
                 }}
-                className="inline-flex h-10 items-center justify-center rounded-xl bg-gradient-to-b from-[#6f3bc9] via-[#6c35c3] to-[#5f2eb6] px-4 text-sm font-semibold text-white transition hover:from-[#6a35c1] hover:via-[#6030b8] hover:to-[#5529a6]"
+                className="inline-flex h-10 cursor-pointer items-center justify-center rounded-xl bg-gradient-to-b from-[#6f3bc9] via-[#6c35c3] to-[#5f2eb6] px-4 text-sm font-semibold text-white transition hover:from-[#6a35c1] hover:via-[#6030b8] hover:to-[#5529a6]"
               >
                 {primaryActionLabel}
               </button>

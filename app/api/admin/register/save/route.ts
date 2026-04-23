@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { supabaseAdmin } from "@/lib/admin";
 import { isBeforeSaveWindow, isRegisterLocked, shouldBypassSaveWindow } from "@/lib/server/registerLock";
+import { getWebAccountRoleForUser, isAdminRole } from "@/lib/server/webAccountRole";
 
 type SaveEntryInput = {
   childId: string;
@@ -106,18 +107,11 @@ export async function POST(request: NextRequest) {
       parsedEntries.push({ childId, isPresent, isCollected });
     }
 
-    const { data: webAccount, error: webAccountError } = await supabaseAdmin
-      .from("web_accounts")
-      .select("role,email")
-      .eq("auth_user_id", authData.user.id)
-      .maybeSingle();
-
-    if (webAccountError || !webAccount) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
-    }
-
-    const role = String(webAccount.role ?? "").trim().toLowerCase();
-    if (role !== "admin" && role !== "coach") {
+    const role = await getWebAccountRoleForUser({
+      authUserId: authData.user.id,
+      email: authData.user.email ?? null,
+    });
+    if (!isAdminRole(role)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -163,9 +157,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const accountEmail =
-      authData.user.email?.trim() ||
-      (typeof webAccount.email === "string" ? webAccount.email.trim() : "");
+    const accountEmail = authData.user.email?.trim() || "";
     if (!accountEmail) {
       return NextResponse.json({ error: "Missing account email for user" }, { status: 400 });
     }

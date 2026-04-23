@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import { PolicyModal } from "@/components/legal/PolicyModal";
 import {
   photoConsentContent,
@@ -22,14 +22,6 @@ type FormErrors = {
   waiverAccepted?: string;
   leaveUnattended?: string;
 };
-
-function getTodayDateString(): string {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, "0");
-  const day = String(now.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
 
 function ConsentIndicator({
   state,
@@ -83,7 +75,7 @@ export default function AddChildPage() {
   const [photoConsentDecision, setPhotoConsentDecision] =
     useState<PhotoConsentDecision>(null);
   const [waiverAccepted, setWaiverAccepted] = useState(false);
-  const [medicalExpanded, setMedicalExpanded] = useState(false);
+  const [medicalExpanded, setMedicalExpanded] = useState(true);
   const [noMedicalInfo, setNoMedicalInfo] = useState(false);
   const [medicalConditions, setMedicalConditions] = useState("");
   const [medications, setMedications] = useState("");
@@ -100,6 +92,7 @@ export default function AddChildPage() {
   const [errors, setErrors] = useState<FormErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitAttempted, setSubmitAttempted] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const waiverTriggerRef = useRef<HTMLButtonElement | null>(null);
   const photoTriggerRef = useRef<HTMLButtonElement | null>(null);
   const lastTriggerRef = useRef<HTMLButtonElement | null>(null);
@@ -109,8 +102,6 @@ export default function AddChildPage() {
   const textareaClass =
     "w-full rounded-xl border border-[#cfc6de] bg-white px-4 py-3 text-sm text-[#2E2A33] placeholder:text-[#2E2A33]/55 transition duration-200 focus:border-[#6c35c3]/60 focus:outline-none focus:ring-2 focus:ring-[#6c35c3]/25";
   const invalidClass = "border-rose-500 focus:border-rose-500 focus:ring-rose-200";
-  const today = useMemo(() => getTodayDateString(), []);
-
   useEffect(() => {
     if (openDoc !== null) return;
     if (lastTriggerRef.current) {
@@ -154,33 +145,57 @@ export default function AddChildPage() {
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setSubmitAttempted(true);
+    setSubmitError(null);
     const nextErrors = validate();
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) return;
 
     setIsSubmitting(true);
-    await new Promise((resolve) => setTimeout(resolve, 700));
+    try {
+      const response = await fetch("/api/account/children/create", {
+        method: "POST",
+        credentials: "include",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          firstName: firstName.trim(),
+          lastName: lastName.trim(),
+          dateOfBirth: dob,
+          photoConsent: photoConsentDecision === "accepted",
+          waiverAccepted,
+          pickedUp: leaveUnattended === "mustBeCollected" ? "Yes" : "No",
+          medicalConditions: noMedicalInfo ? "" : medicalConditions,
+          medications: noMedicalInfo ? "" : medications,
+          disabilities: noMedicalInfo ? "" : disabilities,
+          behaviouralConditions: noMedicalInfo ? "" : behaviouralConditions,
+          allergies: noMedicalInfo ? "" : allergies,
+          dietaryNeeds: noMedicalInfo ? "" : dietaryRequirements,
+          doctorName: noMedicalInfo ? "" : doctorName,
+          surgeryAddress: noMedicalInfo ? "" : surgeryAddress,
+          surgeryTelephone: noMedicalInfo ? "" : surgeryContactNo,
+        }),
+      });
 
-    // TODO: Persist waiver acceptance with acceptedAt timestamp and docVersion.
-    // TODO: Persist photo consent (if checked) with acceptedAt timestamp and docVersion.
-    // TODO: Store consent audit fields in Children or dedicated consents table.
-    // TODO: Persist photo consent decision (accepted/denied) with acceptedAt timestamp and docVersion.
-    void photoConsentDecision;
-    void medicalConditions;
-    void medications;
-    void disabilities;
-    void behaviouralConditions;
-    void allergies;
-    void dietaryRequirements;
-    void doctorName;
-    void surgeryAddress;
-    void surgeryContactNo;
-    void noMedicalInfo;
-    void leaveUnattended;
-    void waiverVersion;
-    void photoConsentVersion;
+      if (response.status === 401) {
+        router.replace("/login");
+        return;
+      }
 
-    router.push("/account");
+      const json = await response.json();
+      if (!response.ok || !json?.ok || !json?.child) {
+        throw new Error(json?.error ?? "Unable to save child.");
+      }
+
+      void waiverVersion;
+      void photoConsentVersion;
+
+      router.push("/account?tab=children");
+    } catch (error) {
+      setSubmitError(
+        error instanceof Error ? error.message : "Unable to save child."
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const openPolicy = (doc: PolicyDoc, trigger: HTMLButtonElement | null) => {
@@ -190,6 +205,9 @@ export default function AddChildPage() {
       setErrors((prev) => ({ ...prev, waiverAccepted: undefined }));
     }
   };
+
+  const consentToggleClass =
+    "mt-0.5 inline-flex cursor-pointer items-center justify-center rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6c35c3]/35";
 
   return (
     <section className="w-full bg-[#faf7fb] px-4 pb-20 pt-4 sm:px-6 sm:pt-5 lg:px-8">
@@ -281,10 +299,34 @@ export default function AddChildPage() {
                   <label>Date of birth</label>
                   <input
                     type="date"
-                    max={today}
                     className={[inputBaseClass, errors.dob ? invalidClass : ""].join(" ")}
                     value={dob}
-                    onChange={(event) => setDob(event.target.value)}
+                    onChange={(event) => {
+                      const nextValue = event.target.value;
+                      setDob(nextValue);
+                      setErrors((prev) => {
+                        const nextErrors = { ...prev };
+                        if (!nextValue) {
+                          delete nextErrors.dob;
+                          return nextErrors;
+                        }
+
+                        const selected = new Date(nextValue);
+                        const now = new Date();
+                        now.setHours(0, 0, 0, 0);
+
+                        if (
+                          Number.isNaN(selected.getTime()) ||
+                          selected >= now
+                        ) {
+                          nextErrors.dob = "Date of birth must be in the past.";
+                        } else {
+                          delete nextErrors.dob;
+                        }
+
+                        return nextErrors;
+                      });
+                    }}
                   />
                   {errors.dob ? (
                     <p className="mt-1 text-xs leading-4 text-rose-600">{errors.dob}</p>
@@ -300,15 +342,22 @@ export default function AddChildPage() {
                 <div className="md:col-span-2">
                   <div className="flex flex-wrap items-start justify-between gap-3 rounded-xl border border-[#e1d7ee] px-4 py-3 text-sm text-[#2E2A33]">
                     <div className="flex min-w-0 flex-1 items-start gap-3">
-                      <ConsentIndicator
-                        state={
-                          photoConsentDecision === "accepted"
-                            ? "checked"
-                            : photoConsentDecision === "denied"
-                            ? "denied"
-                            : "unchecked"
-                        }
-                      />
+                      <button
+                        type="button"
+                        className={consentToggleClass}
+                        onClick={() => openPolicy("photo", photoTriggerRef.current)}
+                        aria-label="Open photo and video consent"
+                      >
+                        <ConsentIndicator
+                          state={
+                            photoConsentDecision === "accepted"
+                              ? "checked"
+                              : photoConsentDecision === "denied"
+                              ? "denied"
+                              : "unchecked"
+                          }
+                        />
+                      </button>
                       <div className="min-w-0 flex-1">
                         <span className="mr-2 inline-flex rounded-full border border-[#d8c7f4] bg-[#faf6ff] px-2 py-0.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-[#5b2ca7]">
                           Optional
@@ -344,7 +393,14 @@ export default function AddChildPage() {
                     ].join(" ")}
                   >
                     <div className="flex min-w-0 flex-1 items-start gap-3">
-                      <ConsentIndicator state={waiverAccepted ? "checked" : "unchecked"} />
+                      <button
+                        type="button"
+                        className={consentToggleClass}
+                        onClick={() => openPolicy("waiver", waiverTriggerRef.current)}
+                        aria-label="Open waiver and safety rules"
+                      >
+                        <ConsentIndicator state={waiverAccepted ? "checked" : "unchecked"} />
+                      </button>
                       <div className="min-w-0 flex-1">
                         <span className="inline">
                           I have read and accept the{" "}
@@ -630,13 +686,18 @@ export default function AddChildPage() {
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="mt-2 inline-flex w-full items-center justify-center rounded-xl bg-gradient-to-b from-[#6f3bc9] via-[#6c35c3] to-[#5f2eb6] px-6 py-3 text-sm font-semibold uppercase tracking-[0.16em] !text-white shadow-[0_3px_8px_rgba(108,53,195,0.16)] transition-all duration-200 hover:-translate-y-0.5 hover:from-[#6a35c1] hover:via-[#6030b8] hover:to-[#5529a6] hover:shadow-[0_4px_10px_rgba(108,53,195,0.18)] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6c35c3]/40 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 md:col-span-2"
+                  className="mt-2 inline-flex w-full cursor-pointer items-center justify-center rounded-xl bg-gradient-to-b from-[#6f3bc9] via-[#6c35c3] to-[#5f2eb6] px-6 py-3 text-sm font-semibold uppercase tracking-[0.16em] !text-white shadow-[0_3px_8px_rgba(108,53,195,0.16)] transition-all duration-200 hover:-translate-y-0.5 hover:from-[#6a35c1] hover:via-[#6030b8] hover:to-[#5529a6] hover:shadow-[0_4px_10px_rgba(108,53,195,0.18)] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6c35c3]/40 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 md:col-span-2"
                 >
                   {isSubmitting ? "Saving..." : "Save child"}
                 </button>
                 {submitAttempted && Object.keys(errors).length > 0 ? (
                   <p className="md:col-span-2 mt-1 text-xs leading-4 text-rose-600">
                     Please complete all required fields.
+                  </p>
+                ) : null}
+                {submitError ? (
+                  <p className="md:col-span-2 mt-1 text-xs leading-4 text-rose-600">
+                    {submitError}
                   </p>
                 ) : null}
               </form>

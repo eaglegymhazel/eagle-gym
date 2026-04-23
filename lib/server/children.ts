@@ -9,6 +9,7 @@ export type ChildSummary = {
   lastName: string | null
   dateOfBirth: string | null
   photoConsent: boolean | null
+  pickedUp: string | null
   competitionEligible: boolean | null
 }
 
@@ -28,8 +29,9 @@ const getChildrenForAccountCached = unstable_cache(
 
   const { data, error } = await serviceRole
     .from('Children')
-    .select('id,firstName,lastName,dateOfBirth,photoConsent,competitionEligible')
+    .select('id,firstName,lastName,dateOfBirth,photoConsent,pickedUp,competitionEligible')
     .eq('accountId', accountId)
+    .or('isArchived.is.null,isArchived.eq.false')
     .order('created_at', { ascending: true })
 
   if (error) {
@@ -42,11 +44,12 @@ const getChildrenForAccountCached = unstable_cache(
     lastName: child.lastName ?? null,
     dateOfBirth: child.dateOfBirth ?? null,
     photoConsent: child.photoConsent ?? null,
+    pickedUp: child.pickedUp ?? null,
     competitionEligible: child.competitionEligible ?? null,
   }))
   },
   ['children-for-account'],
-  { revalidate: 30 }
+  { revalidate: 30, tags: ['children-for-account'] }
 )
 
 export async function getChildrenForAccount(

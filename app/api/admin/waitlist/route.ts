@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { supabaseAdmin } from "@/lib/admin";
+import { getWebAccountRoleForUser, isAdminRole } from "@/lib/server/webAccountRole";
 
 function jsonError(message: string, status: number) {
   return NextResponse.json({ error: message }, { status });
@@ -48,6 +49,13 @@ export async function DELETE(request: NextRequest) {
     const { data: authData, error: authError } = await authContext.supabase.auth.getUser();
     if (authError || !authData?.user) {
       return authContext.applyCookies(jsonError("Unauthorized", 401));
+    }
+    const role = await getWebAccountRoleForUser({
+      authUserId: authData.user.id,
+      email: authData.user.email ?? null,
+    });
+    if (!isAdminRole(role)) {
+      return authContext.applyCookies(jsonError("Forbidden", 403));
     }
 
     const body = (await request.json()) as { childId?: unknown; classId?: unknown };

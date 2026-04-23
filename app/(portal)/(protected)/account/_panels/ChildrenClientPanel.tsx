@@ -1,5 +1,6 @@
 'use client'
 
+import * as Dialog from '@radix-ui/react-dialog'
 import { useEffect, useMemo, useState } from 'react'
 import styles from '../account.module.css'
 
@@ -9,6 +10,7 @@ type ChildSummary = {
   lastName: string | null
   dateOfBirth: string | null
   photoConsent: boolean | null
+  pickedUp: string | null
   competitionEligible: boolean | null
 }
 
@@ -61,6 +63,7 @@ type EditableProfile = {
   lastName: string
   dateOfBirth: string
   photoConsent: boolean
+  mayLeaveUnattended: boolean
 }
 
 type EditableMedical = {
@@ -73,6 +76,15 @@ type EditableMedical = {
   doctorName: string
   surgeryAddress: string
   surgeryTelephone: string
+}
+
+type DeleteBookingPreview = {
+  id: string
+  status: string | null
+  className: string | null
+  weekday: string | null
+  startTime: string | null
+  endTime: string | null
 }
 
 const NAME_PATTERN = /^[A-Za-z]+$/
@@ -154,6 +166,7 @@ export default function ChildrenClientPanel({
     lastName: '',
     dateOfBirth: '',
     photoConsent: false,
+    mayLeaveUnattended: false,
   })
   const [medicalForm, setMedicalForm] = useState<EditableMedical>({
     medicalConditions: '',
@@ -167,6 +180,12 @@ export default function ChildrenClientPanel({
     surgeryTelephone: '',
   })
   const [profileErrors, setProfileErrors] = useState<Partial<Record<keyof EditableProfile, string>>>({})
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [deletePreviewLoading, setDeletePreviewLoading] = useState(false)
+  const [deleteSubmitting, setDeleteSubmitting] = useState(false)
+  const [deleteBlocked, setDeleteBlocked] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
+  const [deleteBookings, setDeleteBookings] = useState<DeleteBookingPreview[]>([])
 
   const selectedChild = useMemo(
     () => childRecords.find((child) => child.id === selectedChildId) ?? null,
@@ -186,6 +205,15 @@ export default function ChildrenClientPanel({
   }, [selectedChildId])
 
   useEffect(() => {
+    setDeleteDialogOpen(false)
+    setDeletePreviewLoading(false)
+    setDeleteSubmitting(false)
+    setDeleteBlocked(false)
+    setDeleteError(null)
+    setDeleteBookings([])
+  }, [selectedChildId])
+
+  useEffect(() => {
     setChildRecords(childSummaries)
   }, [childSummaries])
 
@@ -200,6 +228,7 @@ export default function ChildrenClientPanel({
         lastName: '',
         dateOfBirth: '',
         photoConsent: false,
+        mayLeaveUnattended: false,
       })
       setMedicalForm({
         medicalConditions: '',
@@ -221,6 +250,7 @@ export default function ChildrenClientPanel({
       lastName: (selectedChild.lastName ?? '').trim(),
       dateOfBirth: selectedChild.dateOfBirth ?? '',
       photoConsent: selectedChild.photoConsent === true,
+      mayLeaveUnattended: (selectedChild.pickedUp ?? 'No') !== 'Yes',
     })
     setMedicalForm({
       medicalConditions: toInputValue(medical?.medicalConditions),
@@ -254,7 +284,7 @@ export default function ChildrenClientPanel({
                   </span>
                   <span className={styles.childMetaRight}>
                     <span className={styles.agePill}>
-                      {age === null ? '-' : `${age} yrs`}
+                      {age === null ? '-' : `${age} years`}
                     </span>
                     <span className={styles.chevron} aria-hidden="true">
                       {'›'}
@@ -363,6 +393,9 @@ export default function ChildrenClientPanel({
     if (field === 'firstName' || field === 'lastName') {
       nextValue = value.replace(/[^A-Za-z]/g, '')
     }
+    if (field === 'dateOfBirth' && nextValue && nextValue > todayDate) {
+      nextValue = todayDate
+    }
     setProfileForm((prev) => ({ ...prev, [field]: nextValue }))
     setProfileErrors((prev) => {
       if (!prev[field]) return prev
@@ -374,6 +407,10 @@ export default function ChildrenClientPanel({
 
   const handleProfileConsentChange = (checked: boolean) => {
     setProfileForm((prev) => ({ ...prev, photoConsent: checked }))
+  }
+
+  const handlePickedUpChange = (checked: boolean) => {
+    setProfileForm((prev) => ({ ...prev, mayLeaveUnattended: checked }))
   }
 
   const handleMedicalChange = (field: keyof EditableMedical, value: string) => {
@@ -389,6 +426,7 @@ export default function ChildrenClientPanel({
       lastName: profileForm.lastName.trim(),
       dateOfBirth: profileForm.dateOfBirth,
       photoConsent: profileForm.photoConsent,
+      pickedUp: profileForm.mayLeaveUnattended ? 'No' : 'Yes',
     }
 
     const nextErrors: Partial<Record<keyof EditableProfile, string>> = {}
@@ -449,6 +487,7 @@ export default function ChildrenClientPanel({
                 lastName: json.child.lastName ?? null,
                 dateOfBirth: json.child.dateOfBirth ?? null,
                 photoConsent: json.child.photoConsent ?? null,
+                pickedUp: json.child.pickedUp ?? null,
               }
             : child
         )
@@ -515,6 +554,92 @@ export default function ChildrenClientPanel({
     }
     if (activeTab === 'medical') {
       await saveMedical()
+    }
+  }
+
+  const previewDeleteChild = async () => {
+    if (!selectedChild) return
+
+    setDeleteDialogOpen(true)
+    setDeletePreviewLoading(true)
+    setDeleteSubmitting(false)
+    setDeleteBlocked(false)
+    setDeleteError(null)
+    setDeleteBookings([])
+
+    try {
+      const response = await fetch('/api/account/children/delete', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ childId: selectedChild.id, confirmDelete: false }),
+      })
+
+      if (response.status === 401) {
+        window.location.href = '/login'
+        return
+      }
+
+      const json = await response.json()
+      if (!response.ok || !json?.ok) {
+        throw new Error(json?.error ?? 'Unable to prepare child removal.')
+      }
+
+      setDeleteBlocked(Boolean(json.blocked))
+      setDeleteBookings((json.activeBookings as DeleteBookingPreview[] | undefined) ?? [])
+      setDeleteError(json.blocked ? json.message ?? null : null)
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : 'Unable to prepare child removal.')
+    } finally {
+      setDeletePreviewLoading(false)
+    }
+  }
+
+  const confirmDeleteChild = async () => {
+    if (!selectedChild) return
+
+    setDeleteSubmitting(true)
+    setDeleteError(null)
+
+    try {
+      const response = await fetch('/api/account/children/delete', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ childId: selectedChild.id, confirmDelete: true }),
+      })
+
+      if (response.status === 401) {
+        window.location.href = '/login'
+        return
+      }
+
+      const json = await response.json()
+      if (!response.ok || !json?.ok || !json?.deleted) {
+        if (json?.blocked) {
+          setDeleteBlocked(true)
+          setDeleteBookings((json.activeBookings as DeleteBookingPreview[] | undefined) ?? [])
+          throw new Error(
+            json?.message ??
+              'This child cannot be removed while they still have an active or future booking.'
+          )
+        }
+        throw new Error(json?.error ?? 'Unable to remove child.')
+      }
+
+      setChildRecords((prev) => prev.filter((child) => child.id !== selectedChild.id))
+      setMedicalRecords((prev) => {
+        const next = { ...prev }
+        delete next[selectedChild.id]
+        return next
+      })
+      setSelectedChildId(null)
+      setDeleteDialogOpen(false)
+      resetEditingState()
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : 'Unable to remove child.')
+    } finally {
+      setDeleteSubmitting(false)
     }
   }
 
@@ -591,6 +716,7 @@ export default function ChildrenClientPanel({
           <label className={styles.profileCheckboxRow}>
             <input
               type="checkbox"
+              className={styles.profileCheckboxInput}
               checked={profileForm.photoConsent}
               onChange={(event) =>
                 handleProfileConsentChange(event.target.checked)
@@ -607,6 +733,32 @@ export default function ChildrenClientPanel({
             }
           >
             {selectedChild.photoConsent === true ? "\u2713" : "\u2717"}
+          </span>
+        )}
+      </div>
+      <div className={styles.profileRow}>
+        <span>May leave unattended</span>
+        {isEditing ? (
+          <label className={styles.profileCheckboxRow}>
+            <input
+              type="checkbox"
+              className={styles.profileCheckboxInput}
+              checked={profileForm.mayLeaveUnattended}
+              onChange={(event) =>
+                handlePickedUpChange(event.target.checked)
+              }
+            />
+            <span>Child may leave unattended after class</span>
+          </label>
+        ) : (
+          <span
+            className={
+              profileForm.mayLeaveUnattended
+                ? styles.consentTrue
+                : styles.consentFalse
+            }
+          >
+            {profileForm.mayLeaveUnattended ? "\u2713" : "\u2717"}
           </span>
         )}
       </div>
@@ -942,15 +1094,33 @@ export default function ChildrenClientPanel({
     <div className={styles.childDetail}>
       <div className={styles.childIdentity}>
         <div className={styles.childIdentityRow}>
-          <div className={styles.childNameLarge}>
-            {(selectedChild.firstName ?? '').trim() || '-'}{' '}
-            {(selectedChild.lastName ?? '').trim()}
+          <div className={styles.childIdentityBlock}>
+            <div className={styles.childNameLarge}>
+              {(selectedChild.firstName ?? '').trim() || '-'}{' '}
+              {(selectedChild.lastName ?? '').trim()}
+            </div>
+            <div className={styles.childIdentityMeta}>
+              <span>{formatDob(selectedChild.dateOfBirth)}</span>
+              <span className={styles.childIdentityDot} aria-hidden="true">
+                •
+              </span>
+              <span>{age === null ? '-' : `${age} years old`}</span>
+            </div>
           </div>
           {showEditButton ? (
             <div className={styles.desktopBookButton}>
               <button
                 type="button"
-                className={styles.editButton}
+                className={styles.deleteButton}
+                onClick={() => {
+                  void previewDeleteChild()
+                }}
+              >
+                Delete child
+              </button>
+              <button
+                type="button"
+                className={`${styles.editButton} ${styles.childHeaderEditButton}`}
                 onClick={handleToggleEdit}
               >
                 {isEditing ? 'Cancel' : 'Edit'}
@@ -959,6 +1129,113 @@ export default function ChildrenClientPanel({
           ) : null}
         </div>
       </div>
+
+      <Dialog.Root
+        open={deleteDialogOpen}
+        onOpenChange={(open) => {
+          if (!deleteSubmitting) {
+            setDeleteDialogOpen(open)
+          }
+        }}
+      >
+        <Dialog.Portal>
+          <Dialog.Overlay className="fixed inset-0 z-[100] bg-black/45" />
+          <Dialog.Content className="fixed inset-x-3 top-1/2 z-[101] max-h-[86vh] -translate-y-1/2 overflow-hidden border border-[#d8ceeb] bg-white shadow-2xl sm:left-1/2 sm:right-auto sm:w-[min(520px,calc(100vw-32px))] sm:-translate-x-1/2">
+            <div className="border-b border-[#e8e0f2] px-4 py-4 sm:px-5">
+              <Dialog.Title className="text-lg font-bold text-[#24193a]">
+                Delete child
+              </Dialog.Title>
+              <Dialog.Description className="mt-1 text-sm text-[#5f5177]">
+                Remove this child from your account.
+              </Dialog.Description>
+            </div>
+
+            <div className="px-4 py-4 sm:px-5">
+              {deletePreviewLoading ? (
+                <p className="text-sm text-[#342744]">Checking child records...</p>
+              ) : deleteBlocked ? (
+                <>
+                  <p className="text-sm text-[#342744]">
+                    This child cannot be deleted while they still have an active or future booking.
+                  </p>
+                  {deleteBookings.length > 0 ? (
+                    <ul className="mt-3 grid gap-2">
+                      {deleteBookings.map((booking) => (
+                        <li
+                          key={booking.id}
+                          className="border border-[#eadff4] bg-[#faf7ff] px-3 py-2 text-sm text-[#342744]"
+                        >
+                          <span className="font-semibold text-[#24193a]">
+                            {booking.className ?? 'Active booking'}
+                          </span>
+                          {booking.weekday || booking.startTime || booking.endTime ? (
+                            <span className="block text-xs text-[#6c607d]">
+                              {[booking.weekday, booking.startTime, booking.endTime]
+                                .filter(Boolean)
+                                .join(' | ')}
+                            </span>
+                          ) : null}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : null}
+                </>
+              ) : (
+                <>
+                  <p className="text-sm text-[#342744]">
+                    Remove{' '}
+                    <span className="font-semibold text-[#24193a]">
+                      {(selectedChild?.firstName ?? '').trim() || 'this child'}{' '}
+                      {(selectedChild?.lastName ?? '').trim()}
+                    </span>{' '}
+                    from your account?
+                  </p>
+                  <p className="mt-2 text-sm text-[#6c607d]">
+                    <span className="font-semibold text-[#24193a]">Warning:</span>{' '}
+                    This will remove this child from your account. Are you sure
+                    that you wish to permanently remove this child from your
+                    account?
+                  </p>
+                </>
+              )}
+              {deleteError && !deleteBlocked ? (
+                <p className="mt-3 text-sm text-[#991b1b]">{deleteError}</p>
+              ) : null}
+            </div>
+
+            <div className="border-t border-[#e8e0f2] px-4 py-4 sm:px-5">
+              <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                <Dialog.Close asChild>
+                  <button
+                    type="button"
+                    disabled={deleteSubmitting}
+                    className="h-10 cursor-pointer border border-[#ddd4ea] bg-white px-4 text-sm font-semibold text-[#6f6384] hover:bg-[#faf7ff] disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {deleteBlocked ? 'Close' : 'Cancel'}
+                  </button>
+                </Dialog.Close>
+                {!deleteBlocked ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      void confirmDeleteChild()
+                    }}
+                    disabled={deletePreviewLoading || deleteSubmitting}
+                    className={[
+                      'h-10 border px-4 text-sm font-semibold transition',
+                      !deletePreviewLoading && !deleteSubmitting
+                        ? 'cursor-pointer border-[#d93636] bg-[#d93636] text-white hover:bg-[#bd2d2d]'
+                        : 'cursor-not-allowed border-[#eadada] bg-[#f8f6fb] text-[#b79a9a]',
+                    ].join(' ')}
+                  >
+                    {deleteSubmitting ? 'Deleting...' : 'Delete child'}
+                  </button>
+                ) : null}
+              </div>
+            </div>
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
 
       <div className={styles.desktopChildView}>
         <div className={styles.childTabsRow}>

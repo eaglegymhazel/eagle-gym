@@ -25,7 +25,7 @@ export default function SiteShell({
     >
       <div className="sticky top-0 z-50 bg-[#faf7fb]/95 backdrop-blur">
         <div className="mx-auto w-full max-w-6xl px-3 sm:px-4 lg:px-6">
-          <div className="relative flex w-full items-center gap-2 py-2 sm:gap-4 lg:grid lg:grid-cols-[1fr_auto_1fr] lg:gap-0">
+          <div className="relative flex w-full items-center gap-2 py-2 sm:gap-4 lg:min-h-[96px]">
             <div className="shrink-0 lg:justify-self-start">
               <Link href="/" aria-label="Eagle Gymnastics Academy home">
                 <Image
@@ -38,7 +38,7 @@ export default function SiteShell({
                 />
               </Link>
             </div>
-            <div className="min-w-0 flex-1 lg:min-w-fit lg:flex-none lg:justify-self-center">
+            <div className="min-w-0 flex-1 lg:absolute lg:left-1/2 lg:top-1/2 lg:min-w-fit lg:flex-none lg:-translate-x-1/2 lg:-translate-y-1/2">
               <Nav
                 disableMobileMenu={disableMobileNavMenu}
                 mobileRightLink={mobileRightLink}
@@ -47,7 +47,7 @@ export default function SiteShell({
             <div className="absolute right-16 top-1/2 -translate-y-1/2 lg:hidden">
               <LoginBadge />
             </div>
-            <div className="hidden lg:block lg:justify-self-end">
+            <div className="hidden lg:absolute lg:right-0 lg:top-1/2 lg:block lg:-translate-y-1/2">
               <LoginBadge />
             </div>
           </div>
@@ -92,7 +92,7 @@ export default function SiteShell({
                 Timetable
               </Link>
               <Link href="/news" className="hover:underline">
-                Club News
+                Updates
               </Link>
               <Link href="/contact" className="hover:underline">
                 Contact

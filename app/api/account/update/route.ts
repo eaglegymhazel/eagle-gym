@@ -14,7 +14,13 @@ const sanitize = (value: unknown) =>
 
 const NAME_PATTERN = /^[A-Za-z]+$/
 const PHONE_PATTERN = /^[0-9]+$/
-const ADDRESS_PATTERN = /^[A-Za-z0-9 ]*$/
+const ADDRESS_PATTERN = /^[A-Za-z0-9\s.'\-/#]*$/
+const normalizePhoneForStorage = (value: string) => value.replace(/\D/g, "")
+const normalizeAddressForStorage = (value: string) =>
+  value
+    .replace(/,/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
 
 export async function POST(request: NextRequest) {
   try {
@@ -29,9 +35,12 @@ export async function POST(request: NextRequest) {
     const payload = (await request.json()) as UpdatePayload
     const accFirstName = sanitize(payload.accFirstName)
     const accLastName = sanitize(payload.accLastName)
-    const accTelNo = sanitize(payload.accTelNo)
-    const accEmergencyTelNo = sanitize(payload.accEmergencyTelNo)
-    const accAddress = sanitize(payload.accAddress)
+    const accTelNoRaw = sanitize(payload.accTelNo)
+    const accEmergencyTelNoRaw = sanitize(payload.accEmergencyTelNo)
+    const accAddressRaw = sanitize(payload.accAddress)
+    const accTelNo = normalizePhoneForStorage(accTelNoRaw)
+    const accEmergencyTelNo = normalizePhoneForStorage(accEmergencyTelNoRaw)
+    const accAddress = normalizeAddressForStorage(accAddressRaw)
 
     if (!accFirstName || !accLastName || !accTelNo || !accEmergencyTelNo) {
       return NextResponse.json(
@@ -123,7 +132,7 @@ export async function POST(request: NextRequest) {
 
     const { data: webAccount, error: webAccountError } = await serviceRole
       .from("web_accounts")
-      .select("id,account_id")
+      .select("id,email,account_id")
       .eq("auth_user_id", authUserId)
       .maybeSingle()
 
@@ -132,52 +141,115 @@ export async function POST(request: NextRequest) {
     }
 
     let accountId = webAccount?.account_id ?? null
-    if (!accountId && userEmail) {
-      const { data: legacyAccount, error: legacyError } = await serviceRole
+    let accountByEmailId: string | null = null
+
+    if (userEmail) {
+      const { data: legacyAccounts, error: legacyError } = await serviceRole
         .from("Accounts")
         .select("id")
         .eq("email", userEmail)
-        .maybeSingle()
 
       if (legacyError) {
         return applyCookies(NextResponse.json({ error: legacyError.message }, { status: 500 }))
       }
 
-      accountId = legacyAccount?.id ?? null
-
-      if (accountId) {
-        if (webAccount?.id) {
-          const { error: linkError } = await serviceRole
-            .from("web_accounts")
-            .update({ account_id: accountId })
-            .eq("id", webAccount.id)
-          if (linkError) {
-            return applyCookies(NextResponse.json({ error: linkError.message }, { status: 500 }))
-          }
-        } else {
-          const { error: createLinkError } = await serviceRole.from("web_accounts").insert({
-            auth_user_id: authUserId,
-            email: userEmail,
-            account_id: accountId,
-          })
-          if (createLinkError) {
-            return applyCookies(
-              NextResponse.json({ error: createLinkError.message }, { status: 500 })
-            )
-          }
-        }
+      if ((legacyAccounts?.length ?? 0) > 1) {
+        return applyCookies(
+          NextResponse.json(
+            { error: "Multiple accounts found for this email address." },
+            { status: 409 }
+          )
+        )
       }
+
+      accountByEmailId = legacyAccounts?.[0]?.id ?? null
+    }
+
+    if (accountId && accountByEmailId && accountId !== accountByEmailId) {
+      return applyCookies(
+        NextResponse.json(
+          {
+            error:
+              "This login is linked to a different account than the one found for this email.",
+          },
+          { status: 409 }
+        )
+      )
     }
 
     if (!accountId) {
-      return applyCookies(
-        NextResponse.json({ error: "Account profile not found." }, { status: 404 })
-      )
+      accountId = accountByEmailId
+    }
+
+    if (!accountId) {
+      if (!userEmail) {
+        return applyCookies(
+          NextResponse.json({ error: "Authenticated user email is required." }, { status: 400 })
+        )
+      }
+
+      const { data: insertedAccount, error: insertAccountError } = await serviceRole
+        .from("Accounts")
+        .insert({
+          userId: authUserId,
+          email: userEmail,
+          accFirstName,
+          accLastName,
+          accTelNo,
+          accEmergencyTelNo,
+          accAddress: accAddress || null,
+        })
+        .select("id")
+        .single()
+
+      if (insertAccountError) {
+        return applyCookies(
+          NextResponse.json({ error: insertAccountError.message }, { status: 500 })
+        )
+      }
+
+      accountId = insertedAccount.id
+    }
+
+    if (webAccount?.id) {
+      const nextWebAccountUpdates: {
+        account_id: string
+        email?: string | null
+      } = {
+        account_id: accountId,
+      }
+
+      if (userEmail && webAccount.email !== userEmail) {
+        nextWebAccountUpdates.email = userEmail
+      }
+
+      const { error: linkError } = await serviceRole
+        .from("web_accounts")
+        .update(nextWebAccountUpdates)
+        .eq("id", webAccount.id)
+
+      if (linkError) {
+        return applyCookies(NextResponse.json({ error: linkError.message }, { status: 500 }))
+      }
+    } else {
+      const { error: createLinkError } = await serviceRole.from("web_accounts").insert({
+        auth_user_id: authUserId,
+        email: userEmail,
+        account_id: accountId,
+      })
+
+      if (createLinkError) {
+        return applyCookies(
+          NextResponse.json({ error: createLinkError.message }, { status: 500 })
+        )
+      }
     }
 
     const { data: account, error: updateError } = await serviceRole
       .from("Accounts")
       .update({
+        userId: authUserId,
+        email: userEmail,
         accFirstName,
         accLastName,
         accTelNo,

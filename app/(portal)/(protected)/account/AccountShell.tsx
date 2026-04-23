@@ -22,6 +22,7 @@ type ChildSummary = {
   lastName: string | null
   dateOfBirth: string | null
   photoConsent: boolean | null
+  pickedUp: string | null
   competitionEligible: boolean | null
 }
 
@@ -129,6 +130,19 @@ const sanitizeEditableValue = (field: keyof EditableFields, value: string) => {
   }
   return value.replace(/[^A-Za-z0-9 ]/g, "")
 }
+
+const normalizeEditableFields = (account: AccountDetails): EditableFields => ({
+  accFirstName: account.accFirstName?.replace(/[^A-Za-z]/g, "") ?? "",
+  accLastName: account.accLastName?.replace(/[^A-Za-z]/g, "") ?? "",
+  accTelNo: account.accTelNo?.replace(/\D/g, "") ?? "",
+  accEmergencyTelNo: account.accEmergencyTelNo?.replace(/\D/g, "") ?? "",
+  accAddress:
+    account.accAddress
+      ?.replace(/,/g, " ")
+      .replace(/[^A-Za-z0-9 ]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim() ?? "",
+})
 
 function PanelSkeleton() {
   return (
@@ -247,13 +261,7 @@ export default function AccountShell() {
       return
     }
 
-    setEditableFields({
-      accFirstName: data.account.accFirstName ?? "",
-      accLastName: data.account.accLastName ?? "",
-      accTelNo: data.account.accTelNo ?? "",
-      accEmergencyTelNo: data.account.accEmergencyTelNo ?? "",
-      accAddress: data.account.accAddress ?? "",
-    })
+    setEditableFields(normalizeEditableFields(data.account))
   }, [data])
 
   const handleEditableFieldChange = (field: keyof EditableFields, value: string) => {
@@ -274,13 +282,7 @@ export default function AccountShell() {
       setSaveSuccess(null)
       setFieldErrors({})
       if (data && "error" in data === false && data.status === "existing" && data.account) {
-        setEditableFields({
-          accFirstName: data.account.accFirstName ?? "",
-          accLastName: data.account.accLastName ?? "",
-          accTelNo: data.account.accTelNo ?? "",
-          accEmergencyTelNo: data.account.accEmergencyTelNo ?? "",
-          accAddress: data.account.accAddress ?? "",
-        })
+        setEditableFields(normalizeEditableFields(data.account))
       }
       return
     }

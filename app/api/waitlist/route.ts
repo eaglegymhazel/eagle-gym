@@ -59,7 +59,7 @@ async function authenticateWithAccount(request: NextRequest) {
 async function assertChildOwnership(childId: string, accountId: string) {
   const { data: child, error: childError } = await supabaseAdmin
     .from("Children")
-    .select("id,accountId")
+    .select("id,accountId,isArchived")
     .eq("id", childId)
     .maybeSingle();
 
@@ -67,6 +67,9 @@ async function assertChildOwnership(childId: string, accountId: string) {
   if (!child) return jsonError("Child not found.", 404);
   if (String(child.accountId ?? "") !== String(accountId)) {
     return jsonError("You cannot manage this child.", 403);
+  }
+  if (child.isArchived === true) {
+    return jsonError("This child is no longer available for booking or waitlist actions.", 409);
   }
   return null;
 }

@@ -1,19 +1,34 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createServerClient, type CookieOptions } from "@supabase/ssr"
 
-type UpdateChildProfilePayload = {
-  childId?: unknown
+type CreateChildPayload = {
   firstName?: unknown
   lastName?: unknown
   dateOfBirth?: unknown
   photoConsent?: unknown
+  waiverAccepted?: unknown
   pickedUp?: unknown
+  medicalConditions?: unknown
+  medications?: unknown
+  disabilities?: unknown
+  behaviouralConditions?: unknown
+  allergies?: unknown
+  dietaryNeeds?: unknown
+  doctorName?: unknown
+  surgeryAddress?: unknown
+  surgeryTelephone?: unknown
 }
 
 const NAME_PATTERN = /^[A-Za-z]+$/
+const PICKED_UP_VALUES = new Set(["Yes", "No"])
 
 const sanitizeString = (value: unknown) =>
   typeof value === "string" ? value.trim() : ""
+
+const toNullable = (value: string) => {
+  const trimmed = value.trim()
+  return trimmed ? trimmed : null
+}
 
 function isPastDate(value: string) {
   const parsed = new Date(value)
@@ -163,49 +178,63 @@ export async function POST(request: NextRequest) {
     const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
     if (!supabaseUrl || !supabaseAnonKey || !supabaseServiceRoleKey) {
-      return NextResponse.json(
-        { error: "Supabase is not configured." },
-        { status: 500 }
-      )
+      return NextResponse.json({ error: "Supabase is not configured." }, { status: 500 })
     }
 
-    const payload = (await request.json()) as UpdateChildProfilePayload
-    const childId = sanitizeString(payload.childId)
+    const payload = (await request.json()) as CreateChildPayload
     const firstName = sanitizeString(payload.firstName)
     const lastName = sanitizeString(payload.lastName)
     const dateOfBirth = sanitizeString(payload.dateOfBirth)
+    const pickedUp = sanitizeString(payload.pickedUp)
     const photoConsent =
       typeof payload.photoConsent === "boolean" ? payload.photoConsent : null
-    const pickedUp = sanitizeString(payload.pickedUp)
+    const waiverAccepted =
+      typeof payload.waiverAccepted === "boolean" ? payload.waiverAccepted : null
+    const medicalConditions = toNullable(sanitizeString(payload.medicalConditions))
+    const medications = toNullable(sanitizeString(payload.medications))
+    const disabilities = toNullable(sanitizeString(payload.disabilities))
+    const behaviouralConditions = toNullable(
+      sanitizeString(payload.behaviouralConditions)
+    )
+    const allergies = toNullable(sanitizeString(payload.allergies))
+    const dietaryNeeds = toNullable(sanitizeString(payload.dietaryNeeds))
+    const doctorName = toNullable(sanitizeString(payload.doctorName))
+    const surgeryAddress = toNullable(sanitizeString(payload.surgeryAddress))
+    const surgeryTelephone = toNullable(
+      sanitizeString(payload.surgeryTelephone).replace(/\D/g, "")
+    )
 
     if (
-      !childId ||
       !firstName ||
       !lastName ||
       !dateOfBirth ||
       photoConsent === null ||
-      (pickedUp !== "Yes" && pickedUp !== "No")
+      waiverAccepted !== true ||
+      !PICKED_UP_VALUES.has(pickedUp)
     ) {
       return NextResponse.json(
         {
           error:
-            "childId, firstName, lastName, dateOfBirth, photoConsent and pickedUp are required.",
+            "firstName, lastName, dateOfBirth, photoConsent, waiverAccepted and pickedUp are required.",
         },
         { status: 400 }
       )
     }
+
     if (!NAME_PATTERN.test(firstName)) {
       return NextResponse.json(
         { error: "First name can contain letters only." },
         { status: 400 }
       )
     }
+
     if (!NAME_PATTERN.test(lastName)) {
       return NextResponse.json(
         { error: "Last name can contain letters only." },
         { status: 400 }
       )
     }
+
     if (!isPastDate(dateOfBirth)) {
       return NextResponse.json(
         { error: "Date of birth must be in the past." },
@@ -225,45 +254,50 @@ export async function POST(request: NextRequest) {
 
     const { accountId, serviceRole, applyCookies } = accountResolution
 
-    const { data: childForAccount, error: childFetchError } = await serviceRole
+    const { data: child, error: insertError } = await serviceRole
       .from("Children")
-      .select("id")
-      .eq("id", childId)
-      .eq("accountId", accountId)
-      .or("isArchived.is.null,isArchived.eq.false")
-      .maybeSingle()
-
-    if (childFetchError) {
-      return applyCookies(
-        NextResponse.json({ error: childFetchError.message }, { status: 500 })
-      )
-    }
-    if (!childForAccount?.id) {
-      return applyCookies(
-        NextResponse.json(
-          { error: "Child record not found for this account." },
-          { status: 404 }
-        )
-      )
-    }
-
-    const { data: child, error: updateError } = await serviceRole
-      .from("Children")
-      .update({
+      .insert({
+        accountId,
         firstName,
         lastName,
         dateOfBirth,
         photoConsent,
+        waiverAccepted,
         pickedUp,
       })
-      .eq("id", childId)
-      .eq("accountId", accountId)
-      .select("id,firstName,lastName,dateOfBirth,photoConsent,pickedUp")
-      .maybeSingle()
+      .select(
+        "id,accountId,firstName,lastName,dateOfBirth,photoConsent,waiverAccepted,pickedUp"
+      )
+      .single()
 
-    if (updateError) {
+    if (insertError) {
       return applyCookies(
-        NextResponse.json({ error: updateError.message }, { status: 500 })
+        NextResponse.json({ error: insertError.message }, { status: 500 })
+      )
+    }
+
+    const medicalValues = {
+      medicalConditions,
+      medications,
+      disabilities,
+      behaviouralConditions,
+      allergies,
+      dietaryNeeds,
+      doctorName,
+      surgeryAddress,
+      surgeryTelephone,
+    }
+
+    const { error: medicalInsertError } = await serviceRole
+      .from("MedicalInformation")
+      .insert({
+        childId: child.id,
+        ...medicalValues,
+      })
+
+    if (medicalInsertError) {
+      return applyCookies(
+        NextResponse.json({ error: medicalInsertError.message }, { status: 500 })
       )
     }
 

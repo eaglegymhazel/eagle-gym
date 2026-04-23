@@ -394,16 +394,16 @@
 
 .childrenList {
   display: grid;
-  gap: 0;
+  gap: 12px;
   list-style: none;
   padding: 0;
   margin: 0;
-  border-top: 1px solid rgba(108, 53, 195, 0.14);
+  border-top: 0;
 }
 
 .childItem {
   list-style: none;
-  border-bottom: 1px solid rgba(108, 53, 195, 0.14);
+  border-bottom: 0;
 }
 
 
@@ -415,14 +415,14 @@
 }
 
 .childName {
-  font-weight: 600;
+  font-weight: 700;
   letter-spacing: 0.01em;
   display: inline-flex;
   align-items: baseline;
   gap: 8px;
-  font-size: 16px;
+  font-size: 17px;
   line-height: 1.25;
-  color: #1f1a25;
+  color: #1c3f88;
   min-width: 0;
 }
 
@@ -449,18 +449,18 @@
 .childButton {
   width: 100%;
   text-align: left;
-  padding: 14px 12px 12px 20px;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
+  padding: 16px 18px 15px 20px;
+  border: 1px solid rgba(108, 53, 195, 0.14);
+  border-radius: 14px;
+  background: #ffffff;
   color: #111827;
   display: grid;
-  gap: 6px;
+  gap: 10px;
   cursor: pointer;
   position: relative;
   overflow: hidden;
   transition: border-color 0.2s ease, box-shadow 0.2s ease,
-    background-color 0.2s ease;
+    background-color 0.2s ease, transform 0.2s ease;
 }
 
 .childButton::before {
@@ -477,11 +477,11 @@
 .childButton::after {
   content: "";
   position: absolute;
-  left: 4px;
-  top: 18px;
-  bottom: 18px;
-  width: 3px;
-  border-radius: 999px;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  border-radius: 999px 0 0 999px;
   background: #6e2ac0;
   opacity: 0;
   transition: opacity 0.2s ease-out;
@@ -494,8 +494,10 @@
 }
 
 .childButton:hover {
-  background: transparent;
-  box-shadow: none;
+  background: #ffffff;
+  box-shadow: 0 12px 24px rgba(45, 22, 78, 0.08);
+  border-color: rgba(108, 53, 195, 0.24);
+  transform: translateY(-1px);
 }
 
 .childButton:hover::before,
@@ -519,12 +521,12 @@
 }
 
 .agePill {
-  border: 1px solid rgba(108, 53, 195, 0.16);
-  background: #f3effa;
-  color: #402b63;
-  font-size: 11px;
-  font-weight: 600;
-  padding: 5px 9px;
+  border: 0;
+  background: transparent;
+  color: rgba(46, 42, 51, 0.68);
+  font-size: 13px;
+  font-weight: 700;
+  padding: 0;
   border-radius: 999px;
   white-space: nowrap;
 }
@@ -567,8 +569,40 @@
   outline-offset: 2px;
 }
 
+.deleteButton {
+  appearance: none;
+  border: 1px solid #e5c9c9;
+  border-radius: 0;
+  background: #fff7f7;
+  color: #a12626;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  min-height: 34px;
+  padding: 7px 14px;
+  cursor: pointer;
+  transition: background-color 0.16s ease, border-color 0.16s ease,
+    color 0.16s ease;
+}
+
+.deleteButton:hover {
+  background: #fdeeee;
+  border-color: #dcaeae;
+}
+
+.deleteButton:focus-visible {
+  outline: 2px solid rgba(217, 54, 54, 0.28);
+  outline-offset: 2px;
+}
+
+.childHeaderEditButton {
+  display: inline-flex;
+}
+
 .desktopBookButton {
   display: inline-flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .mobileBookBar {
@@ -617,12 +651,15 @@
   color: rgba(46, 42, 51, 0.6);
   font-size: 13px;
   padding-left: 0;
+  padding-top: 2px;
+  border-top: 0;
 }
 
 .childHint {
-  color: #1f1a25;
-  font-weight: 600;
+  color: #1c3f88;
+  font-weight: 700;
   font-size: 12px;
+  letter-spacing: 0.01em;
 }
 
 .childDetail {
@@ -644,10 +681,10 @@
 }
 
 .mobileSectionCard {
-  border: 1px solid rgba(108, 53, 195, 0.16);
-  border-radius: 12px;
-  background: #ffffff;
-  overflow: hidden;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  overflow: visible;
 }
 
 .mobileSectionHeader {
@@ -655,29 +692,30 @@
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  padding: 10px 12px;
-  border-bottom: 1px solid rgba(108, 53, 195, 0.12);
-  background: #ffffff;
+  padding: 0;
+  border-bottom: 0;
+  background: transparent;
   transition: background-color 0.18s ease;
 }
 
 .mobileSectionHeaderActive {
-  background: rgba(108, 53, 195, 0.07);
+  background: transparent;
 }
 
 .mobileSectionToggle {
   appearance: none;
   border: 0;
+  border-bottom: 1px solid rgba(108, 53, 195, 0.12);
   background: transparent;
-  padding: 0;
+  padding: 12px 0;
   width: 100%;
   display: inline-flex;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 700;
-  color: #2a0c4f;
+  color: #1f1a25;
   text-align: left;
   cursor: pointer;
 }
@@ -754,11 +792,11 @@
   display: flex;
   gap: 12px;
   align-items: center;
-  padding: 0 0 16px;
+  padding: 0 0 14px;
   border: 0;
   border-radius: 0;
   background: transparent;
-  padding-bottom: 16px;
+  box-shadow: none;
   border-bottom: 1px solid rgba(108, 53, 195, 0.12);
 }
 
@@ -771,9 +809,30 @@
   flex-wrap: wrap;
 }
 
+.childIdentityBlock {
+  display: grid;
+  gap: 4px;
+}
+
 .childNameLarge {
+  font-weight: 800;
+  font-size: 22px;
+  line-height: 1.1;
+  color: #1f1a25;
+}
+
+.childIdentityMeta {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  color: rgba(46, 42, 51, 0.68);
+  font-size: 14px;
   font-weight: 600;
-  font-size: 18px;
+}
+
+.childIdentityDot {
+  color: rgba(108, 53, 195, 0.5);
 }
 
 .childSubtext {
@@ -783,7 +842,7 @@
 
 .childTabs {
   display: flex;
-  gap: 20px;
+  gap: 22px;
   flex-wrap: wrap;
   border-bottom: 0;
   padding-bottom: 0;
@@ -797,42 +856,39 @@
 }
 
 .childTab {
-  border: none;
+  border: 0;
+  border-bottom: 2px solid transparent;
   background: transparent;
   color: #5f6772;
-  padding: 6px 0;
-  border-bottom: 3px solid transparent;
+  padding: 8px 0;
+  border-radius: 0;
   font-size: 15px;
+  font-weight: 700;
   cursor: pointer;
   position: relative;
-  transition: transform 0.15s ease, color 0.15s ease;
+  transition: color 0.15s ease, border-color 0.15s ease;
 }
 
 .childTab:not(:last-child)::after {
-  content: "";
-  position: absolute;
-  right: -10px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 1px;
-  height: 14px;
-  background: rgba(108, 53, 195, 0.25);
+  display: none;
 }
 
 .childTabActive {
-  color: #111827;
+  color: #1f1a25;
   border-color: #5f2eb6;
-  font-weight: 600;
+  background: transparent;
+  box-shadow: none;
 }
 
 
 .childCard {
   border: 0;
   border-radius: 0;
-  padding: 14px;
+  padding: 12px 0 0;
   background: transparent;
+  box-shadow: none;
   display: grid;
-  gap: 10px;
+  gap: 14px;
 }
 
 .childCardStack {
@@ -917,8 +973,10 @@
 }
 
 .badgesItem {
-  border: 1px solid rgba(108, 53, 195, 0.16);
+  border: 1px solid rgba(108, 53, 195, 0.12);
   background: #ffffff;
+  border-radius: 10px;
+  overflow: hidden;
 }
 
 .badgesItemHeader {
@@ -1074,7 +1132,13 @@
   gap: 16px;
   font-size: 16px;
   align-items: start;
-  max-width: 520px;
+  max-width: 680px;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(108, 53, 195, 0.08);
+}
+
+.profileRow:last-of-type {
+  border-bottom: 0;
 }
 
 .profileRow span {
@@ -1098,11 +1162,16 @@
   gap: 8px;
   font: inherit;
   color: inherit;
+  cursor: pointer;
 }
 
 .profileCheckboxRow input[type="checkbox"] {
   margin-top: 3px;
   flex: 0 0 auto;
+}
+
+.profileCheckboxInput {
+  cursor: pointer;
 }
 
 .profileCheckboxRow span {
@@ -1145,13 +1214,16 @@
 
 .medicalSection {
   display: grid;
-  gap: 10px;
-  padding-top: 0;
-  border-top: 0;
+  gap: 12px;
+  padding: 0 0 14px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  border-bottom: 1px solid rgba(108, 53, 195, 0.08);
 }
 
 .medicalSection + .medicalSection {
-  margin-top: 26px;
+  margin-top: 0;
 }
 
 .sectionTitle {
@@ -1301,6 +1373,12 @@
     backdrop-filter: blur(4px);
   }
   .desktopBookButton {
+    display: inline-flex;
+    width: 100%;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+  .childHeaderEditButton {
     display: none;
   }
   .subheading {
@@ -1313,7 +1391,35 @@
     margin-top: 10px;
   }
   .childButton {
-    padding: 14px 12px 12px;
+    padding: 14px 14px 13px 16px;
+    border-radius: 12px;
+  }
+  .childIdentity {
+    padding: 0 0 12px;
+    border-radius: 0;
+  }
+  .childNameLarge {
+    font-size: 19px;
+  }
+  .childTabs {
+    gap: 16px;
+  }
+  .childTab {
+    font-size: 14px;
+    padding: 7px 0;
+  }
+  .mobileSectionToggle {
+    padding: 12px 0;
+  }
+  .mobileSectionCard .childCard,
+  .mobileSectionCard .childCardStack {
+    padding-top: 12px;
+  }
+  .mobileSectionCard .editButton {
+    min-height: 30px;
+    padding: 5px 11px;
+    font-size: 11px;
+    border-radius: 6px;
   }
   .medicalRow {
     grid-template-columns: 1fr;
@@ -1335,45 +1441,15 @@
     gap: 10px;
     border-top: 0;
   }
-  .mobileSectionCard {
-    border: 0;
-    border-radius: 0;
-    background: transparent;
-    border-bottom: 0;
-  }
-  .mobileSectionHeader {
-    padding: 0;
-    border-bottom: 0;
-    background: transparent;
-  }
-  .mobileSectionToggle {
-    padding: 10px 12px;
-    border: 1px solid rgba(108, 53, 195, 0.2);
-    border-radius: 12px;
-    background: #ffffff;
-  }
-  .mobileSectionHeaderActive {
-    background: transparent;
-  }
-  .mobileSectionHeaderActive .mobileSectionToggle {
-    background: rgba(108, 53, 195, 0.07);
-    border-color: rgba(108, 53, 195, 0.28);
-  }
   .mobileSectionCard .childCard,
   .mobileSectionCard .childCardStack {
     border-top: 0;
-    padding: 10px 0 0;
   }
   .mobileSectionCard .childCard {
     gap: 8px;
   }
   .mobileSectionCard .cardBody {
     padding: 0 0 12px;
-  }
-  .mobileSectionCard .editButton {
-    min-height: 30px;
-    padding: 5px 11px;
-    font-size: 11px;
   }
   .badgesSummary {
     display: grid;

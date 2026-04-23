@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
@@ -13,14 +14,21 @@ type NavItem = {
   href: string;
   label: string;
   icon: LucideIcon;
-  type: "link" | "about";
+  type: "link" | "about" | "updates";
   matchPrefix?: string;
 };
 
 const aboutItems = [
   { href: "/about", label: "About the Club" },
   { href: "/team", label: "Coaches" },
+] as const satisfies ReadonlyArray<{
+  href: string;
+  label: string;
+}>;
+
+const updateItems = [
   { href: "/news", label: "News" },
+  { href: "/gallery", label: "Gallery" },
 ] as const satisfies ReadonlyArray<{
   href: string;
   label: string;
@@ -31,6 +39,7 @@ const navItems: NavItem[] = [
   { key: "book", href: "/book", label: "Book", icon: BookOpen, type: "link" as const, matchPrefix: "/book" },
   { key: "members", href: "/members", label: "Members", icon: IdCard, type: "link" as const },
   { key: "about", href: "/about", label: "About", icon: Info, type: "about" as const },
+  { key: "updates", href: "/news", label: "Updates", icon: Info, type: "updates" as const, matchPrefix: "/news" },
   { key: "contact", href: "/contact", label: "Contact", icon: Mail, type: "link" as const },
 ];
 
@@ -50,6 +59,8 @@ export default function Nav({
   const pathname = usePathname();
   const isRecreationalBooking = pathname?.startsWith("/book/recreational");
   const isLoggedIn = Boolean(user?.email);
+  const dropdownMenuItemClass =
+    "relative flex min-h-[40px] items-center gap-3 overflow-hidden px-4 py-2.5 text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6c35c3]/35 before:absolute before:inset-0 before:bg-[#6c35c3]/8 before:origin-left before:scale-x-0 before:transition-transform before:duration-200 after:absolute after:left-0 after:top-2 after:bottom-2 after:w-[3px] after:rounded-full after:bg-[#6e2ac0] after:opacity-0 after:transition-opacity after:duration-200 hover:before:scale-x-100 hover:after:opacity-100 focus-visible:before:scale-x-100 focus-visible:after:opacity-100 [&>*]:relative [&>*]:z-10";
   const resolvedNavItems = useMemo(
     () =>
       navItems.map((item) =>
@@ -63,8 +74,13 @@ export default function Nav({
     () => aboutItems.some((item) => pathname?.startsWith(item.href)),
     [pathname]
   );
+  const isUpdatesActive = useMemo(
+    () => updateItems.some((item) => pathname?.startsWith(item.href)),
+    [pathname]
+  );
   const [isOpen, setIsOpen] = useState(false);
   const [isMobileAboutOpen, setIsMobileAboutOpen] = useState(false);
+  const [isMobileUpdatesOpen, setIsMobileUpdatesOpen] = useState(false);
   const navRef = useRef<HTMLElement | null>(null);
   const drawerRef = useRef<HTMLElement | null>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
@@ -74,6 +90,7 @@ export default function Nav({
   const closeMobileMenu = () => {
     setIsOpen(false);
     setIsMobileAboutOpen(false);
+    setIsMobileUpdatesOpen(false);
   };
 
   useEffect(() => {
@@ -168,11 +185,14 @@ export default function Nav({
               const isActive =
                 item.type === "about"
                   ? isAboutActive
+                  : item.type === "updates"
+                    ? isUpdatesActive
                   : item.matchPrefix === "/"
                     ? pathname === "/"
                     : pathname?.startsWith(item.matchPrefix ?? item.href);
 
-              if (item.type === "about") {
+              if (item.type === "about" || item.type === "updates") {
+                const dropdownItems = item.type === "about" ? aboutItems : updateItems;
                 return (
                   <div key={item.key} className="group relative">
                     <button
@@ -197,19 +217,27 @@ export default function Nav({
                       <ChevronDown className="h-4 w-4" aria-hidden="true" />
                     </button>
                     <div className="pointer-events-none absolute left-1/2 top-full z-50 min-w-[240px] -translate-x-1/2 pt-3 opacity-0 transition duration-150 group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100">
-                      <div className="overflow-hidden rounded-xl bg-white shadow-[0_26px_42px_-28px_rgba(31,20,50,0.6)]">
-                        <div className="p-1.5">
-                        {aboutItems.map((aboutItem) => {
+                      <div className="relative overflow-hidden rounded-2xl border border-[#ddd3eb] bg-white shadow-[0_16px_34px_-20px_rgba(31,20,50,0.45)]">
+                        <Image
+                          src="/brand/ringdeco.png"
+                          alt=""
+                          width={128}
+                          height={128}
+                          aria-hidden="true"
+                          className="pointer-events-none absolute -top-[14px] -right-[30px] h-16 w-auto opacity-85"
+                        />
+                        <div className="py-1.5">
+                        {dropdownItems.map((aboutItem) => {
                           const isAboutItemActive = pathname?.startsWith(aboutItem.href);
                           return (
                             <Link
                               key={aboutItem.href}
                               href={aboutItem.href}
                               className={[
-                                "block rounded-lg px-3 py-2.5 text-sm font-semibold transition",
+                                dropdownMenuItemClass,
                                 isAboutItemActive
-                                  ? "bg-[#efe6ff] text-[#5b2ca7]"
-                                  : "text-[#143271] hover:bg-[#f7f2ff] hover:text-[#5b2ca7]",
+                                  ? "bg-[#f6f0ff] font-semibold text-[#5b2ca7] before:scale-x-100 after:opacity-100 hover:bg-[#f1e8ff]"
+                                  : "text-[#302545]",
                               ].join(" ")}
                             >
                               {aboutItem.label}
@@ -266,6 +294,7 @@ export default function Nav({
             aria-expanded={isOpen}
             onClick={() => {
               setIsMobileAboutOpen(false);
+              setIsMobileUpdatesOpen(false);
               setIsOpen((prev) => !prev);
             }}
             className="absolute right-4 inline-flex h-11 w-11 items-center justify-center rounded-xl border border-black/10 bg-white text-[#2f2442] shadow-sm transition hover:bg-[#f7f4fb] active:bg-[#f1edf8] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6c35c3]/40 lg:hidden"
@@ -352,21 +381,33 @@ export default function Nav({
                     </div>
 
                     <div className="flex flex-col gap-3">
-                      {resolvedNavItems.map((item) => {
+              {resolvedNavItems.map((item) => {
                         const isActive =
                           item.type === "about"
                             ? isAboutActive
+                            : item.type === "updates"
+                              ? isUpdatesActive
                             : item.matchPrefix === "/"
                               ? pathname === "/"
                               : pathname?.startsWith(item.matchPrefix);
                         const Icon = item.icon;
 
-                        if (item.type === "about") {
+                        if (item.type === "about" || item.type === "updates") {
+                          const isOpen =
+                            item.type === "about" ? isMobileAboutOpen : isMobileUpdatesOpen;
+                          const setOpen =
+                            item.type === "about" ? setIsMobileAboutOpen : setIsMobileUpdatesOpen;
+                          const dropdownItems =
+                            item.type === "about" ? aboutItems : updateItems;
+                          const submenuId =
+                            item.type === "about"
+                              ? "mobile-about-submenu"
+                              : "mobile-updates-submenu";
                           return (
                             <div key={item.key} className="overflow-hidden rounded-[13px] bg-white">
                               <button
                                 type="button"
-                                onClick={() => setIsMobileAboutOpen((prev) => !prev)}
+                                onClick={() => setOpen((prev) => !prev)}
                                 className={[
                                   "group relative flex min-h-12 w-full items-center justify-between gap-3 rounded-[13px] px-3.5 py-2.5 text-[15px] transition-colors duration-200",
                                   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6e2ac0] focus-visible:ring-offset-2",
@@ -374,8 +415,8 @@ export default function Nav({
                                     ? "bg-[rgba(110,42,192,0.08)] font-semibold text-[#6e2ac0]"
                                     : "font-medium text-black/80 hover:bg-black/[0.04] active:bg-black/[0.08]",
                                 ].join(" ")}
-                                aria-expanded={isMobileAboutOpen}
-                                aria-controls="mobile-about-submenu"
+                                aria-expanded={isOpen}
+                                aria-controls={submenuId}
                               >
                                 <span className="flex items-center gap-3">
                                   <span
@@ -397,18 +438,18 @@ export default function Nav({
                                 <ChevronDown
                                   className={[
                                     "h-4 w-4 transition-transform duration-200",
-                                    isMobileAboutOpen ? "rotate-180" : "rotate-0",
+                                    isOpen ? "rotate-180" : "rotate-0",
                                   ].join(" ")}
                                   aria-hidden="true"
                                 />
                               </button>
 
-                              {isMobileAboutOpen ? (
+                              {isOpen ? (
                                 <div
-                                  id="mobile-about-submenu"
+                                  id={submenuId}
                                   className="mb-1 mt-0.5 bg-[#fbf9ff] px-2 py-2"
                                 >
-                                  {aboutItems.map((aboutItem) => {
+                                  {dropdownItems.map((aboutItem) => {
                                     const isAboutItemActive = pathname?.startsWith(aboutItem.href);
                                     return (
                                       <Link

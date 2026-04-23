@@ -2,19 +2,25 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Controller, useForm } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { isValidPhoneNumber } from "libphonenumber-js";
-import InternationalPhoneField from "@/app/components/forms/InternationalPhoneField";
 
 const schema = z.object({
   accFirstName: z.string().min(1, { message: "First name is required." }),
   accLastName: z.string().min(1, { message: "Last name is required." }),
-  accTelNo: z.string().min(1, { message: "Phone number is required." }),
+  accTelNo: z
+    .string()
+    .min(1, { message: "Phone number is required." })
+    .refine((value) => /^[0-9]+$/.test(value), {
+      message: "Phone number can contain numbers only.",
+    }),
   accEmergencyTelNo: z
     .string()
-    .min(1, { message: "Emergency phone number is required." }),
+    .min(1, { message: "Emergency phone number is required." })
+    .refine((value) => /^[0-9]+$/.test(value), {
+      message: "Emergency phone number can contain numbers only.",
+    }),
   accAddressLine1: z
     .string()
     .trim()
@@ -43,19 +49,14 @@ export default function CompleteProfilePage() {
   const [saved, setSaved] = useState(false);
   const [firstNameInvalid, setFirstNameInvalid] = useState(false);
   const [lastNameInvalid, setLastNameInvalid] = useState(false);
-  const [telTouched, setTelTouched] = useState(false);
-  const [emergencyTouched, setEmergencyTouched] = useState(false);
   const [submitAttempted, setSubmitAttempted] = useState(false);
   const [submitError, setSubmitError] = useState(false);
   const {
     register,
     handleSubmit,
     formState: { errors, isValid, isSubmitting },
-    setError,
-    clearErrors,
     setValue,
     watch,
-    control,
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
     mode: "onChange",
@@ -96,16 +97,15 @@ export default function CompleteProfilePage() {
     };
   }, [router]);
 
-  const onValidSubmit = (values: FormValues) => {
+  const onValidSubmit = async (values: FormValues) => {
     setSubmitAttempted(true);
     setSubmitError(false);
-    validatePhone(values.accTelNo, "accTelNo");
-    validatePhone(values.accEmergencyTelNo, "accEmergencyTelNo");
+    setSaved(false);
     if (
       !values.accTelNo ||
       !values.accEmergencyTelNo ||
-      !isValidPhoneNumber(values.accTelNo) ||
-      !isValidPhoneNumber(values.accEmergencyTelNo)
+      !/^[0-9]+$/.test(values.accTelNo) ||
+      !/^[0-9]+$/.test(values.accEmergencyTelNo)
     ) {
       setSubmitError(true);
       return;
@@ -121,10 +121,32 @@ export default function CompleteProfilePage() {
       accLastName: values.accLastName,
       accTelNo: values.accTelNo,
       accEmergencyTelNo: values.accEmergencyTelNo,
-      accAddress: addressParts.join(", "),
+      accAddress: addressParts.join(" "),
     };
-    console.log(payload);
-    setSaved(true);
+    try {
+      const response = await fetch("/api/account/update", {
+        method: "POST",
+        credentials: "include",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (response.status === 401) {
+        router.replace("/login");
+        return;
+      }
+
+      const json = await response.json();
+      if (!response.ok || !json?.ok || !json?.account) {
+        throw new Error(json?.error ?? "Unable to save profile.");
+      }
+
+      setSaved(true);
+      router.replace("/account");
+    } catch {
+      setSubmitError(true);
+      setSaved(false);
+    }
   };
 
   const onInvalidSubmit = () => {
@@ -137,21 +159,6 @@ export default function CompleteProfilePage() {
 
   const phoneInputClass =
     "w-full rounded-xl border border-[#cfc6de] bg-white px-4 py-3.5 text-sm text-[#2E2A33] placeholder:text-[#2E2A33]/55 transition duration-200 focus:border-[#6c35c3]/60 focus:outline-none focus:ring-2 focus:ring-[#6c35c3]/25";
-
-  const validatePhone = (
-    value: string,
-    field: "accTelNo" | "accEmergencyTelNo"
-  ) => {
-    if (!value) return;
-    if (!isValidPhoneNumber(value)) {
-      setError(field, {
-        type: "manual",
-        message: "Enter a valid phone number including country code.",
-      });
-      return;
-    }
-    clearErrors(field);
-  };
 
   const inputClass = (isInvalid: boolean) =>
     [
@@ -278,82 +285,60 @@ export default function CompleteProfilePage() {
                 </div>
 
                 <div className="md:col-span-1">
-                  <Controller
-                    control={control}
-                    name="accTelNo"
-                    render={({ field }) => (
-                      <InternationalPhoneField
-                        label="Phone number"
-                        name="accTelNo"
-                        value={field.value ?? ""}
-                        onChange={(nextValue) => {
-                          field.onChange(nextValue);
-                          if (submitAttempted || telTouched) {
-                            validatePhone(nextValue, "accTelNo");
-                          }
-                        }}
-                        onBlur={() => {
-                          setTelTouched(true);
-                          if (!field.value) {
-                            setError("accTelNo", {
-                              type: "manual",
-                              message:
-                                "Enter a valid phone number including country code.",
-                            });
-                            return;
-                          }
-                          validatePhone(field.value ?? "", "accTelNo");
-                        }}
-                        error={
-                          telHasError || (submitAttempted && !field.value)
-                            ? errors.accTelNo?.message ??
-                              "Enter a valid phone number including country code."
-                            : undefined
-                        }
-                      />
+                  <label>Phone number</label>
+                  <input
+                    className={inputClass(
+                      (submitAttempted && !accTelNo) || !!errors.accTelNo
                     )}
+                    {...register("accTelNo", {
+                      onChange: (event) => {
+                        const raw = event.target.value as string;
+                        const cleaned = raw.replace(/\D/g, "");
+                        setValue("accTelNo", cleaned, {
+                          shouldValidate: true,
+                          shouldDirty: true,
+                          shouldTouch: true,
+                        });
+                      },
+                    })}
+                    placeholder="Phone number"
+                    autoComplete="tel"
+                    inputMode="numeric"
                   />
+                  {telHasError ? (
+                    <p className="mt-1 text-xs leading-4 text-rose-600">
+                      {errors.accTelNo?.message}
+                    </p>
+                  ) : null}
                 </div>
 
                 <div className="md:col-span-1">
-                  <Controller
-                    control={control}
-                    name="accEmergencyTelNo"
-                    render={({ field }) => (
-                      <InternationalPhoneField
-                        label="Emergency phone number"
-                        name="accEmergencyTelNo"
-                        value={field.value ?? ""}
-                        onChange={(nextValue) => {
-                          field.onChange(nextValue);
-                          if (submitAttempted || emergencyTouched) {
-                            validatePhone(nextValue, "accEmergencyTelNo");
-                          }
-                        }}
-                        onBlur={() => {
-                          setEmergencyTouched(true);
-                          if (!field.value) {
-                            setError("accEmergencyTelNo", {
-                              type: "manual",
-                              message:
-                                "Enter a valid phone number including country code.",
-                            });
-                            return;
-                          }
-                          validatePhone(
-                            field.value ?? "",
-                            "accEmergencyTelNo"
-                          );
-                        }}
-                        error={
-                          emergencyHasError || (submitAttempted && !field.value)
-                            ? errors.accEmergencyTelNo?.message ??
-                              "Enter a valid phone number including country code."
-                            : undefined
-                        }
-                      />
+                  <label>Emergency phone number</label>
+                  <input
+                    className={inputClass(
+                      (submitAttempted && !accEmergencyTelNo) ||
+                        !!errors.accEmergencyTelNo
                     )}
+                    {...register("accEmergencyTelNo", {
+                      onChange: (event) => {
+                        const raw = event.target.value as string;
+                        const cleaned = raw.replace(/\D/g, "");
+                        setValue("accEmergencyTelNo", cleaned, {
+                          shouldValidate: true,
+                          shouldDirty: true,
+                          shouldTouch: true,
+                        });
+                      },
+                    })}
+                    placeholder="Emergency phone number"
+                    autoComplete="tel"
+                    inputMode="numeric"
                   />
+                  {emergencyHasError ? (
+                    <p className="mt-1 text-xs leading-4 text-rose-600">
+                      {errors.accEmergencyTelNo?.message}
+                    </p>
+                  ) : null}
                 </div>
 
                 <div className="md:col-span-2 mt-2">
