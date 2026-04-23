@@ -194,22 +194,23 @@ export default function Nav({
 
               if (item.type === "about" || item.type === "updates") {
                 const dropdownItems = item.type === "about" ? aboutItems : updateItems;
-                const isDesktopDropdownOpen = desktopOpenDropdown === item.key;
+                const dropdownKey = item.type === "about" ? "about" : "updates";
+                const isDesktopDropdownOpen = desktopOpenDropdown === dropdownKey;
                 return (
                   <div
-                    key={item.key}
+                    key={dropdownKey}
                     className="relative"
-                    onMouseEnter={() => setDesktopOpenDropdown(item.key)}
-                    onMouseLeave={() => setDesktopOpenDropdown((current) => (current === item.key ? null : current))}
+                    onMouseEnter={() => setDesktopOpenDropdown(dropdownKey)}
+                    onMouseLeave={() => setDesktopOpenDropdown((current) => (current === dropdownKey ? null : current))}
                     onBlur={(event) => {
                       if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
-                        setDesktopOpenDropdown((current) => (current === item.key ? null : current));
+                        setDesktopOpenDropdown((current) => (current === dropdownKey ? null : current));
                       }
                     }}
                   >
                     <button
                       type="button"
-                      onFocus={() => setDesktopOpenDropdown(item.key)}
+                      onFocus={() => setDesktopOpenDropdown(dropdownKey)}
                       className={[
                         "relative inline-flex cursor-pointer items-center gap-1 whitespace-nowrap px-1 py-1 uppercase tracking-[0.06em]",
                         isRecreationalBooking
