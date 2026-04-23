@@ -81,6 +81,7 @@ export default function Nav({
   const [isOpen, setIsOpen] = useState(false);
   const [isMobileAboutOpen, setIsMobileAboutOpen] = useState(false);
   const [isMobileUpdatesOpen, setIsMobileUpdatesOpen] = useState(false);
+  const [desktopOpenDropdown, setDesktopOpenDropdown] = useState<"about" | "updates" | null>(null);
   const navRef = useRef<HTMLElement | null>(null);
   const drawerRef = useRef<HTMLElement | null>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
@@ -193,10 +194,22 @@ export default function Nav({
 
               if (item.type === "about" || item.type === "updates") {
                 const dropdownItems = item.type === "about" ? aboutItems : updateItems;
+                const isDesktopDropdownOpen = desktopOpenDropdown === item.key;
                 return (
-                  <div key={item.key} className="group relative">
+                  <div
+                    key={item.key}
+                    className="relative"
+                    onMouseEnter={() => setDesktopOpenDropdown(item.key)}
+                    onMouseLeave={() => setDesktopOpenDropdown((current) => (current === item.key ? null : current))}
+                    onBlur={(event) => {
+                      if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+                        setDesktopOpenDropdown((current) => (current === item.key ? null : current));
+                      }
+                    }}
+                  >
                     <button
                       type="button"
+                      onFocus={() => setDesktopOpenDropdown(item.key)}
                       className={[
                         "relative inline-flex cursor-pointer items-center gap-1 whitespace-nowrap px-1 py-1 uppercase tracking-[0.06em]",
                         isRecreationalBooking
@@ -211,12 +224,19 @@ export default function Nav({
                           : "text-[#143271]",
                       ].join(" ")}
                       aria-haspopup="menu"
-                      aria-expanded={isActive}
+                      aria-expanded={isDesktopDropdownOpen}
                     >
                       {item.label}
                       <ChevronDown className="h-4 w-4" aria-hidden="true" />
                     </button>
-                    <div className="pointer-events-none absolute left-1/2 top-full z-50 min-w-[240px] -translate-x-1/2 pt-3 opacity-0 transition duration-150 group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100">
+                    <div
+                      className={[
+                        "absolute left-1/2 top-full z-50 min-w-[240px] -translate-x-1/2 pt-3 transition duration-150",
+                        isDesktopDropdownOpen
+                          ? "pointer-events-auto opacity-100"
+                          : "pointer-events-none opacity-0",
+                      ].join(" ")}
+                    >
                       <div className="relative overflow-hidden rounded-2xl border border-[#ddd3eb] bg-white shadow-[0_16px_34px_-20px_rgba(31,20,50,0.45)]">
                         <Image
                           src="/brand/ringdeco.png"
@@ -233,6 +253,7 @@ export default function Nav({
                             <Link
                               key={aboutItem.href}
                               href={aboutItem.href}
+                              onClick={() => setDesktopOpenDropdown(null)}
                               className={[
                                 dropdownMenuItemClass,
                                 isAboutItemActive
