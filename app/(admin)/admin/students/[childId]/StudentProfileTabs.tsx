@@ -443,7 +443,7 @@ export default function StudentProfileTabs({
                         <Dialog.Close asChild>
                           <button
                             type="button"
-                            className="inline-flex h-9 w-9 shrink-0 items-center justify-center border border-[#ddd4ea] text-[#6f6384] hover:bg-[#faf7ff] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6e2ac0]/35"
+                            className="inline-flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center border border-[#ddd4ea] text-[#6f6384] transition hover:bg-[#faf7ff] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6e2ac0]/35"
                             aria-label="Close assign badge dialog"
                           >
                             <svg
@@ -527,10 +527,10 @@ export default function StudentProfileTabs({
                                           type="button"
                                           onClick={() => setSelectedBadgeId(badge.id)}
                                           className={[
-                                            "w-full border px-3 py-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6e2ac0]/35",
+                                            "w-full cursor-pointer border px-3 py-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6e2ac0]/35",
                                             isSelected
-                                              ? "border-[#6e2ac0] bg-[#f7f2ff]"
-                                              : "border-[#ece4f5] bg-white hover:bg-[#fcfafe]",
+                                              ? "border-[#6e2ac0] bg-[#f7f2ff] shadow-[inset_0_0_0_1px_rgba(110,42,192,0.16)]"
+                                              : "border-[#ece4f5] bg-white hover:border-[#8e61d0] hover:bg-[#f5eeff] hover:shadow-[inset_0_0_0_1px_rgba(110,42,192,0.18),0_8px_20px_rgba(110,42,192,0.08)]",
                                           ].join(" ")}
                                           role="radio"
                                           aria-checked={isSelected}
@@ -563,7 +563,7 @@ export default function StudentProfileTabs({
                         <Dialog.Close asChild>
                           <button
                             type="button"
-                            className="h-10 border border-[#ddd4ea] bg-white px-4 text-sm font-semibold text-[#6f6384] hover:bg-[#faf7ff]"
+                            className="h-10 border border-[#ddd4ea] bg-white px-4 text-sm font-semibold text-[#6f6384] transition hover:bg-[#faf7ff] cursor-pointer"
                           >
                             Cancel
                           </button>

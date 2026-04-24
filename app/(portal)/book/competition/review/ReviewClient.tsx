@@ -2,17 +2,20 @@
 
 import { useMemo, useState } from "react";
 import { AlertCircle, ArrowLeft, Trash2 } from "lucide-react";
+import { type CompetitionBookingSelection } from "@/lib/competitionBookingSelection";
 import { formatTime, getAvailabilityState } from "../../recreational/utils";
 import { getReviewValidation } from "./validation";
 import TermsAcceptance from "../../components/TermsAcceptance";
 
 export type ReviewClassItem = {
   id: string;
+  classId: string;
   name: string;
   weekday: string;
   startTime: string;
   endTime: string;
   durationMinutes: number | null;
+  bookedDurationMinutes: number | null;
   spotsLeft: number | null;
   isCompetitionClass: boolean;
   isUnavailable: boolean;
@@ -27,6 +30,7 @@ export type CompetitionPricingOption = {
 type ReviewClientProps = {
   childId: string;
   childName: string;
+  draftId: string | null;
   initialItems: ReviewClassItem[];
   pricingOptions: CompetitionPricingOption[];
   initialBackHref: string;
@@ -50,6 +54,7 @@ function badgeStyles(spotsLeft: number | null, unavailable: boolean): string {
 export default function ReviewClient({
   childId,
   childName,
+  draftId,
   initialItems,
   pricingOptions,
   initialBackHref,
@@ -76,15 +81,25 @@ export default function ReviewClient({
   );
 
   const selectedCount = items.length;
-  const selectedClassIds = items.map((item) => item.id);
+  const selectedSelections = useMemo<CompetitionBookingSelection[]>(
+    () =>
+      items.map((item) => ({
+        classId: item.classId,
+        bookedDurationMinutes:
+          item.bookedDurationMinutes ?? item.durationMinutes ?? 0,
+      })),
+    [items]
+  );
   const pricingBreakdown = useMemo(() => {
     const totalMinutes = items.reduce((sum, item) => {
-      if (typeof item.durationMinutes !== "number" || item.durationMinutes <= 0) return sum;
-      return sum + item.durationMinutes;
+      const bookedDuration = item.bookedDurationMinutes ?? item.durationMinutes;
+      if (typeof bookedDuration !== "number" || bookedDuration <= 0) return sum;
+      return sum + bookedDuration;
     }, 0);
-    const missingDurationCount = items.filter(
-      (item) => typeof item.durationMinutes !== "number" || item.durationMinutes <= 0
-    ).length;
+    const missingDurationCount = items.filter((item) => {
+      const bookedDuration = item.bookedDurationMinutes ?? item.durationMinutes;
+      return typeof bookedDuration !== "number" || bookedDuration <= 0;
+    }).length;
     const totalHours = Number((totalMinutes / 60).toFixed(2));
     const matchedPrice = pricingOptions.find(
       (option) => Math.abs(option.hoursPerWeek - totalHours) < 0.001
@@ -97,16 +112,36 @@ export default function ReviewClient({
     };
   }, [items, pricingOptions]);
   const backHref = useMemo(() => {
-    if (!childId) return initialBackHref;
-    const classIdsPart =
-      selectedClassIds.length > 0
-        ? `&classIds=${encodeURIComponent(selectedClassIds.join(","))}`
-        : "";
-    return `/book/competition?childId=${encodeURIComponent(childId)}${classIdsPart}`;
-  }, [childId, initialBackHref, selectedClassIds]);
+    if (!childId || !draftId) return initialBackHref;
+    return `/book/competition?childId=${encodeURIComponent(childId)}&draftId=${encodeURIComponent(
+      draftId
+    )}`;
+  }, [childId, draftId, initialBackHref]);
 
-  const handleRemove = (classId: string) => {
-    setItems((prev) => prev.filter((item) => item.id !== classId));
+  const handleRemove = async (selectionKey: string) => {
+    const nextItems = items.filter((item) => item.id !== selectionKey);
+    setItems(nextItems);
+
+    if (!draftId) return;
+
+    try {
+      await fetch("/api/booking-drafts/competition", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          draftId,
+          selections: nextItems.map((item) => ({
+            classId: item.classId,
+            bookedDurationMinutes:
+              item.bookedDurationMinutes ?? item.durationMinutes ?? 0,
+          })),
+        }),
+      });
+    } catch {
+      // Keep UI responsive; review validation will still guard checkout.
+    }
   };
 
   const handleContinue = async () => {
@@ -119,7 +154,7 @@ export default function ReviewClient({
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ classIds: selectedClassIds }),
+        body: JSON.stringify({ draftId, selections: selectedSelections }),
       });
 
       const data = await response.json().catch(() => null);
@@ -260,8 +295,9 @@ export default function ReviewClient({
                             : "Time to be confirmed"}
                         </p>
                         <p className="text-sm text-[#2E2A33]/75">
-                          {typeof item.durationMinutes === "number" && item.durationMinutes > 0
-                            ? `Duration: ${item.durationMinutes} min`
+                          {typeof (item.bookedDurationMinutes ?? item.durationMinutes) === "number" &&
+                          (item.bookedDurationMinutes ?? item.durationMinutes)! > 0
+                            ? `Duration: ${item.bookedDurationMinutes ?? item.durationMinutes} min`
                             : "Duration: TBC"}
                         </p>
                         <span

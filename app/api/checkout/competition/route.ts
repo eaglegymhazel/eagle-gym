@@ -1,6 +1,11 @@
 import Stripe from "stripe";
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/admin";
+import { getBookingContext } from "@/lib/server/bookingContext";
+import { getCompetitionBookingDraftById } from "@/lib/server/competitionBookingDrafts";
+import {
+  type CompetitionBookingSelection,
+} from "@/lib/competitionBookingSelection";
 
 export const runtime = "nodejs";
 
@@ -16,19 +21,52 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
-    const classIds = body?.classIds;
+    const draftId =
+      typeof body?.draftId === "string" ? body.draftId.trim() : "";
+    const rawSelections = Array.isArray(body?.selections)
+      ? (body.selections as CompetitionBookingSelection[])
+      : [];
 
-    if (!Array.isArray(classIds) || classIds.length < 1) {
-      return NextResponse.json({ error: "Invalid classIds" }, { status: 400 });
+    const bookingContext = await getBookingContext();
+    if (bookingContext.status === "unauthorized") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    if (bookingContext.status !== "existing") {
+      return NextResponse.json({ error: "Account details not found" }, { status: 400 });
     }
 
-    const normalizedClassIds = classIds
-      .map((id) => (typeof id === "string" ? id.trim() : ""))
+    let selections: CompetitionBookingSelection[] = rawSelections;
+    let draftRecord:
+      | Awaited<ReturnType<typeof getCompetitionBookingDraftById>>
+      | null = null;
+
+    if (draftId) {
+      draftRecord = await getCompetitionBookingDraftById({
+        draftId,
+        accountId: bookingContext.accountId,
+      });
+
+      if (!draftRecord) {
+        return NextResponse.json({ error: "Draft not found" }, { status: 404 });
+      }
+
+      selections = draftRecord.selections;
+    }
+
+    if (!Array.isArray(selections) || selections.length < 1) {
+      return NextResponse.json({ error: "Invalid selections" }, { status: 400 });
+    }
+
+    if (
+      draftRecord &&
+      !bookingContext.children.some((child) => child.id === draftRecord?.childId)
+    ) {
+      return NextResponse.json({ error: "Child not found" }, { status: 404 });
+    }
+
+    const normalizedClassIds = selections
+      .map((selection) => (typeof selection.classId === "string" ? selection.classId.trim() : ""))
       .filter((id) => id.length > 0);
-
-    if (normalizedClassIds.length !== classIds.length) {
-      return NextResponse.json({ error: "Invalid classIds" }, { status: 400 });
-    }
 
     const uniqueClassIds = [...new Set(normalizedClassIds)];
     const { data: classes, error: classError } = await supabaseAdmin
@@ -54,10 +92,44 @@ export async function POST(req: Request) {
       );
     }
 
-    const totalMinutes = (classes ?? []).reduce((sum, row) => {
-      if (typeof row.durationMinutes !== "number" || row.durationMinutes <= 0) return sum;
-      return sum + row.durationMinutes;
+    const classById = new Map((classes ?? []).map((row) => [row.id, row]));
+    let invalidSelectionCount = 0;
+    const totalMinutes = selections.reduce((sum, selection) => {
+      const row = classById.get(selection.classId);
+      if (!row) {
+        invalidSelectionCount += 1;
+        return sum;
+      }
+      const classDuration =
+        typeof row.durationMinutes === "number" && row.durationMinutes > 0
+          ? row.durationMinutes
+          : null;
+      const bookedDuration =
+        typeof selection.bookedDurationMinutes === "number" &&
+        selection.bookedDurationMinutes > 0
+          ? selection.bookedDurationMinutes
+          : null;
+
+      if (classDuration == null || bookedDuration == null) {
+        invalidSelectionCount += 1;
+        return sum;
+      }
+      const allowedDurations =
+        classDuration === 180 ? [120, 180] : [classDuration];
+      if (!allowedDurations.includes(bookedDuration)) {
+        invalidSelectionCount += 1;
+        return sum;
+      }
+      return sum + bookedDuration;
     }, 0);
+
+    if (invalidSelectionCount > 0 || totalMinutes <= 0) {
+      return NextResponse.json(
+        { error: "One or more competition selections are invalid" },
+        { status: 400 }
+      );
+    }
+
     const totalHours = Number((totalMinutes / 60).toFixed(2));
 
     const priceId = process.env.COMP_PRICE_ID?.trim() || null;
@@ -77,8 +149,9 @@ export async function POST(req: Request) {
       cancel_url: `${process.env.APP_URL}/booking/cancel`,
       metadata: {
         bookingType: "competition",
-        classCount: String(normalizedClassIds.length),
+        classCount: String(selections.length),
         totalHours: String(totalHours),
+        draftId: draftId || "",
       },
     });
 

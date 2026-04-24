@@ -4,6 +4,10 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
+import {
+  buildCompetitionSelectionKey,
+  type CompetitionBookingSelection,
+} from "@/lib/competitionBookingSelection";
 import DaySection from "../recreational/components/DaySection";
 import SelectionTray from "../recreational/components/SelectionTray";
 import type { ClassCardItem, SelectedClassDetail, WeekdayGroup } from "../recreational/types";
@@ -14,7 +18,7 @@ type CompetitionClassesClientProps = {
   childName: string;
   ageGroupLabel: string;
   groups: WeekdayGroup[];
-  initialSelectedClassIds?: string[];
+  initialSelections?: CompetitionBookingSelection[];
 };
 
 export default function CompetitionClassesClient({
@@ -22,7 +26,7 @@ export default function CompetitionClassesClient({
   childName,
   ageGroupLabel,
   groups,
-  initialSelectedClassIds = [],
+  initialSelections = [],
 }: CompetitionClassesClientProps) {
   const router = useRouter();
 
@@ -42,17 +46,17 @@ export default function CompetitionClassesClient({
     allClasses.forEach((item) => map.set(item.id, item));
     return map;
   }, [allClasses]);
+  const optionBySelectionKey = useMemo(() => {
+    const map = new Map<string, ClassCardItem & { weekday: string }>();
+    allClasses.forEach((item) => map.set(item.selectionKey ?? item.id, item));
+    return map;
+  }, [allClasses]);
 
-  const [selectedClassIds, setSelectedClassIds] = useState<string[]>(() =>
-    Array.from(
-      new Set(
-        initialSelectedClassIds
-          .map((id) => id.trim())
-          .filter((id) => id && classById.has(id))
-      )
-    )
+  const [selectedOptions, setSelectedOptions] = useState<CompetitionBookingSelection[]>(() =>
+    initialSelections.filter((selection) => classById.has(selection.classId))
   );
-  const [trayExpanded, setTrayExpanded] = useState(initialSelectedClassIds.length > 0);
+  const [isSavingDraft, setIsSavingDraft] = useState(false);
+  const [trayExpanded, setTrayExpanded] = useState(initialSelections.length > 0);
   const [waitlistStateByClassId, setWaitlistStateByClassId] = useState<
     Record<string, "idle" | "saving" | "added">
   >({});
@@ -100,23 +104,31 @@ export default function CompetitionClassesClient({
     };
   }, [childId]);
 
-  const selectedSet = useMemo(() => new Set(selectedClassIds), [selectedClassIds]);
-  const selectedCount = selectedClassIds.length;
+  const selectedOptionKeys = useMemo(
+    () => new Set(selectedOptions.map((option) => buildCompetitionSelectionKey(option))),
+    [selectedOptions]
+  );
+  const selectedCount = selectedOptions.length;
 
   const selectedItems = useMemo(() => {
     const weekdayOrderIndex = new Map<string, number>(
       WEEKDAY_ORDER.map((day, idx) => [day, idx])
     );
-    const items: SelectedClassDetail[] = selectedClassIds.reduce<SelectedClassDetail[]>(
-      (acc, id) => {
-        const item = classById.get(id);
+    const items: SelectedClassDetail[] = selectedOptions.reduce<SelectedClassDetail[]>(
+      (acc, selection) => {
+        const selectionKey = buildCompetitionSelectionKey(selection);
+        const item = optionBySelectionKey.get(selectionKey);
         if (!item) return acc;
         acc.push({
-          id: item.id,
+          id: selectionKey,
+          classId: item.classId ?? item.id,
+          selectionKey,
           name: item.name,
           weekday: item.weekday,
           startTime: item.startTime,
+          endTime: item.endTime,
           durationMinutes: item.durationMinutes,
+          bookedDurationMinutes: selection.bookedDurationMinutes,
           isFull: item.isFull,
         });
         return acc;
@@ -130,45 +142,99 @@ export default function CompetitionClassesClient({
       if (dayDiff !== 0) return dayDiff;
       return parseTimeToMinutes(a.startTime) - parseTimeToMinutes(b.startTime);
     });
-  }, [classById, selectedClassIds]);
+  }, [optionBySelectionKey, selectedOptions]);
+  const selectedHoursLabel = useMemo(() => {
+    const totalMinutes = selectedOptions.reduce((sum, selection) => {
+      if (
+        typeof selection.bookedDurationMinutes !== "number" ||
+        selection.bookedDurationMinutes <= 0
+      ) {
+        return sum;
+      }
+      return sum + selection.bookedDurationMinutes;
+    }, 0);
+    if (totalMinutes <= 0) return null;
+    const totalHours = Number((totalMinutes / 60).toFixed(2));
+    return `Total selected hours: ${totalHours}h`;
+  }, [selectedOptions]);
 
   const toggleClass = (item: ClassCardItem) => {
-    const isSelected = selectedSet.has(item.id);
+    const classId = item.classId ?? item.id;
+    const bookedDurationMinutes =
+      item.bookedDurationMinutes ?? item.durationMinutes ?? 0;
+    const selectionKey = buildCompetitionSelectionKey({
+      classId,
+      bookedDurationMinutes,
+    });
+    const isSelected = selectedOptionKeys.has(selectionKey);
     if (item.isFull && !isSelected) return;
 
-    setSelectedClassIds((prev) => {
-      if (prev.includes(item.id)) {
+    setSelectedOptions((prev) => {
+      if (isSelected) {
         if (prev.length === 1) {
           setTrayExpanded(false);
         }
-        return prev.filter((id) => id !== item.id);
+        return prev.filter(
+          (selection) =>
+            buildCompetitionSelectionKey(selection) !== selectionKey
+        );
       }
-      return [...prev, item.id];
+
+      const next = prev.filter((selection) => selection.classId !== classId);
+      next.push({ classId, bookedDurationMinutes });
+      return next;
     });
   };
 
-  const removeClass = (classId: string) => {
-    setSelectedClassIds((prev) => {
-      if (prev.length === 1 && prev[0] === classId) {
+  const removeClass = (selectionKey: string) => {
+    setSelectedOptions((prev) => {
+      if (
+        prev.length === 1 &&
+        buildCompetitionSelectionKey(prev[0]!) === selectionKey
+      ) {
         setTrayExpanded(false);
       }
-      return prev.filter((id) => id !== classId);
+      return prev.filter(
+        (selection) => buildCompetitionSelectionKey(selection) !== selectionKey
+      );
     });
   };
 
   const clearSelection = () => {
     setTrayExpanded(false);
-    setSelectedClassIds([]);
+    setSelectedOptions([]);
   };
 
-  const handleContinue = () => {
-    if (selectedClassIds.length === 0) return;
-    const classIds = selectedClassIds.join(",");
-    router.push(
-      `/book/competition/review?childId=${encodeURIComponent(
-        childId
-      )}&classIds=${encodeURIComponent(classIds)}`
-    );
+  const handleContinue = async () => {
+    if (selectedOptions.length === 0 || isSavingDraft) return;
+
+    setIsSavingDraft(true);
+    try {
+      const response = await fetch("/api/booking-drafts/competition", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          childId,
+          selections: selectedOptions,
+        }),
+      });
+      const payload = (await response.json()) as {
+        draftId?: string;
+        error?: string;
+      };
+
+      if (!response.ok || !payload.draftId) {
+        throw new Error(payload.error ?? "Could not save selection.");
+      }
+
+      router.push(
+        `/book/competition/review?childId=${encodeURIComponent(
+          childId
+        )}&draftId=${encodeURIComponent(payload.draftId)}`
+      );
+    } finally {
+      setIsSavingDraft(false);
+    }
   };
 
   const addToWaitlist = async (classId: string) => {
@@ -272,7 +338,7 @@ export default function CompetitionClassesClient({
               key={group.weekday}
               weekday={group.weekday}
               classes={group.classes}
-              selectedIds={selectedSet}
+              selectedIds={selectedOptionKeys}
               onToggleClass={toggleClass}
               waitlistStateByClassId={waitlistStateByClassId}
               onAddToWaitlist={addToWaitlist}
@@ -285,6 +351,7 @@ export default function CompetitionClassesClient({
         selectedCount={selectedCount}
         selectedItems={selectedItems}
         expanded={trayExpanded}
+        summaryLabel={selectedHoursLabel}
         onToggleExpanded={() => {
           if (selectedCount === 0) return;
           setTrayExpanded((prev) => !prev);

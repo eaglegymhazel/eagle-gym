@@ -1,11 +1,13 @@
 import { getBookingContext } from "@/lib/server/bookingContext";
 import { getCompetitionClasses, getCompetitionPricing } from "@/lib/server/classes";
 import { getActiveBookingCountsForClassIds } from "@/lib/server/availability";
+import { buildCompetitionSelectionKey } from "@/lib/competitionBookingSelection";
+import { getCompetitionBookingDraftById } from "@/lib/server/competitionBookingDrafts";
 import ReviewClient, { type ReviewClassItem } from "./ReviewClient";
 
 type SearchParams = {
   childId?: string;
-  classIds?: string;
+  draftId?: string;
 };
 
 const WEEKDAY_ORDER = [
@@ -17,21 +19,6 @@ const WEEKDAY_ORDER = [
   "Saturday",
   "Sunday",
 ] as const;
-
-function parseSelection(rawClassIds: string | undefined) {
-  const all = (rawClassIds ?? "")
-    .split(",")
-    .map((id) => id.trim())
-    .filter(Boolean);
-  const uniqueIds: string[] = [];
-  const seen = new Set<string>();
-  all.forEach((id) => {
-    if (seen.has(id)) return;
-    seen.add(id);
-    uniqueIds.push(id);
-  });
-  return { uniqueIds, hasDuplicates: uniqueIds.length !== all.length };
-}
 
 function computeAge(dateOfBirth: string | null): number | null {
   if (!dateOfBirth) return null;
@@ -99,11 +86,10 @@ function normalizeWeekday(input: string | number | null): string | null {
   return lookup[normalized] ?? null;
 }
 
-function buildBackHref(childId: string | undefined, classIds: string[]) {
+function buildBackHref(childId: string | undefined, draftId: string | null) {
   if (!childId) return "/book/competition";
-  const ids = classIds.join(",");
   return `/book/competition?childId=${encodeURIComponent(childId)}${
-    ids ? `&classIds=${encodeURIComponent(ids)}` : ""
+    draftId ? `&draftId=${encodeURIComponent(draftId)}` : ""
   }`;
 }
 
@@ -151,7 +137,7 @@ export default async function CompetitionReviewPage({
 }) {
   const resolvedSearchParams = await searchParams;
   const childId = resolvedSearchParams?.childId;
-  const parsedSelection = parseSelection(resolvedSearchParams?.classIds);
+  const draftId = resolvedSearchParams?.draftId?.trim() || null;
 
   if (!childId) {
     return (
@@ -169,7 +155,7 @@ export default async function CompetitionReviewPage({
       <ErrorState
         title="Unable to load booking details"
         message="There was a problem loading your account details. Please try again."
-        backHref={buildBackHref(childId, parsedSelection.uniqueIds)}
+        backHref={buildBackHref(childId, draftId)}
       />
     );
   }
@@ -203,37 +189,61 @@ export default async function CompetitionReviewPage({
         row.hoursPerWeek != null && row.monthlyPrice != null
     );
 
-  if (parsedSelection.uniqueIds.length === 0) {
+  if (!draftId) {
     return (
       <ReviewClient
         childId={childId}
         childName={childName || "Selected child"}
+        draftId={null}
         initialItems={[]}
         pricingOptions={competitionPricing}
-        initialBackHref={buildBackHref(childId, [])}
-        hasDuplicateSelections={parsedSelection.hasDuplicates}
+        initialBackHref={buildBackHref(childId, null)}
+        hasDuplicateSelections={false}
+      />
+    );
+  }
+
+  const draft = await getCompetitionBookingDraftById({
+    draftId,
+    accountId: bookingContext.accountId,
+    childId: child.id,
+  });
+
+  if (!draft || draft.selections.length === 0) {
+    return (
+      <ReviewClient
+        childId={childId}
+        childName={childName || "Selected child"}
+        draftId={draftId}
+        initialItems={[]}
+        pricingOptions={competitionPricing}
+        initialBackHref={buildBackHref(childId, draftId)}
+        hasDuplicateSelections={false}
       />
     );
   }
 
   const classById = new Map(classCatalog.map((row) => [row.id, row]));
-  const rows = parsedSelection.uniqueIds
-    .map((id) => classById.get(id))
+  const rows = draft.selections
+    .map((selection) => classById.get(selection.classId))
     .filter((row): row is NonNullable<typeof row> => !!row);
   const classIdsFromRows = rows.map((row) => row.id);
   const bookingCountsByClassId = await getActiveBookingCountsForClassIds(classIdsFromRows);
 
   const rowById = new Map(rows.map((row) => [row.id, row]));
-  const reviewItems: ReviewClassItem[] = parsedSelection.uniqueIds.map((id) => {
-    const row = rowById.get(id);
+  const reviewItems: ReviewClassItem[] = draft.selections.map((selection) => {
+    const row = rowById.get(selection.classId);
+    const selectionKey = buildCompetitionSelectionKey(selection);
     if (!row) {
       return {
-        id,
+        id: selectionKey,
+        classId: selection.classId,
         name: "No longer available",
         weekday: "Unknown day",
         startTime: "",
         endTime: "",
         durationMinutes: null,
+        bookedDurationMinutes: selection.bookedDurationMinutes,
         spotsLeft: 0,
         isCompetitionClass: true,
         isUnavailable: true,
@@ -252,12 +262,17 @@ export default async function CompetitionReviewPage({
         : false;
 
     return {
-      id: row.id,
+      id: selectionKey,
+      classId: row.id,
       name: row.name ?? "Unnamed class",
       weekday: normalizeWeekday(row.weekday) ?? "Unknown day",
       startTime: row.startTime ?? "",
-      endTime: row.endTime ?? "",
+      endTime:
+        selection.bookedDurationMinutes < (typeof row.durationMinutes === "number" ? row.durationMinutes : 0)
+          ? addMinutesToTime(row.startTime ?? "", selection.bookedDurationMinutes) ?? row.endTime ?? ""
+          : row.endTime ?? "",
       durationMinutes: typeof row.durationMinutes === "number" ? row.durationMinutes : null,
+      bookedDurationMinutes: selection.bookedDurationMinutes,
       spotsLeft,
       isCompetitionClass: !!row.isCompetitionClass,
       isUnavailable: spotsLeft != null && spotsLeft <= 0,
@@ -269,13 +284,32 @@ export default async function CompetitionReviewPage({
     <ReviewClient
       childId={childId}
       childName={childName || "Selected child"}
+      draftId={draftId}
       initialItems={reviewItems}
       pricingOptions={competitionPricing}
-      initialBackHref={buildBackHref(
-        childId,
-        reviewItems.map((item) => item.id)
-      )}
-      hasDuplicateSelections={parsedSelection.hasDuplicates}
+      initialBackHref={buildBackHref(childId, draftId)}
+      hasDuplicateSelections={false}
     />
   );
+}
+
+function addMinutesToTime(value: string, durationMinutes: number): string | null {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const [hoursPart, minutesPart] = trimmed.split(":");
+  const hour24 = Number.parseInt(hoursPart ?? "", 10);
+  const minute = Number.parseInt(minutesPart ?? "", 10);
+  if (
+    Number.isNaN(hour24) ||
+    Number.isNaN(minute) ||
+    !Number.isFinite(durationMinutes) ||
+    durationMinutes <= 0
+  ) {
+    return null;
+  }
+
+  const nextMinutes = (hour24 * 60 + minute + durationMinutes) % (24 * 60);
+  const nextHour24 = Math.floor(nextMinutes / 60);
+  const nextMinute = nextMinutes % 60;
+  return `${String(nextHour24).padStart(2, "0")}:${String(nextMinute).padStart(2, "0")}`;
 }

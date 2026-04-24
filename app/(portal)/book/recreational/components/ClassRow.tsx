@@ -20,12 +20,14 @@ export default function ClassRow({
 }: ClassRowProps) {
   const blocked = item.isFull;
   const isDisplayClass = item.name.toLowerCase().includes("display");
-  const checkboxId = `class-toggle-${item.id}`;
+  const selectionKey = item.selectionKey ?? item.id;
+  const classId = item.classId ?? item.id;
+  const checkboxId = `class-toggle-${selectionKey}`;
   const startTime = formatStartTime(item.startTime);
   const timeParts = splitTime(startTime);
   const endTime = buildEndTimeLabel(
     item.startTime,
-    item.durationMinutes,
+    item.bookedDurationMinutes ?? item.durationMinutes,
     item.endTime
   );
   const endTimeParts = splitTime(endTime ?? "");
@@ -46,7 +48,7 @@ export default function ClassRow({
     event.preventDefault();
     event.stopPropagation();
     if (waitlistState === "saving" || waitlistState === "added") return;
-    onAddToWaitlist(item.id);
+    onAddToWaitlist(classId);
   };
 
   const availabilityId = `availability-${item.id}`;

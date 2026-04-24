@@ -2,12 +2,15 @@ import { redirect } from "next/navigation";
 import { getBookingContext } from "@/lib/server/bookingContext";
 import { getActiveBookingCountsForClassIds } from "@/lib/server/availability";
 import { getCompetitionClasses, type RecreationalClassRow } from "@/lib/server/classes";
+import {
+  getCompetitionBookingDraftById,
+} from "@/lib/server/competitionBookingDrafts";
 import CompetitionClassesClient from "./CompetitionClassesClient";
 import type { WeekdayGroup } from "../recreational/types";
 
 type SearchParams = {
   childId?: string;
-  classIds?: string;
+  draftId?: string;
 };
 
 const WEEKDAY_ORDER = [
@@ -131,10 +134,7 @@ export default async function CompetitionBookingPage({
 }) {
   const resolvedSearchParams = await searchParams;
   const childId = resolvedSearchParams?.childId;
-  const initialSelectedClassIds = (resolvedSearchParams?.classIds ?? "")
-    .split(",")
-    .map((id) => id.trim())
-    .filter(Boolean);
+  const draftId = resolvedSearchParams?.draftId?.trim() || null;
 
   if (!childId) {
     redirect("/book");
@@ -154,6 +154,13 @@ export default async function CompetitionBookingPage({
   const childName = `${child.firstName ?? ""} ${child.lastName ?? ""}`.trim();
   const childAge = computeAge(child.dateOfBirth ?? null);
   const ageGroupLabel = getAgeGroupLabel(childAge);
+  const initialDraft = draftId
+    ? await getCompetitionBookingDraftById({
+        draftId,
+        accountId: bookingContext.accountId,
+        childId: child.id,
+      })
+    : null;
 
   const rows = await getCompetitionClasses();
   const eligible = rows.filter((item) => isEligibleForAge(item, childAge));
@@ -170,13 +177,10 @@ export default async function CompetitionBookingPage({
     if (!day) return;
     const bucket = groupedMap.get(day);
     if (!bucket) return;
-    bucket.push({
-      id: item.id,
+    const baseEntry = {
+      classId: item.id,
       name: item.name ?? "Unnamed class",
       startTime: item.startTime ?? "",
-      endTime: item.endTime ?? "",
-      durationMinutes:
-        typeof item.durationMinutes === "number" ? item.durationMinutes : null,
       minAge: toNullableNumber(item.minAge),
       maxAge: toNullableNumber(item.maxAge),
       capacity: typeof item.capacity === "number" ? item.capacity : null,
@@ -189,6 +193,39 @@ export default async function CompetitionBookingPage({
         typeof item.capacity === "number"
           ? item.capacity - (bookingCountsByClassId.get(item.id) ?? 0) <= 0
           : false,
+    };
+    const classDuration =
+      typeof item.durationMinutes === "number" ? item.durationMinutes : null;
+
+    if (classDuration === 180) {
+      bucket.push(
+        {
+          ...baseEntry,
+          id: `${item.id}:120`,
+          selectionKey: `${item.id}:120`,
+          endTime: addMinutesToTime(item.startTime ?? "", 120) ?? item.endTime ?? "",
+          durationMinutes: classDuration,
+          bookedDurationMinutes: 120,
+        },
+        {
+          ...baseEntry,
+          id: `${item.id}:180`,
+          selectionKey: `${item.id}:180`,
+          endTime: item.endTime ?? "",
+          durationMinutes: classDuration,
+          bookedDurationMinutes: 180,
+        }
+      );
+      return;
+    }
+
+    bucket.push({
+      ...baseEntry,
+      id: item.id,
+      selectionKey: `${item.id}:${classDuration ?? 0}`,
+      endTime: item.endTime ?? "",
+      durationMinutes: classDuration,
+      bookedDurationMinutes: classDuration,
     });
   });
 
@@ -220,9 +257,32 @@ export default async function CompetitionBookingPage({
           childName={childName || "selected child"}
           ageGroupLabel={ageGroupLabel}
           groups={groups}
-          initialSelectedClassIds={initialSelectedClassIds}
+          initialSelections={(initialDraft?.selections ?? []).filter((selection) =>
+            eligibleClassIds.includes(selection.classId)
+          )}
         />
       </div>
     </section>
   );
+}
+
+function addMinutesToTime(value: string, durationMinutes: number): string | null {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const [hoursPart, minutesPart] = trimmed.split(":");
+  const hour24 = Number.parseInt(hoursPart ?? "", 10);
+  const minute = Number.parseInt(minutesPart ?? "", 10);
+  if (
+    Number.isNaN(hour24) ||
+    Number.isNaN(minute) ||
+    !Number.isFinite(durationMinutes) ||
+    durationMinutes <= 0
+  ) {
+    return null;
+  }
+
+  const nextMinutes = (hour24 * 60 + minute + durationMinutes) % (24 * 60);
+  const nextHour24 = Math.floor(nextMinutes / 60);
+  const nextMinute = nextMinutes % 60;
+  return `${String(nextHour24).padStart(2, "0")}:${String(nextMinute).padStart(2, "0")}`;
 }

@@ -198,7 +198,16 @@ export default function ResetPasswordPage() {
           )}
 
           {error && <p className="mt-4 text-sm text-rose-600">{error}</p>}
-          {msg && <p className="mt-4 text-sm text-[#2E2A33]/75">{msg}</p>}
+          {msg ? (
+            <div className="mt-5 border border-[#d8ceeb] bg-[#f7f2ff] px-4 py-4 text-left">
+              <p className="text-base font-bold text-[#4f2390]">
+                Password reset link sent
+              </p>
+              <p className="mt-1 text-sm font-medium text-[#2E2A33]/82 sm:text-[15px]">
+                {msg}
+              </p>
+            </div>
+          ) : null}
         </div>
       </div>
     </section>

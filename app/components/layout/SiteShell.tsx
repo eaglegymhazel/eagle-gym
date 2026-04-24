@@ -41,7 +41,7 @@ export default function SiteShell({
             <div className="min-w-0 flex-1 lg:absolute lg:left-1/2 lg:top-1/2 lg:min-w-fit lg:flex-none lg:-translate-x-1/2 lg:-translate-y-1/2">
               <Nav
                 disableMobileMenu={disableMobileNavMenu}
-                mobileRightLink={mobileRightLink}
+                mobileRightLink={disableMobileNavMenu ? undefined : mobileRightLink}
               />
             </div>
             <div className="absolute right-16 top-1/2 -translate-y-1/2 lg:hidden">
@@ -51,6 +51,16 @@ export default function SiteShell({
               <LoginBadge />
             </div>
           </div>
+          {disableMobileNavMenu && mobileRightLink ? (
+            <div className="flex justify-end pb-2 lg:hidden">
+              <Link
+                href={mobileRightLink.href}
+                className="inline-flex h-9 items-center rounded-md border border-[#d9cdef] bg-white px-3 text-[11px] font-semibold uppercase tracking-[0.04em] text-[#4d2d79] transition hover:bg-[#f8f3ff] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6c35c3]/40"
+              >
+                {mobileRightLink.label}
+              </Link>
+            </div>
+          ) : null}
         </div>
         <div className="h-px w-full bg-[#6c35c3]/20" />
       </div>

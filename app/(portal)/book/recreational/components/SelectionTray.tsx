@@ -6,6 +6,7 @@ type SelectionTrayProps = {
   selectedCount: number;
   selectedItems: SelectedClassDetail[];
   expanded: boolean;
+  summaryLabel?: string | null;
   onToggleExpanded: () => void;
   onClear: () => void;
   onContinue: () => void;
@@ -16,6 +17,7 @@ export default function SelectionTray({
   selectedCount,
   selectedItems,
   expanded,
+  summaryLabel,
   onToggleExpanded,
   onClear,
   onContinue,
@@ -26,7 +28,13 @@ export default function SelectionTray({
   const canExpand = selectedCount > 0;
   const expandedOpen = expanded && canExpand;
   const collapsedSummary = previewItems
-    .map((item) => `${DAY_SHORT[item.weekday] ?? item.weekday} ${formatTime(item.startTime)}`)
+    .map((item) =>
+      `${DAY_SHORT[item.weekday] ?? item.weekday} ${
+        item.endTime
+          ? `${formatTime(item.startTime)}-${formatTime(item.endTime)}`
+          : formatTime(item.startTime)
+      }`
+    )
     .join(" | ");
   const collapsedMoreLabel =
     previewRemaining > 0 ? `+${previewRemaining} more` : null;
@@ -41,10 +49,17 @@ export default function SelectionTray({
                 Class selection{selectedCount > 0 ? ` (${selectedCount})` : ""}
               </p>
               {selectedCount > 0 ? (
-                <p className="mt-0.5 truncate text-xs font-medium text-[#5f5776]">
-                  {collapsedSummary}
-                  {collapsedMoreLabel ? ` | ${collapsedMoreLabel}` : ""}
-                </p>
+                <>
+                  <p className="mt-0.5 truncate text-xs font-medium text-[#5f5776]">
+                    {collapsedSummary}
+                    {collapsedMoreLabel ? ` | ${collapsedMoreLabel}` : ""}
+                  </p>
+                  {summaryLabel ? (
+                    <p className="mt-0.5 truncate text-[11px] font-semibold text-[#6e5894]">
+                      {summaryLabel}
+                    </p>
+                  ) : null}
+                </>
               ) : (
                 <p className="mt-0.5 truncate text-xs font-medium text-[#7b7391]">
                   No classes selected.
@@ -113,8 +128,8 @@ export default function SelectionTray({
                         {(DAY_SHORT[item.weekday] ?? item.weekday)} {formatTime(item.startTime)}
                       </p>
                       <p className="mt-0.5 truncate text-[11px] text-[#6e5894]">
-                        {typeof item.durationMinutes === "number"
-                          ? `${item.durationMinutes} min`
+                        {typeof (item.bookedDurationMinutes ?? item.durationMinutes) === "number"
+                          ? `${item.bookedDurationMinutes ?? item.durationMinutes} min`
                           : "Duration TBC"}
                         {item.isFull ? " | Fully booked" : ""}
                       </p>

@@ -39,12 +39,12 @@ export default function DaySection({
           />
           {classes.map((item) => (
             <ClassRow
-              key={item.id}
+              key={item.selectionKey ?? item.id}
               weekday={weekday}
               item={item}
-              selected={selectedIds.has(item.id)}
+              selected={selectedIds.has(item.selectionKey ?? item.id)}
               onToggle={onToggleClass}
-              waitlistState={waitlistStateByClassId[item.id] ?? "idle"}
+              waitlistState={waitlistStateByClassId[item.classId ?? item.id] ?? "idle"}
               onAddToWaitlist={onAddToWaitlist}
             />
           ))}

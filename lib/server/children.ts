@@ -1,7 +1,6 @@
 import 'server-only'
 
 import { createServerClient } from '@supabase/ssr'
-import { unstable_cache } from 'next/cache'
 
 export type ChildSummary = {
   id: string
@@ -13,8 +12,9 @@ export type ChildSummary = {
   competitionEligible: boolean | null
 }
 
-const getChildrenForAccountCached = unstable_cache(
-  async (accountId: string): Promise<ChildSummary[]> => {
+export async function getChildrenForAccount(
+  accountId: string
+): Promise<ChildSummary[]> {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
@@ -47,13 +47,4 @@ const getChildrenForAccountCached = unstable_cache(
     pickedUp: child.pickedUp ?? null,
     competitionEligible: child.competitionEligible ?? null,
   }))
-  },
-  ['children-for-account'],
-  { revalidate: 30, tags: ['children-for-account'] }
-)
-
-export async function getChildrenForAccount(
-  accountId: string
-): Promise<ChildSummary[]> {
-  return getChildrenForAccountCached(accountId)
 }

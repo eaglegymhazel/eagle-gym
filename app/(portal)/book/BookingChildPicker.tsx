@@ -75,7 +75,8 @@ export default function BookingChildPicker({
       </button>
 
       {open && hasOtherChildren && (
-        <div className="absolute left-0 top-full z-30 mt-2 w-full min-w-full overflow-hidden rounded-[18px] border border-[#e7def3] bg-white/95 py-1 text-left text-sm shadow-[0_16px_32px_rgba(24,12,40,0.24),_0_6px_12px_rgba(24,12,40,0.18)] backdrop-blur animate-[dropdown-enter_180ms_ease-out] md:rounded-[16px] md:py-2">
+        <div className="absolute left-0 top-full z-30 mt-2 w-full min-w-full overflow-hidden rounded-[16px] border border-[#e3d8f0] bg-white/98 text-left shadow-[0_18px_34px_rgba(24,12,40,0.16),_0_6px_12px_rgba(24,12,40,0.08)] animate-[dropdown-enter_180ms_ease-out]">
+          <div className="p-2">
           {otherChildren.length === 0 ? (
             <div className="px-3 py-2 text-sm font-semibold text-[#6c35c3]/70">
               No other children
@@ -91,15 +92,23 @@ export default function BookingChildPicker({
                   setOpen(false);
                   onSelectChild(child.id);
                 }}
-                className="group relative flex w-full items-center overflow-hidden border-b border-[#ece4f6] px-4 py-2.5 text-left text-sm font-semibold text-[#2a203c] transition last:border-b-0"
+                className="group relative mb-2 flex w-full cursor-pointer items-center overflow-hidden rounded-[12px] border border-[#ece4f6] bg-[#fefcff] px-4 py-3 text-left text-sm font-semibold text-[#2a203c] transition last:mb-0 hover:border-[#bfa4e8] hover:bg-[#faf6ff] hover:shadow-[0_10px_22px_rgba(110,42,192,0.08)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6e2ac0]/35"
               >
-                <span className="pointer-events-none absolute inset-0 origin-left scale-x-0 bg-[rgba(108,53,195,0.06)] transition-transform duration-200 ease-out group-hover:scale-x-100" />
+                <span className="pointer-events-none absolute inset-0 origin-left scale-x-0 bg-[rgba(108,53,195,0.08)] transition-transform duration-200 ease-out group-hover:scale-x-100" />
                 <span className="pointer-events-none absolute left-0 top-2 bottom-2 w-[3px] rounded-r-full bg-[#6c35c3] opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
-                <span className="relative z-[1]">{name || "Unnamed child"}</span>
+                <span className="relative z-[1] flex min-w-0 flex-1 flex-col">
+                  <span className="truncate text-sm font-semibold text-[#24193a]">
+                    {name || "Unnamed child"}
+                  </span>
+                  <span className="mt-0.5 text-xs font-medium text-[#6c607d]">
+                    Book classes for this child
+                  </span>
+                </span>
               </button>
             );
           })
           )}
+          </div>
         </div>
       )}
       <style jsx>{`

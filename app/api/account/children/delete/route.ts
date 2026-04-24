@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createServerClient, type CookieOptions } from "@supabase/ssr"
-import { revalidateTag } from "next/cache"
 
 type DeleteChildPayload = {
   childId?: unknown
@@ -282,8 +281,6 @@ export async function POST(request: NextRequest) {
         NextResponse.json({ error: childArchiveError.message }, { status: 500 })
       )
     }
-
-    revalidateTag("children-for-account", "max")
 
     return applyCookies(
       NextResponse.json({

@@ -17,20 +17,6 @@ type Props = {
   childOptions: ChildSummary[];
 };
 
-function computeAge(dateOfBirth: string | null) {
-  if (!dateOfBirth) return null;
-  const birthDate = new Date(dateOfBirth);
-  if (Number.isNaN(birthDate.getTime())) return null;
-  const today = new Date();
-  let age = today.getFullYear() - birthDate.getFullYear();
-  const monthDiff = today.getMonth() - birthDate.getMonth();
-  const dayDiff = today.getDate() - birthDate.getDate();
-  if (monthDiff < 0 || (monthDiff === 0 && dayDiff < 0)) {
-    age -= 1;
-  }
-  return age < 0 ? 0 : age;
-}
-
 export default function ChildSelectModal({
   isOpen,
   onClose,
@@ -111,7 +97,6 @@ export default function ChildSelectModal({
         <div className={styles.modalBody}>
           <ul className={styles.modalList}>
             {childOptions.map((child) => {
-              const age = computeAge(child.dateOfBirth);
               return (
                 <li key={child.id}>
                   <button
@@ -119,14 +104,13 @@ export default function ChildSelectModal({
                     className={styles.modalRow}
                     onClick={() => onSelect(child)}
                   >
-                    <span className={styles.modalRowName}>
-                      {(child.firstName ?? "").trim() || "-"}{" "}
-                      {(child.lastName ?? "").trim()}
+                    <span className={styles.modalRowMain}>
+                      <span className={styles.modalRowName}>
+                        {(child.firstName ?? "").trim() || "-"}{" "}
+                        {(child.lastName ?? "").trim()}
+                      </span>
                     </span>
                     <span className={styles.modalRowRight}>
-                      <span className={styles.modalAgePill}>
-                        {age === null ? "-" : `${age} yrs`}
-                      </span>
                       <span className={styles.chevron} aria-hidden="true">
                         {"\u203A"}
                       </span>

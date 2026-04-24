@@ -1,10 +1,13 @@
 import Link from "next/link";
 import { supabaseAdmin } from "@/lib/admin";
 import { getMedicalInfoForChildren } from "@/lib/server/medical";
-import { getActiveBookingsForChildren } from "@/lib/server/bookings";
 import { getAdminBadgeDataForChild } from "@/lib/server/badges";
+import { getRecreationalClasses } from "@/lib/server/classes";
+import { getActiveBookingCountsForClassIds } from "@/lib/server/availability";
 import { Activity, ArrowLeft, CalendarDays, Shield, Star, UserCircle2, Users } from "lucide-react";
 import StudentProfileTabs from "./StudentProfileTabs";
+import CompetitionEligibilityControl from "./CompetitionEligibilityControl";
+import MoveRecreationalBookingControl from "./MoveRecreationalBookingControl";
 
 type StudentProfilePageProps = {
   params: Promise<{ childId: string }>;
@@ -28,6 +31,36 @@ type AccountRow = {
   accLastName: string | null;
   accTelNo: string | null;
   accEmergencyTelNo: string | null;
+};
+
+type ActiveBookingRow = {
+  id: string;
+  childId: string;
+  classId: string | null;
+  bookingType: string | null;
+  created_at: string | null;
+  Classes:
+    | {
+        className: string | null;
+        weekday: string | null;
+        startTime: string | null;
+        endTime: string | null;
+        durationMinutes: number | null;
+        ageMin: number | string | null;
+        ageMax: number | string | null;
+        capacity: number | null;
+      }
+    | Array<{
+        className: string | null;
+        weekday: string | null;
+        startTime: string | null;
+        endTime: string | null;
+        durationMinutes: number | null;
+        ageMin: number | string | null;
+        ageMax: number | string | null;
+        capacity: number | null;
+      }>
+    | null;
 };
 
 function formatDate(date: string | null): string {
@@ -125,10 +158,6 @@ function photoConsentSummary(photoConsent: boolean | null | undefined): string {
     : "Not permitted for coaching/training";
 }
 
-function competitionSummary(competitionEligible: boolean | null | undefined): string {
-  return competitionEligible === true ? "Eligible" : "Not eligible";
-}
-
 export default async function StudentProfilePage({ params }: StudentProfilePageProps) {
   const resolvedParams = await params;
   const childId = resolvedParams.childId;
@@ -161,9 +190,15 @@ export default async function StudentProfilePage({ params }: StudentProfilePageP
   }
 
   const child = childData as ChildRow;
-  const [medicalByChildId, bookingsByChildId, accountResult, badgeData] = await Promise.all([
+  const [medicalByChildId, activeBookingsResult, accountResult, badgeData, recreationalClasses] = await Promise.all([
     getMedicalInfoForChildren([child.id]),
-    getActiveBookingsForChildren([child.id]),
+    supabaseAdmin
+      .from("Bookings")
+      .select(
+        "id,childId,classId,bookingType,created_at,Classes(className,weekday,startTime,endTime,durationMinutes,ageMin,ageMax,capacity)"
+      )
+      .eq("childId", child.id)
+      .eq("status", "active"),
     child.accountId != null
       ? supabaseAdmin
           .from("Accounts")
@@ -172,12 +207,42 @@ export default async function StudentProfilePage({ params }: StudentProfilePageP
           .maybeSingle()
       : Promise.resolve({ data: null, error: null }),
     getAdminBadgeDataForChild(child.id),
+    getRecreationalClasses(),
   ]);
 
   const medical = medicalByChildId[child.id] ?? null;
-  const bookings = bookingsByChildId[child.id] ?? [];
+  const bookings = ((activeBookingsResult.data ?? []) as ActiveBookingRow[]).map((booking) => {
+    const cls = Array.isArray(booking.Classes) ? booking.Classes[0] : booking.Classes;
+    return {
+      id: booking.id,
+      childId: booking.childId,
+      classId: booking.classId,
+      bookingType: booking.bookingType,
+      createdAt: booking.created_at ?? null,
+      className: cls?.className ?? null,
+      weekday: cls?.weekday ?? null,
+      startTime: cls?.startTime ?? null,
+      endTime: cls?.endTime ?? null,
+      durationMinutes:
+        typeof cls?.durationMinutes === "number" ? cls.durationMinutes : cls?.durationMinutes ?? null,
+      ageMin: cls?.ageMin ?? null,
+      ageMax: cls?.ageMax ?? null,
+      capacity: cls?.capacity ?? null,
+    };
+  });
   const account = (accountResult.data as AccountRow | null) ?? null;
   const studentName = `${displayText(child.firstName)} ${displayText(child.lastName)}`.trim();
+  const recreationalMoveClassIds = recreationalClasses.map((item) => item.id);
+  const recreationalBookingCounts = await getActiveBookingCountsForClassIds(recreationalMoveClassIds);
+  const recreationalMoveOptions = recreationalClasses.map((item) => ({
+    id: item.id,
+    weekday: typeof item.weekday === "string" ? item.weekday : item.weekday != null ? String(item.weekday) : null,
+    startTime: item.startTime ?? null,
+    ageMin: item.minAge ?? null,
+    ageMax: item.maxAge ?? null,
+    capacity: item.capacity ?? null,
+    enrolledCount: recreationalBookingCounts.get(item.id) ?? 0,
+  }));
 
   const healthRows = [
     { label: "Medical conditions", value: normalizeMedicalValue(medical?.medicalConditions) },
@@ -280,8 +345,11 @@ export default async function StudentProfilePage({ params }: StudentProfilePageP
                 <dt className="text-xs font-semibold uppercase tracking-[0.06em] text-[#74688a]">
                   Competition classes
                 </dt>
-                <dd className="mt-1 text-sm font-medium text-[#221833]">
-                  {competitionSummary(child.competitionEligible)}
+                <dd>
+                  <CompetitionEligibilityControl
+                    childId={child.id}
+                    initialCompetitionEligible={child.competitionEligible === true}
+                  />
                 </dd>
               </div>
               <div>
@@ -356,7 +424,7 @@ export default async function StudentProfilePage({ params }: StudentProfilePageP
             <ul className="mt-3 divide-y divide-[#ece4f5] border border-[#ece4f5]">
               {bookings.map((booking, index) => (
                 <li
-                  key={`${booking.childId}-${booking.className ?? "class"}-${index}`}
+                  key={booking.id ?? `${booking.childId}-${booking.className ?? "class"}-${index}`}
                   className="flex flex-col gap-1.5 px-4 py-2 md:flex-row md:items-center md:justify-between md:gap-3"
                 >
                   {(() => {
@@ -390,6 +458,13 @@ export default async function StudentProfilePage({ params }: StudentProfilePageP
                   <span className="text-xs font-medium leading-tight text-[#6e6383] md:flex-shrink-0">
                     {formatAttendingDuration(booking.createdAt).replace("Attending for ", "Attending ")}
                   </span>
+                  {booking.bookingType === "recreational" && booking.classId ? (
+                    <MoveRecreationalBookingControl
+                      bookingId={booking.id}
+                      currentClassId={booking.classId}
+                      options={recreationalMoveOptions}
+                    />
+                  ) : null}
                 </li>
               ))}
             </ul>
