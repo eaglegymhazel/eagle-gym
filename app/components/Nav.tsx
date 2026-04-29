@@ -28,6 +28,7 @@ const aboutItems = [
 
 const updateItems = [
   { href: "/news", label: "News" },
+  { href: "/events", label: "Events" },
   { href: "/gallery", label: "Gallery" },
 ] as const satisfies ReadonlyArray<{
   href: string;

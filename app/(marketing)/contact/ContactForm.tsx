@@ -6,6 +6,7 @@ type Status = "idle" | "sending" | "sent";
 
 export default function ContactForm() {
   const [status, setStatus] = useState<Status>("idle");
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [message, setMessage] = useState("");
@@ -21,16 +22,46 @@ export default function ContactForm() {
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setAttemptedSubmit(true);
+    setSubmitError(null);
     if (!canSubmit || status === "sending") return;
     const form = e.currentTarget;
+    const formData = new FormData(form);
+    const website = String(formData.get("website") || "").trim();
     setStatus("sending");
-    await new Promise((resolve) => setTimeout(resolve, 400));
-    setStatus("sent");
-    setAttemptedSubmit(false);
-    setName("");
-    setEmail("");
-    setMessage("");
-    form.reset();
+    try {
+      const response = await fetch("/api/contact", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name,
+          email,
+          message,
+          website,
+        }),
+      });
+
+      const payload = (await response.json().catch(() => null)) as
+        | { ok?: boolean; error?: string }
+        | null;
+
+      if (!response.ok || !payload?.ok) {
+        throw new Error(payload?.error || "Unable to send your message right now.");
+      }
+
+      setStatus("sent");
+      setAttemptedSubmit(false);
+      setName("");
+      setEmail("");
+      setMessage("");
+      form.reset();
+    } catch (error) {
+      setStatus("idle");
+      setSubmitError(
+        error instanceof Error ? error.message : "Unable to send your message right now."
+      );
+    }
   }
 
   return (
@@ -133,6 +164,9 @@ export default function ContactForm() {
         <p className="text-sm font-semibold text-[#1d6a3e]">
           Message sent. Thanks, we&apos;ll get back to you.
         </p>
+      ) : null}
+      {submitError ? (
+        <p className="text-sm font-semibold text-[#c5315a]">{submitError}</p>
       ) : null}
     </form>
   );

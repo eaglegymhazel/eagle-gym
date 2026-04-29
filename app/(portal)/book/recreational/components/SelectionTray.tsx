@@ -43,8 +43,8 @@ export default function SelectionTray({
     <div className="fixed inset-x-0 bottom-0 z-40 border-t border-[#ddd4eb] bg-[linear-gradient(180deg,_rgba(255,255,255,0.96),_rgba(249,246,253,0.98))] px-3 py-1.5 shadow-[0_-10px_24px_-22px_rgba(40,22,74,0.3)] backdrop-blur-md sm:px-5">
       <div className="mx-auto w-full max-w-5xl">
         <div className="bg-[linear-gradient(180deg,_#ffffff_0%,_#f7f3fb_100%)] p-1 shadow-[0_10px_22px_-20px_rgba(57,33,102,0.44)]">
-          <div className="flex items-center gap-1.5">
-            <div className="min-w-0 flex-1 rounded-xl bg-white px-3 py-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)]">
+          <div className="flex flex-wrap items-center gap-1.5 sm:flex-nowrap">
+            <div className="min-w-0 flex-[1_1_100%] rounded-xl bg-white px-3 py-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)] sm:flex-[1_1_auto]">
               <p className="truncate text-sm font-bold text-[#2a203c]">
                 Class selection{selectedCount > 0 ? ` (${selectedCount})` : ""}
               </p>
@@ -71,7 +71,7 @@ export default function SelectionTray({
               type="button"
               onClick={onToggleExpanded}
               disabled={!canExpand}
-              className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-[#e2d6f3] bg-white text-[#634193] transition hover:bg-[#f8f4ff] disabled:cursor-not-allowed disabled:opacity-45"
+              className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-[#e2d6f3] bg-white text-[#634193] transition hover:bg-[#f8f4ff] disabled:cursor-not-allowed disabled:opacity-45"
               aria-expanded={expandedOpen}
               aria-label="Toggle selected classes tray"
             >
@@ -87,7 +87,7 @@ export default function SelectionTray({
               type="button"
               onClick={onClear}
               disabled={selectedCount === 0}
-              className="inline-flex h-8 items-center justify-center rounded-full px-2 text-xs font-medium text-[#7b7391] transition hover:text-[#5f5776] disabled:cursor-not-allowed disabled:opacity-40"
+              className="inline-flex h-8 shrink-0 items-center justify-center rounded-full px-2 text-xs font-medium text-[#7b7391] transition hover:text-[#5f5776] disabled:cursor-not-allowed disabled:opacity-40"
             >
               Clear
             </button>
@@ -96,13 +96,11 @@ export default function SelectionTray({
               type="button"
               onClick={onContinue}
               disabled={selectedCount === 0}
-              className="inline-flex h-9 cursor-pointer items-center justify-center gap-1 rounded-full bg-[#6c35c3] px-4 text-xs font-bold !text-white shadow-[0_12px_24px_-12px_rgba(69,34,124,0.78)] transition hover:bg-[#5b2ca7] disabled:cursor-not-allowed disabled:opacity-50 disabled:!text-white [&>*]:!text-white"
+              className="inline-flex min-h-9 flex-1 cursor-pointer items-center justify-center gap-1 rounded-full bg-[#6c35c3] px-4 text-xs font-bold !text-white shadow-[0_12px_24px_-12px_rgba(69,34,124,0.78)] transition hover:bg-[#5b2ca7] disabled:cursor-not-allowed disabled:opacity-50 disabled:!text-white sm:h-9 sm:flex-none sm:px-5 [&>*]:!text-white"
             >
               {selectedCount === 0
                 ? "Select classes to review"
-                : `Review ${selectedCount} ${
-                    selectedCount === 1 ? "selection" : "selections"
-                  }`}
+                : "Review Booking"}
               <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
             </button>
           </div>
