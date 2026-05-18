@@ -41,11 +41,13 @@ type MedicalInformationRow = {
 
 type BookingSummary = {
   childId: string
+  bookingKind: "class" | "summer-camp"
   className: string | null
   weekday: string | null
   startTime: string | null
   endTime: string | null
   durationMinutes: number | null
+  campDate: string | null
 }
 
 type ChildBadgeSkill = {

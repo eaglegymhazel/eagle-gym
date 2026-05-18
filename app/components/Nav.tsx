@@ -14,9 +14,18 @@ type NavItem = {
   href: string;
   label: string;
   icon: LucideIcon;
-  type: "link" | "about" | "updates";
+  type: "link" | "about" | "updates" | "book";
   matchPrefix?: string;
 };
+
+const bookItems = [
+  { href: "/book", label: "Book Classes" },
+  { href: "/summer-camps/2026/book", label: "Summer Camp" },
+  { href: "/birthday-party", label: "Birthday Parties" },
+] as const satisfies ReadonlyArray<{
+  href: string;
+  label: string;
+}>;
 
 const aboutItems = [
   { href: "/about", label: "About the Club" },
@@ -37,7 +46,7 @@ const updateItems = [
 
 const navItems: NavItem[] = [
   { key: "classes", href: "/timetable", label: "Classes", icon: CalendarDays, type: "link" as const },
-  { key: "book", href: "/book", label: "Book", icon: BookOpen, type: "link" as const, matchPrefix: "/book" },
+  { key: "book", href: "/book", label: "Book", icon: BookOpen, type: "book" as const, matchPrefix: "/book" },
   { key: "members", href: "/members", label: "Members", icon: IdCard, type: "link" as const },
   { key: "about", href: "/about", label: "About", icon: Info, type: "about" as const },
   { key: "updates", href: "/news", label: "Updates", icon: Info, type: "updates" as const, matchPrefix: "/news" },
@@ -60,16 +69,34 @@ export default function Nav({
   const pathname = usePathname();
   const isRecreationalBooking = pathname?.startsWith("/book/recreational");
   const isLoggedIn = Boolean(user?.email);
+  const resolvedBookItems = useMemo(
+    () => [
+      { href: isLoggedIn ? "/book" : "/login?redirect=/book", label: "Book Classes" },
+      {
+        href: isLoggedIn
+          ? "/summer-camps/2026/book"
+          : "/login?redirect=/summer-camps/2026/book",
+        label: "Summer Camp",
+      },
+      { href: "/birthday-party", label: "Birthday Parties" },
+    ],
+    [isLoggedIn]
+  );
   const dropdownMenuItemClass =
     "relative flex min-h-[40px] items-center gap-3 overflow-hidden px-4 py-2.5 text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6c35c3]/35 before:absolute before:inset-0 before:bg-[#6c35c3]/8 before:origin-left before:scale-x-0 before:transition-transform before:duration-200 after:absolute after:left-0 after:top-2 after:bottom-2 after:w-[3px] after:rounded-full after:bg-[#6e2ac0] after:opacity-0 after:transition-opacity after:duration-200 hover:before:scale-x-100 hover:after:opacity-100 focus-visible:before:scale-x-100 focus-visible:after:opacity-100 [&>*]:relative [&>*]:z-10";
   const resolvedNavItems = useMemo(
     () =>
       navItems.map((item) =>
-        item.key === "book"
-          ? { ...item, href: isLoggedIn ? "/book" : "/login", matchPrefix: "/book" }
-          : { ...item, matchPrefix: item.matchPrefix ?? item.href }
+        ({ ...item, matchPrefix: item.matchPrefix ?? item.href })
       ),
-    [isLoggedIn]
+    []
+  );
+  const isBookActive = useMemo(
+    () =>
+      bookItems.some((item) => pathname?.startsWith(item.href)) ||
+      pathname?.startsWith("/login") ||
+      pathname?.startsWith("/summer-camps/2026/book"),
+    [pathname]
   );
   const isAboutActive = useMemo(
     () => aboutItems.some((item) => pathname?.startsWith(item.href)),
@@ -80,9 +107,10 @@ export default function Nav({
     [pathname]
   );
   const [isOpen, setIsOpen] = useState(false);
+  const [isMobileBookOpen, setIsMobileBookOpen] = useState(false);
   const [isMobileAboutOpen, setIsMobileAboutOpen] = useState(false);
   const [isMobileUpdatesOpen, setIsMobileUpdatesOpen] = useState(false);
-  const [desktopOpenDropdown, setDesktopOpenDropdown] = useState<"about" | "updates" | null>(null);
+  const [desktopOpenDropdown, setDesktopOpenDropdown] = useState<"book" | "about" | "updates" | null>(null);
   const navRef = useRef<HTMLElement | null>(null);
   const drawerRef = useRef<HTMLElement | null>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
@@ -91,6 +119,7 @@ export default function Nav({
   const reduceMotion = useReducedMotion();
   const closeMobileMenu = () => {
     setIsOpen(false);
+    setIsMobileBookOpen(false);
     setIsMobileAboutOpen(false);
     setIsMobileUpdatesOpen(false);
   };
@@ -193,9 +222,19 @@ export default function Nav({
                     ? pathname === "/"
                     : pathname?.startsWith(item.matchPrefix ?? item.href);
 
-              if (item.type === "about" || item.type === "updates") {
-                const dropdownItems = item.type === "about" ? aboutItems : updateItems;
-                const dropdownKey = item.type === "about" ? "about" : "updates";
+              if (item.type === "book" || item.type === "about" || item.type === "updates") {
+                const dropdownItems =
+                  item.type === "book"
+                    ? resolvedBookItems
+                    : item.type === "about"
+                      ? aboutItems
+                      : updateItems;
+                const dropdownKey =
+                  item.type === "book"
+                    ? "book"
+                    : item.type === "about"
+                      ? "about"
+                      : "updates";
                 const isDesktopDropdownOpen = desktopOpenDropdown === dropdownKey;
                 return (
                   <div
@@ -221,7 +260,7 @@ export default function Nav({
                         "after:absolute after:left-1/2 after:bottom-[-9px] after:h-[2px] after:w-0 after:-translate-x-1/2 after:rounded-full after:bg-[#6c35c3] after:opacity-0 after:transition-[width,opacity] after:duration-200",
                         "hover:text-[#6c35c3] hover:after:w-[calc(100%+14px)] hover:after:opacity-100",
                         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6c35c3] focus-visible:ring-offset-2 focus-visible:ring-offset-[#faf7fb]",
-                        isActive
+                        isDesktopDropdownOpen
                           ? "text-[#6c35c3] after:w-[calc(100%+14px)] after:opacity-100"
                           : "text-[#143271]",
                       ].join(" ")}
@@ -249,21 +288,21 @@ export default function Nav({
                           className="pointer-events-none absolute -top-[14px] -right-[30px] h-16 w-auto opacity-85"
                         />
                         <div className="py-1.5">
-                        {dropdownItems.map((aboutItem) => {
-                          const isAboutItemActive = pathname?.startsWith(aboutItem.href);
+                        {dropdownItems.map((dropdownItem) => {
+                          const isDropdownItemActive = pathname?.startsWith(dropdownItem.href);
                           return (
                             <Link
-                              key={aboutItem.href}
-                              href={aboutItem.href}
+                              key={dropdownItem.href}
+                              href={dropdownItem.href}
                               onClick={() => setDesktopOpenDropdown(null)}
                               className={[
                                 dropdownMenuItemClass,
-                                isAboutItemActive
+                                isDropdownItemActive
                                   ? "bg-[#f6f0ff] font-semibold text-[#5b2ca7] before:scale-x-100 after:opacity-100 hover:bg-[#f1e8ff]"
                                   : "text-[#302545]",
                               ].join(" ")}
                             >
-                              {aboutItem.label}
+                              {dropdownItem.label}
                             </Link>
                           );
                         })}
@@ -415,15 +454,29 @@ export default function Nav({
                               : pathname?.startsWith(item.matchPrefix);
                         const Icon = item.icon;
 
-                        if (item.type === "about" || item.type === "updates") {
+                        if (item.type === "book" || item.type === "about" || item.type === "updates") {
                           const isOpen =
-                            item.type === "about" ? isMobileAboutOpen : isMobileUpdatesOpen;
+                            item.type === "book"
+                              ? isMobileBookOpen
+                              : item.type === "about"
+                                ? isMobileAboutOpen
+                                : isMobileUpdatesOpen;
                           const setOpen =
-                            item.type === "about" ? setIsMobileAboutOpen : setIsMobileUpdatesOpen;
+                            item.type === "book"
+                              ? setIsMobileBookOpen
+                              : item.type === "about"
+                                ? setIsMobileAboutOpen
+                                : setIsMobileUpdatesOpen;
                           const dropdownItems =
-                            item.type === "about" ? aboutItems : updateItems;
+                            item.type === "book"
+                              ? resolvedBookItems
+                              : item.type === "about"
+                                ? aboutItems
+                                : updateItems;
                           const submenuId =
-                            item.type === "about"
+                            item.type === "book"
+                              ? "mobile-book-submenu"
+                              : item.type === "about"
                               ? "mobile-about-submenu"
                               : "mobile-updates-submenu";
                           return (
@@ -434,7 +487,7 @@ export default function Nav({
                                 className={[
                                   "group relative flex min-h-12 w-full items-center justify-between gap-3 rounded-[13px] px-3.5 py-2.5 text-[15px] transition-colors duration-200",
                                   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6e2ac0] focus-visible:ring-offset-2",
-                                  isAboutActive
+                                  (item.type === "book" ? isBookActive : item.type === "about" ? isAboutActive : isUpdatesActive)
                                     ? "bg-[rgba(110,42,192,0.08)] font-semibold text-[#6e2ac0]"
                                     : "font-medium text-black/80 hover:bg-black/[0.04] active:bg-black/[0.08]",
                                 ].join(" ")}
@@ -446,13 +499,17 @@ export default function Nav({
                                     aria-hidden
                                     className={[
                                       "absolute left-1 top-1 bottom-1 w-1 rounded-full transition-opacity",
-                                      isAboutActive ? "bg-[#6e2ac0] opacity-100" : "bg-[#6e2ac0] opacity-0",
+                                      (item.type === "book" ? isBookActive : item.type === "about" ? isAboutActive : isUpdatesActive)
+                                        ? "bg-[#6e2ac0] opacity-100"
+                                        : "bg-[#6e2ac0] opacity-0",
                                     ].join(" ")}
                                   />
                                   <Icon
                                     className={[
                                       "h-5 w-5 shrink-0 transition-colors duration-200",
-                                      isAboutActive ? "text-[#6e2ac0]" : "text-black/65",
+                                      (item.type === "book" ? isBookActive : item.type === "about" ? isAboutActive : isUpdatesActive)
+                                        ? "text-[#6e2ac0]"
+                                        : "text-black/65",
                                     ].join(" ")}
                                     aria-hidden="true"
                                   />
@@ -472,22 +529,22 @@ export default function Nav({
                                   id={submenuId}
                                   className="mb-1 mt-0.5 bg-[#fbf9ff] px-2 py-2"
                                 >
-                                  {dropdownItems.map((aboutItem) => {
-                                    const isAboutItemActive = pathname?.startsWith(aboutItem.href);
+                                  {dropdownItems.map((dropdownItem) => {
+                                    const isDropdownItemActive = pathname?.startsWith(dropdownItem.href);
                                     return (
                                       <Link
-                                        key={aboutItem.href}
-                                        href={aboutItem.href}
+                                        key={dropdownItem.href}
+                                        href={dropdownItem.href}
                                         onClick={closeMobileMenu}
                                         className={[
                                           "block rounded-lg px-3 py-2.5 text-sm font-semibold transition",
-                                          isAboutItemActive
+                                          isDropdownItemActive
                                             ? "bg-[#efe6ff] text-[#5b2ca7]"
                                             : "text-[#143271] hover:bg-[#f3edff] hover:text-[#5b2ca7]",
                                         ].join(" ")}
-                                        aria-current={isAboutItemActive ? "page" : undefined}
+                                        aria-current={isDropdownItemActive ? "page" : undefined}
                                       >
-                                        {aboutItem.label}
+                                        {dropdownItem.label}
                                       </Link>
                                     );
                                   })}

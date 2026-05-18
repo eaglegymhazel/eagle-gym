@@ -1,67 +1,30 @@
 "use client";
 
-import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { motion } from "framer-motion";
 
 type BookingGatewayProps = {
   childId: string;
-  childName: string;
   competitionEligible: boolean;
   isSwitchingChild: boolean;
 };
 
 export default function BookingGateway({
   childId,
-  childName,
   competitionEligible,
   isSwitchingChild,
 }: BookingGatewayProps) {
   const router = useRouter();
-  const [hovered, setHovered] = useState<"recreational" | "competition" | null>(
-    null
-  );
-
-  const recActive = hovered === "recreational" || hovered === null;
-  const compActive = hovered === "competition" || hovered === null;
 
   return (
     <div className="relative flex min-h-[78vh] flex-col overflow-hidden rounded-[24px] md:flex-row">
-
       <div className="pointer-events-none absolute inset-0">
         <div className="absolute -left-10 top-16 h-28 w-28 rounded-full bg-[radial-gradient(circle,_rgba(200,170,255,0.14),_transparent_70%)] blur-lg" />
         <div className="absolute right-12 bottom-10 h-32 w-32 rounded-full bg-[radial-gradient(circle,_rgba(124,92,255,0.12),_transparent_70%)] blur-lg" />
       </div>
 
-
-
-      <motion.div
-        onMouseEnter={() => setHovered("recreational")}
-        onMouseLeave={() => setHovered(null)}
-        initial={{ opacity: 0, y: 16 }}
-        animate={{
-          opacity: recActive ? 1 : 0.8,
-          x: hovered === "recreational" ? -8 : 0,
-          y: 0,
-        }}
-        transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
-        style={{ willChange: "transform, opacity" }}
-        className="relative flex min-h-[35vh] flex-1 items-start justify-start overflow-hidden px-8 py-12 text-left md:min-h-[78vh] transform-gpu"
-      >
+      <div className="relative flex min-h-[35vh] flex-1 items-start justify-start overflow-hidden px-8 py-12 text-left md:min-h-[78vh]">
         <div className="absolute inset-0 bg-[linear-gradient(160deg,_rgba(246,236,255,0.98),_rgba(228,210,250,0.92))]" />
-        <motion.div
-          className="pointer-events-none absolute inset-0 bg-[#130a26]"
-          animate={{ opacity: hovered === "competition" ? 0.2 : 0 }}
-          transition={{ duration: 0.24, ease: "easeOut" }}
-        />
-        <motion.div
-          className="pointer-events-none absolute inset-y-0 right-0 w-[56px] bg-[linear-gradient(90deg,_transparent,_rgba(124,58,237,0.22))]"
-          animate={{
-            opacity: hovered === "recreational" ? 1 : 0.45,
-            x: hovered === "recreational" ? 6 : 0,
-          }}
-          transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
-        />
+        <div className="pointer-events-none absolute inset-y-0 right-0 w-[56px] bg-[linear-gradient(90deg,_transparent,_rgba(124,58,237,0.22))]" />
         <div
           className="pointer-events-none absolute -left-20 top-8 h-64 w-64 rounded-full bg-[radial-gradient(circle,_rgba(200,170,255,0.18),_transparent_70%)] blur-2xl"
         />
@@ -98,7 +61,7 @@ export default function BookingGateway({
               onClick={() =>
                 router.push(`/book/recreational?childId=${childId}`)
               }
-              className={`group inline-flex h-[56px] w-[260px] items-center justify-center rounded-full bg-[#6c35c3] px-6 text-sm font-semibold !text-white shadow-[0_18px_40px_-18px_rgba(108,53,195,0.85)] transition hover:bg-[#5325a3] hover:shadow-[0_26px_60px_-18px_rgba(108,53,195,1)] ${
+              className={`group inline-flex h-[56px] w-[260px] items-center justify-center rounded-full bg-[#6c35c3] px-6 text-sm font-semibold !text-white shadow-[0_18px_40px_-18px_rgba(108,53,195,0.85)] transition-colors hover:bg-[#5325a3] ${
                 isSwitchingChild
                   ? "cursor-not-allowed opacity-60 shadow-none hover:bg-[#6c35c3]"
                   : ""
@@ -111,35 +74,11 @@ export default function BookingGateway({
             </button>
           </div>
         </div>
-      </motion.div>
+      </div>
 
-      <motion.div
-        onMouseEnter={() => setHovered("competition")}
-        onMouseLeave={() => setHovered(null)}
-        initial={{ opacity: 0, y: 16 }}
-        animate={{
-          opacity: compActive ? 1 : 0.8,
-          x: hovered === "competition" ? 8 : 0,
-          y: 0,
-        }}
-        transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
-        style={{ willChange: "transform, opacity" }}
-        className="relative flex min-h-[35vh] flex-1 items-start justify-start overflow-hidden px-8 py-12 text-left md:min-h-[78vh] transform-gpu"
-      >
+      <div className="relative flex min-h-[35vh] flex-1 items-start justify-start overflow-hidden px-8 py-12 text-left md:min-h-[78vh]">
         <div className="absolute inset-0 bg-[linear-gradient(135deg,_rgba(24,12,62,0.98),_rgba(68,40,140,0.96))]" />
-        <motion.div
-          className="pointer-events-none absolute inset-0 bg-[#11091f]"
-          animate={{ opacity: hovered === "recreational" ? 0.2 : 0 }}
-          transition={{ duration: 0.24, ease: "easeOut" }}
-        />
-        <motion.div
-          className="pointer-events-none absolute inset-y-0 left-0 w-[56px] bg-[linear-gradient(270deg,_transparent,_rgba(210,190,255,0.24))]"
-          animate={{
-            opacity: hovered === "competition" ? 1 : 0.5,
-            x: hovered === "competition" ? -6 : 0,
-          }}
-          transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
-        />
+        <div className="pointer-events-none absolute inset-y-0 left-0 w-[56px] bg-[linear-gradient(270deg,_transparent,_rgba(210,190,255,0.24))]" />
         <div
           className="pointer-events-none absolute right-0 top-0 h-64 w-64 rounded-full bg-[radial-gradient(circle,_rgba(170,140,255,0.16),_transparent_70%)] blur-2xl"
         />
@@ -192,7 +131,7 @@ export default function BookingGateway({
                 onClick={() =>
                   router.push(`/book/competition?childId=${childId}`)
                 }
-                className={`group inline-flex h-[56px] w-[260px] items-center justify-center rounded-full bg-white px-6 text-sm font-semibold text-[#2b1b4f] shadow-[0_18px_40px_-18px_rgba(12,8,30,0.7)] transition hover:bg-white/95 ${
+                className={`group inline-flex h-[56px] w-[260px] items-center justify-center rounded-full bg-white px-6 text-sm font-semibold text-[#2b1b4f] shadow-[0_18px_40px_-18px_rgba(12,8,30,0.7)] transition-colors hover:bg-white/95 ${
                   isSwitchingChild ? "cursor-not-allowed opacity-60 shadow-none" : "cursor-pointer"
                 }`}
               >
@@ -240,8 +179,7 @@ export default function BookingGateway({
             </>
           )}
         </div>
-      </motion.div>
-
+      </div>
     </div>
   );
 }

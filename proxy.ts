@@ -5,6 +5,19 @@ import {
   logAuthValidation,
 } from "@/lib/authValidationDebug";
 
+function hasSupabaseAuthCookie(
+  cookies: Array<{ name: string; value: string }>
+): boolean {
+  return cookies.some(({ name, value }) => {
+    if (!value) return false;
+    return (
+      name.startsWith("sb-") ||
+      name === "supabase-auth-token" ||
+      name.startsWith("supabase-auth-token.")
+    );
+  });
+}
+
 export async function proxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
   const requestHeaders = new Headers(request.headers);
@@ -31,6 +44,11 @@ export async function proxy(request: NextRequest) {
 
   const isPublicRoute =
     pathname === "/" ||
+    pathname === "/login" ||
+    pathname === "/register" ||
+    pathname === "/reset-password" ||
+    pathname.startsWith("/auth") ||
+    pathname.startsWith("/birthday-party") ||
     pathname.startsWith("/about") ||
     pathname.startsWith("/team") ||
     pathname.startsWith("/news") ||
@@ -60,10 +78,15 @@ export async function proxy(request: NextRequest) {
     return response;
   }
 
+  const requestCookies = request.cookies.getAll();
+  if (!hasSupabaseAuthCookie(requestCookies)) {
+    return response;
+  }
+
   const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
     cookies: {
       getAll() {
-        return request.cookies.getAll();
+        return requestCookies;
       },
       setAll(cookies) {
         cookies.forEach(({ name, value, options }) => {

@@ -3,26 +3,30 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, ArrowRight } from "lucide-react";
 import DaySection from "./components/DaySection";
-import SelectionTray from "./components/SelectionTray";
 import type { ClassCardItem, SelectedClassDetail, WeekdayGroup } from "./types";
 import { parseTimeToMinutes, WEEKDAY_ORDER } from "./utils";
 
 type RecreationalClassesClientProps = {
   childId: string;
   childName: string;
-  ageGroupLabel: string;
   groups: WeekdayGroup[];
   initialSelectedClassIds?: string[];
 };
 
 export { type WeekdayGroup, type ClassCardItem } from "./types";
 
+function formatCurrency(value: number): string {
+  return new Intl.NumberFormat("en-GB", {
+    style: "currency",
+    currency: "GBP",
+  }).format(value);
+}
+
 export default function RecreationalClassesClient({
   childId,
   childName,
-  ageGroupLabel,
   groups,
   initialSelectedClassIds = [],
 }: RecreationalClassesClientProps) {
@@ -53,9 +57,6 @@ export default function RecreationalClassesClient({
           .filter((id) => id && classById.has(id))
       )
     )
-  );
-  const [trayExpanded, setTrayExpanded] = useState(
-    initialSelectedClassIds.length > 0
   );
   const [waitlistStateByClassId, setWaitlistStateByClassId] = useState<
     Record<string, "idle" | "saving" | "added">
@@ -121,6 +122,7 @@ export default function RecreationalClassesClient({
           weekday: item.weekday,
           startTime: item.startTime,
           durationMinutes: item.durationMinutes,
+          price: item.price ?? null,
           isFull: item.isFull,
         });
         return acc;
@@ -134,6 +136,14 @@ export default function RecreationalClassesClient({
       return parseTimeToMinutes(a.startTime) - parseTimeToMinutes(b.startTime);
     });
   }, [classById, selectedClassIds]);
+  const totalPrice = useMemo(
+    () =>
+      selectedItems.reduce((sum, item) => {
+        if (typeof item.price !== "number" || !Number.isFinite(item.price)) return sum;
+        return sum + item.price;
+      }, 0),
+    [selectedItems]
+  );
 
   const toggleClass = (item: ClassCardItem) => {
     const isSelected = selectedSet.has(item.id);
@@ -141,27 +151,10 @@ export default function RecreationalClassesClient({
 
     setSelectedClassIds((prev) => {
       if (prev.includes(item.id)) {
-        if (prev.length === 1) {
-          setTrayExpanded(false);
-        }
         return prev.filter((id) => id !== item.id);
       }
       return [...prev, item.id];
     });
-  };
-
-  const removeClass = (classId: string) => {
-    setSelectedClassIds((prev) => {
-      if (prev.length === 1 && prev[0] === classId) {
-        setTrayExpanded(false);
-      }
-      return prev.filter((id) => id !== classId);
-    });
-  };
-
-  const clearSelection = () => {
-    setTrayExpanded(false);
-    setSelectedClassIds([]);
   };
 
   const handleContinue = () => {
@@ -235,30 +228,10 @@ export default function RecreationalClassesClient({
   }
 
   return (
-    <div className="pb-44 sm:pb-48">
+    <div className="pb-28 sm:pb-32">
       <div className="mx-auto w-full max-w-5xl space-y-4 sm:space-y-5">
-        <header className="space-y-2">
-          <div className="px-0.5 py-0.5">
-            <div className="inline-flex items-center rounded-full border border-[#6c35c3]/25 bg-white/85 px-4 py-1.5 text-sm font-semibold uppercase tracking-[0.18em] text-[#2a203c]/70 shadow-[0_12px_28px_-18px_rgba(31,26,37,0.5)] backdrop-blur">
-              Booking for{" "}
-              <span className="ml-1 font-bold text-[#2a203c]">
-                {childName || "selected child"}
-              </span>
-            </div>
-          </div>
-          <p className="pl-4 text-sm font-semibold text-[#2a203c]">
-            Class type: <span className="font-bold">Recreational</span>
-          </p>
-          <p className="pl-4 text-sm font-semibold text-[#2a203c]">
-            Age group: <span className="font-bold">{ageGroupLabel}</span>
-          </p>
-          <div className="pt-1">
-            <div className="h-[0.5px] w-full bg-black/20" />
-          </div>
-          {waitlistMessage ? (
-            <p className="pl-4 text-sm font-semibold text-[#2a203c]">{waitlistMessage}</p>
-          ) : null}
-          <div className="pt-2 pl-4">
+        <header className="space-y-3 sm:space-y-4">
+          <div className="pl-4">
             <Link
               href="/account"
               className="inline-flex items-center gap-2 rounded-full border border-[#d8c7f4] bg-white px-4 py-2 text-sm font-semibold text-[#5b2ca7] transition hover:bg-[#faf6ff]"
@@ -267,6 +240,27 @@ export default function RecreationalClassesClient({
               Back to account
             </Link>
           </div>
+          <div className="pl-4">
+            <div className="px-0.5 py-0.5">
+              <div className="inline-flex items-center rounded-full border border-[#6c35c3]/25 bg-white/85 px-4 py-1.5 text-sm font-semibold uppercase tracking-[0.18em] text-[#2a203c]/70 shadow-[0_12px_28px_-18px_rgba(31,26,37,0.5)] backdrop-blur">
+                Booking for{" "}
+                <span className="ml-1 font-bold text-[#2a203c]">
+                  {childName || "selected child"}
+                </span>
+              </div>
+            </div>
+          </div>
+          <div className="pl-4">
+            <span className="inline-flex items-center rounded-full border border-[#bfe2cb] bg-[#edf9f0] px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.14em] text-[#1f7a3a] shadow-[0_10px_20px_-16px_rgba(24,106,53,0.34)]">
+              Recreational Classes
+            </span>
+          </div>
+          <div className="pt-1">
+            <div className="h-[0.5px] w-full bg-black/20" />
+          </div>
+          {waitlistMessage ? (
+            <p className="pl-4 text-sm font-semibold text-[#2a203c]">{waitlistMessage}</p>
+          ) : null}
         </header>
 
         <div className="pt-3 space-y-5 sm:pt-5 sm:space-y-6">
@@ -283,19 +277,31 @@ export default function RecreationalClassesClient({
           ))}
         </div>
       </div>
+      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-[#e7e1f1] bg-white/96 px-4 pb-[calc(0.85rem+env(safe-area-inset-bottom))] pt-3 shadow-[0_-16px_32px_-24px_rgba(34,24,56,0.42)] backdrop-blur">
+        <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-[11px] font-black uppercase tracking-[0.12em] text-[#6c35c3]">
+              Booking Total
+            </p>
+            <p className="text-lg font-black tracking-tight text-[#1f1a25]">
+              {formatCurrency(totalPrice)}
+            </p>
+            {selectedCount === 0 ? (
+              <p className="text-[11px] text-[#6a5a86]">Select at least one class to continue.</p>
+            ) : null}
+          </div>
 
-      <SelectionTray
-        selectedCount={selectedCount}
-        selectedItems={selectedItems}
-        expanded={trayExpanded}
-        onToggleExpanded={() => {
-          if (selectedCount === 0) return;
-          setTrayExpanded((prev) => !prev);
-        }}
-        onClear={clearSelection}
-        onContinue={handleContinue}
-        onRemove={removeClass}
-      />
+          <button
+            type="button"
+            onClick={handleContinue}
+            disabled={selectedCount === 0}
+            className="inline-flex h-11 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-full bg-[#6c35c3] px-5 text-sm font-semibold text-white !text-white shadow-[0_12px_24px_-12px_rgba(69,34,124,0.78)] transition hover:bg-[#5b2ca7] disabled:cursor-not-allowed disabled:bg-[#c5addf] disabled:!text-white"
+          >
+            Review Booking
+            <ArrowRight className="h-4 w-4" aria-hidden="true" />
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

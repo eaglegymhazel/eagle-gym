@@ -2,7 +2,7 @@ export type Session = {
   id: string;
   classId: string;
   className: string;
-  programme: "Recreational" | "Competition";
+  programme: "Recreational" | "Competition" | "Summer Camp";
   ageBand: string;
   location?: string;
   startAt: string;

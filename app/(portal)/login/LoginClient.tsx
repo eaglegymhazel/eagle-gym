@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useState, type FormEvent } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 
-export default function LoginClient() {
+export default function LoginClient({ redirectTo = '/account' }: { redirectTo?: string }) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -22,7 +22,7 @@ export default function LoginClient() {
       setMsg('Incorrect email or password. Please try again.')
       setMsgType('error')
     } else {
-      router.push('/account')
+      router.push(redirectTo)
     }
   }
 
@@ -106,7 +106,11 @@ export default function LoginClient() {
                 </div>
               </div>
 
-              <button type="submit" className="btn-primary mt-2">
+              <button
+                type="submit"
+                className="btn-primary mt-2 cursor-pointer"
+                style={{ cursor: "pointer" }}
+              >
                 Log in
               </button>
 
@@ -157,7 +161,7 @@ export default function LoginClient() {
               <p className="-mt-1 text-sm text-[#2E2A33]/70">
                 Don&apos;t have an account?{' '}
                 <Link
-                  href="/register?redirect=/book"
+                  href={`/register?redirect=${encodeURIComponent(redirectTo)}`}
                   className="font-semibold text-[#6c35c3] underline-offset-4 transition hover:underline"
                 >
                   Create one

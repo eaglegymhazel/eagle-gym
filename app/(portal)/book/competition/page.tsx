@@ -120,13 +120,6 @@ function isEligibleForAge(item: RecreationalClassRow, childAge: number | null): 
   return min <= childAge && childAge <= max;
 }
 
-function getAgeGroupLabel(childAge: number | null): string {
-  if (childAge == null) return "Age unavailable";
-  if (childAge <= 3) return "18 months to 3 years";
-  if (childAge <= 7) return "4 to 7 years";
-  return "8 to 18 years";
-}
-
 export default async function CompetitionBookingPage({
   searchParams,
 }: {
@@ -153,7 +146,6 @@ export default async function CompetitionBookingPage({
 
   const childName = `${child.firstName ?? ""} ${child.lastName ?? ""}`.trim();
   const childAge = computeAge(child.dateOfBirth ?? null);
-  const ageGroupLabel = getAgeGroupLabel(childAge);
   const initialDraft = draftId
     ? await getCompetitionBookingDraftById({
         draftId,
@@ -255,7 +247,6 @@ export default async function CompetitionBookingPage({
         <CompetitionClassesClient
           childId={child.id}
           childName={childName || "selected child"}
-          ageGroupLabel={ageGroupLabel}
           groups={groups}
           initialSelections={(initialDraft?.selections ?? []).filter((selection) =>
             eligibleClassIds.includes(selection.classId)

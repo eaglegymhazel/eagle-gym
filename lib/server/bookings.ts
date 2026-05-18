@@ -5,11 +5,13 @@ import { unstable_cache } from 'next/cache'
 
 export type BookingSummary = {
   childId: string
+  bookingKind: 'class' | 'summer-camp'
   className: string | null
   weekday: string | null
   startTime: string | null
   endTime: string | null
   durationMinutes: number | null
+  campDate: string | null
   createdAt: string | null
 }
 
@@ -49,15 +51,29 @@ const getActiveBookingsForChildrenCached = unstable_cache(
       throw new Error(error.message)
     }
 
+    const { data: summerCampData, error: summerCampError } = await serviceRole
+      .from('SummerCampBookings')
+      .select(
+        'childId:"childId",campDate:"campDate",created_at,slug,SummerCampSessions!inner(title,startTime:"startTime",endTime:"endTime")'
+      )
+      .in('childId', childIds)
+      .eq('status', 'active')
+
+    if (summerCampError) {
+      throw new Error(summerCampError.message)
+    }
+
     const map: Record<string, BookingSummary[]> = {}
     ;(data ?? []).forEach((row) => {
       const cls = Array.isArray(row.Classes) ? row.Classes[0] : row.Classes
       const booking: BookingSummary = {
         childId: row.childId,
+        bookingKind: 'class',
         className: cls?.className ?? null,
         weekday: cls?.weekday ?? null,
         startTime: cls?.startTime ?? null,
         endTime: cls?.endTime ?? null,
+        campDate: null,
         createdAt: row.created_at ?? null,
         durationMinutes:
           typeof cls?.durationMinutes === 'number'
@@ -68,6 +84,35 @@ const getActiveBookingsForChildrenCached = unstable_cache(
         map[row.childId] = []
       }
       map[row.childId].push(booking)
+    })
+
+    ;(summerCampData ?? []).forEach((row) => {
+      const session = Array.isArray(row.SummerCampSessions)
+        ? row.SummerCampSessions[0]
+        : row.SummerCampSessions
+      const booking: BookingSummary = {
+        childId: row.childId,
+        bookingKind: 'summer-camp',
+        className: session?.title ?? 'Summer Camp 2026',
+        weekday: null,
+        startTime: session?.startTime ?? null,
+        endTime: session?.endTime ?? null,
+        durationMinutes: null,
+        campDate: row.campDate ?? null,
+        createdAt: row.created_at ?? null,
+      }
+      if (!map[row.childId]) {
+        map[row.childId] = []
+      }
+      map[row.childId].push(booking)
+    })
+
+    Object.values(map).forEach((bookings) => {
+      bookings.sort((a, b) => {
+        const aDate = a.campDate ?? a.createdAt ?? ''
+        const bDate = b.campDate ?? b.createdAt ?? ''
+        return aDate.localeCompare(bDate)
+      })
     })
 
     return map

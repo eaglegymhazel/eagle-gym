@@ -1,81 +1,46 @@
-"use client";
-
 import Image from "next/image";
-import { motion } from "framer-motion";
 import type { TeamMember } from "../types";
 
 type TeamCardProps = {
   member: TeamMember;
-  onOpen: (memberId: string, trigger: HTMLElement) => void;
-  reducedMotion: boolean;
+  reverse?: boolean;
 };
 
-export default function TeamCard({
-  member,
-  onOpen,
-  reducedMotion,
-}: TeamCardProps) {
+export default function TeamCard({ member, reverse = false }: TeamCardProps) {
   return (
-    <button
-      type="button"
-      onClick={(event) => onOpen(member.id, event.currentTarget)}
-      className="group relative w-full rounded-lg text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6c35c3] focus-visible:ring-offset-2 focus-visible:ring-offset-[#faf7fb]"
-      aria-label={`View profile for ${member.name}`}
-    >
-      <motion.div
-        layoutId={`team-card-${member.id}`}
-        transition={
-          reducedMotion
-            ? { duration: 0.15 }
-            : { type: "spring", stiffness: 350, damping: 34, mass: 0.7 }
-        }
-        whileHover={reducedMotion ? undefined : { y: -2 }}
-        whileTap={reducedMotion ? undefined : { scale: 0.995 }}
-        className="h-full rounded-lg border border-[#6c35c3]/15 bg-white p-4 shadow-[0_14px_30px_-24px_rgba(45,26,78,0.42)] transition-colors duration-200 group-hover:border-[#6c35c3]/35"
+    <article className="overflow-hidden border border-[#ddd5e8] bg-white shadow-[0_22px_38px_-34px_rgba(24,14,40,0.32)]">
+      <div
+        className={`grid items-stretch lg:grid-cols-[minmax(280px,0.88fr)_minmax(0,1.12fr)] ${
+          reverse ? "lg:[&>*:first-child]:order-2 lg:[&>*:last-child]:order-1" : ""
+        }`}
       >
-        <div className="mx-auto flex h-[170px] w-full max-w-[150px] items-end justify-center rounded-lg bg-[#f3ecfb] px-4 pt-4">
-          <motion.div
-            layoutId={`team-photo-${member.id}`}
-            className="relative aspect-[4/5] w-full overflow-hidden"
-          >
-            <Image
-              src={member.photoUrl}
-              alt={`${member.name} portrait`}
-              fill
-              className="object-contain transition duration-200 ease-out group-hover:scale-[1.015]"
-              sizes="150px"
-            />
-          </motion.div>
+        <div className="border-b border-[#e6deef] bg-[#f4effa] lg:border-b-0 lg:border-r">
+          <div className="flex h-full items-center justify-center px-5 py-6 sm:px-7 sm:py-8">
+            <div className="w-full max-w-[360px]">
+              <Image
+                src={member.photoUrl}
+                alt={`${member.name} portrait`}
+                width={1179}
+                height={1334}
+                className="h-auto w-full object-contain"
+                sizes="(max-width: 1023px) 100vw, 30vw"
+              />
+            </div>
+          </div>
         </div>
 
-        <div className="mt-5">
-          <motion.h3
-            layoutId={`team-name-${member.id}`}
-            className="text-2xl font-extrabold leading-tight tracking-[0.01em] text-[#143271]"
-          >
+        <div className="flex flex-col justify-center px-5 py-6 sm:px-7 sm:py-8">
+          <h3 className="text-[34px] font-extrabold leading-[0.98] tracking-[0.01em] text-[#143271] sm:text-[38px]">
             {member.name}
-          </motion.h3>
-          <motion.p
-            layoutId={`team-role-${member.id}`}
-            className="mt-1 text-sm font-bold text-[#6c35c3]"
-          >
+          </h3>
+          <p className="mt-2 text-sm font-bold uppercase tracking-[0.12em] text-[#6c35c3]">
             {member.roleTitle}
-          </motion.p>
-          <div className="mt-4 flex flex-wrap gap-1.5">
-            {member.qualifications.slice(0, 2).map((tag) => (
-              <span
-                key={tag}
-                className="rounded-md border border-[#6c35c3]/20 bg-[#f8f3ff] px-2.5 py-1 text-[11px] font-semibold text-[#45276f]"
-              >
-                {tag}
-              </span>
-            ))}
-          </div>
-          <span className="mt-4 inline-flex text-sm font-bold text-[#2E2A33]/74 transition group-hover:text-[#6c35c3]">
-            View profile
-          </span>
+          </p>
+          <p className="mt-5 max-w-3xl text-[15px] leading-8 text-[#2E2A33]/78 sm:text-base">
+            {member.bio}
+          </p>
         </div>
-      </motion.div>
-    </button>
+      </div>
+    </article>
   );
 }

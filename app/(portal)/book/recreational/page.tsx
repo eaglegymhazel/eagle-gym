@@ -119,13 +119,6 @@ function isEligibleForAge(item: RecreationalClassRow, childAge: number | null): 
   return min <= childAge && childAge <= max;
 }
 
-function getAgeGroupLabel(childAge: number | null): string {
-  if (childAge == null) return "Age unavailable";
-  if (childAge <= 3) return "18 months to 3 years";
-  if (childAge <= 7) return "4 to 7 years";
-  return "8 to 18 years";
-}
-
 export default async function RecreationalBookingPage({
   searchParams,
 }: {
@@ -154,7 +147,6 @@ export default async function RecreationalBookingPage({
 
   const childName = `${child.firstName ?? ""} ${child.lastName ?? ""}`.trim();
   const childAge = computeAge(child.dateOfBirth ?? null);
-  const ageGroupLabel = getAgeGroupLabel(childAge);
 
   const eligible = (rows as RecreationalClassRow[]).filter((item) =>
     isEligibleForAge(item, childAge)
@@ -183,6 +175,7 @@ export default async function RecreationalBookingPage({
         typeof item.durationMinutes === "number" ? item.durationMinutes : null,
       minAge: toNullableNumber(item.minAge),
       maxAge: toNullableNumber(item.maxAge),
+      price: toNullableNumber(item.price),
       capacity: typeof item.capacity === "number" ? item.capacity : null,
       spotsTaken: bookingCountsByClassId.get(item.id) ?? 0,
       spotsLeft:
@@ -222,7 +215,6 @@ export default async function RecreationalBookingPage({
         <RecreationalClassesClient
           childId={child.id}
           childName={childName || "selected child"}
-          ageGroupLabel={ageGroupLabel}
           groups={groups}
           initialSelectedClassIds={initialSelectedClassIds}
         />

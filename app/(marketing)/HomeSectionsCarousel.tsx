@@ -76,7 +76,7 @@ export default function HomeSectionsCarousel({
                   </p>
                   <Link
                     href={section.href}
-                    className="mt-7 inline-flex min-h-11 items-center justify-center rounded-md border border-[#2E2A33] bg-white/55 px-5 py-2.5 text-sm font-bold uppercase tracking-[0.06em] text-[#2E2A33] transition hover:-translate-y-0.5 hover:bg-[#2E2A33] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6c35c3]/45"
+                    className="mt-7 inline-flex min-h-11 items-center justify-center rounded-md border border-[#6c35c3] bg-white/55 px-5 py-2.5 text-sm font-bold uppercase tracking-[0.06em] text-[#6c35c3] transition hover:-translate-y-0.5 hover:bg-[#6c35c3] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6c35c3]/45"
                   >
                     {section.cta}
                   </Link>

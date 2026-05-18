@@ -15,6 +15,7 @@ export type ReviewClassItem = {
   durationMinutes: number | null;
   minAge: number | null;
   maxAge: number | null;
+  monthlyPrice: number | null;
   spotsLeft: number | null;
   isCompetitionClass: boolean;
   isUnavailable: boolean;
@@ -42,10 +43,6 @@ function badgeStyles(spotsLeft: number | null, unavailable: boolean): string {
   }
   return "bg-[#e9f7ec] text-[#256a38] border-[#b8e2c1]";
 }
-
-const STANDARD_MONTHLY_PRICE = 32.9;
-const PRESCHOOL_MONTHLY_PRICE = 20;
-const DISPLAY_GROUP_MONTHLY_PRICE = 49.35;
 
 function isDisplayGroupClass(item: ReviewClassItem): boolean {
   return item.name.trim().toLowerCase() === "display group";
@@ -99,52 +96,52 @@ export default function ReviewClient({
   const selectedCount = items.length;
   const selectedClassIds = items.map((item) => item.id);
   const pricingBreakdown = useMemo(() => {
-    const displayCount = items.filter(isDisplayGroupClass).length;
-    const preschoolCount = items.filter(
-      (item) => !isDisplayGroupClass(item) && isPreschoolClass(item)
-    ).length;
-    const standardCount = Math.max(0, items.length - displayCount - preschoolCount);
+    const grouped = new Map<
+      string,
+      {
+        key: string;
+        label: string;
+        count: number;
+        unitPrice: number;
+        lineTotal: number;
+      }
+    >();
+    let missingPriceCount = 0;
+
+    items.forEach((item) => {
+      if (typeof item.monthlyPrice !== "number" || !Number.isFinite(item.monthlyPrice)) {
+        missingPriceCount += 1;
+        return;
+      }
+
+      const label = getRecreationalClassLabel(item);
+      const key = `${label}:${item.monthlyPrice}`;
+      const existing = grouped.get(key);
+      if (existing) {
+        existing.count += 1;
+        existing.lineTotal += item.monthlyPrice;
+        return;
+      }
+
+      grouped.set(key, {
+        key,
+        label,
+        count: 1,
+        unitPrice: item.monthlyPrice,
+        lineTotal: item.monthlyPrice,
+      });
+    });
 
     const lines: Array<{
-      key: "standard" | "preschool" | "display";
+      key: string;
       label: string;
       count: number;
       unitPrice: number;
       lineTotal: number;
-    }> = [];
-
-    if (standardCount > 0) {
-      lines.push({
-        key: "standard",
-        label: "Standard recreational classes",
-        count: standardCount,
-        unitPrice: STANDARD_MONTHLY_PRICE,
-        lineTotal: standardCount * STANDARD_MONTHLY_PRICE,
-      });
-    }
-
-    if (preschoolCount > 0) {
-      lines.push({
-        key: "preschool",
-        label: "Preschool class",
-        count: preschoolCount,
-        unitPrice: PRESCHOOL_MONTHLY_PRICE,
-        lineTotal: preschoolCount * PRESCHOOL_MONTHLY_PRICE,
-      });
-    }
-
-    if (displayCount > 0) {
-      lines.push({
-        key: "display",
-        label: "Display Group",
-        count: displayCount,
-        unitPrice: DISPLAY_GROUP_MONTHLY_PRICE,
-        lineTotal: displayCount * DISPLAY_GROUP_MONTHLY_PRICE,
-      });
-    }
+    }> = Array.from(grouped.values());
 
     const total = lines.reduce((sum, line) => sum + line.lineTotal, 0);
-    return { lines, total };
+    return { lines, total, missingPriceCount };
   }, [items]);
 
   const backHref = useMemo(() => {
@@ -223,12 +220,11 @@ export default function ReviewClient({
               </span>
             </div>
           </div>
-          <p className="pl-4 text-sm font-semibold text-[#2a203c]">
-            Class type: <span className="font-bold">Recreational</span>
-          </p>
-          <p className="pl-4 text-sm font-semibold text-[#2a203c]">
-            Stage: <span className="font-bold">Review and confirm</span>
-          </p>
+          <div className="pl-4">
+            <span className="inline-flex items-center rounded-full border border-[#bfe2cb] bg-[#edf9f0] px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.14em] text-[#1f7a3a] shadow-[0_10px_20px_-16px_rgba(24,106,53,0.34)]">
+              Recreational Classes
+            </span>
+          </div>
           <div className="pt-1">
             <div className="h-[0.5px] w-full bg-black/20" />
           </div>
@@ -378,6 +374,12 @@ export default function ReviewClient({
                       </div>
                     </div>
                   )}
+                  {pricingBreakdown.missingPriceCount > 0 ? (
+                    <p className="mt-2 text-[11px] text-[#7a2334]">
+                      {pricingBreakdown.missingPriceCount} selected
+                      {pricingBreakdown.missingPriceCount === 1 ? " class is" : " classes are"} missing a price in the database and excluded from the total.
+                    </p>
+                  ) : null}
                 </div>
               </dl>
 

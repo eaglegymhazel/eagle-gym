@@ -12,6 +12,7 @@ export type RecreationalClassRow = {
   durationMinutes: number | null;
   minAge: number | string | null;
   maxAge: number | string | null;
+  price: number | string | null;
   capacity: number | null;
   isCompetitionClass: boolean | null;
 };
@@ -42,7 +43,7 @@ const getRecreationalClassesCached = unstable_cache(
     const { data, error } = await serviceRole
       .from("Classes")
       .select(
-        "id,name:className,weekday,startTime,endTime,durationMinutes,minAge:ageMin,maxAge:ageMax,capacity,isCompetitionClass"
+        "id,name:className,weekday,startTime,endTime,durationMinutes,minAge:ageMin,maxAge:ageMax,price,capacity,isCompetitionClass"
       )
       .eq("isCompetitionClass", false);
 
@@ -80,7 +81,7 @@ const getCompetitionClassesCached = unstable_cache(
     const { data, error } = await serviceRole
       .from("Classes")
       .select(
-        "id,name:className,weekday,startTime,endTime,durationMinutes,minAge:ageMin,maxAge:ageMax,capacity,isCompetitionClass"
+        "id,name:className,weekday,startTime,endTime,durationMinutes,minAge:ageMin,maxAge:ageMax,price,capacity,isCompetitionClass"
       )
       .eq("isCompetitionClass", true);
 

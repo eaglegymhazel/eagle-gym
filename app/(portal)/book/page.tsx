@@ -13,15 +13,19 @@ export default async function BookPage({
 }) {
   const resolvedSearchParams = await searchParams;
   const { childId } = resolvedSearchParams ?? {};
-  if (!childId) {
-    redirect("/account?tab=children");
-  }
 
   const bookingContext = await getBookingContext();
   if (bookingContext.status !== "existing") {
     redirect("/account?tab=children");
   }
   const children = bookingContext.children;
+  if (!childId) {
+    const firstChild = children[0];
+    if (!firstChild?.id) {
+      redirect("/account?tab=children");
+    }
+    redirect(`/book?childId=${encodeURIComponent(firstChild.id)}`);
+  }
   const child = children.find((item) => item.id === childId);
   if (!child?.id) {
     redirect("/account?tab=children");
@@ -36,6 +40,7 @@ export default async function BookPage({
       id: item.id,
       firstName: item.firstName,
       lastName: item.lastName,
+      dateOfBirth: item.dateOfBirth,
     })),
     competitionEligible,
   };

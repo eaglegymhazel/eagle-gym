@@ -3,20 +3,18 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, ArrowRight } from "lucide-react";
 import {
   buildCompetitionSelectionKey,
   type CompetitionBookingSelection,
 } from "@/lib/competitionBookingSelection";
 import DaySection from "../recreational/components/DaySection";
-import SelectionTray from "../recreational/components/SelectionTray";
-import type { ClassCardItem, SelectedClassDetail, WeekdayGroup } from "../recreational/types";
+import type { ClassCardItem, WeekdayGroup } from "../recreational/types";
 import { parseTimeToMinutes, WEEKDAY_ORDER } from "../recreational/utils";
 
 type CompetitionClassesClientProps = {
   childId: string;
   childName: string;
-  ageGroupLabel: string;
   groups: WeekdayGroup[];
   initialSelections?: CompetitionBookingSelection[];
 };
@@ -24,7 +22,6 @@ type CompetitionClassesClientProps = {
 export default function CompetitionClassesClient({
   childId,
   childName,
-  ageGroupLabel,
   groups,
   initialSelections = [],
 }: CompetitionClassesClientProps) {
@@ -56,7 +53,6 @@ export default function CompetitionClassesClient({
     initialSelections.filter((selection) => classById.has(selection.classId))
   );
   const [isSavingDraft, setIsSavingDraft] = useState(false);
-  const [trayExpanded, setTrayExpanded] = useState(initialSelections.length > 0);
   const [waitlistStateByClassId, setWaitlistStateByClassId] = useState<
     Record<string, "idle" | "saving" | "added">
   >({});
@@ -109,40 +105,6 @@ export default function CompetitionClassesClient({
     [selectedOptions]
   );
   const selectedCount = selectedOptions.length;
-
-  const selectedItems = useMemo(() => {
-    const weekdayOrderIndex = new Map<string, number>(
-      WEEKDAY_ORDER.map((day, idx) => [day, idx])
-    );
-    const items: SelectedClassDetail[] = selectedOptions.reduce<SelectedClassDetail[]>(
-      (acc, selection) => {
-        const selectionKey = buildCompetitionSelectionKey(selection);
-        const item = optionBySelectionKey.get(selectionKey);
-        if (!item) return acc;
-        acc.push({
-          id: selectionKey,
-          classId: item.classId ?? item.id,
-          selectionKey,
-          name: item.name,
-          weekday: item.weekday,
-          startTime: item.startTime,
-          endTime: item.endTime,
-          durationMinutes: item.durationMinutes,
-          bookedDurationMinutes: selection.bookedDurationMinutes,
-          isFull: item.isFull,
-        });
-        return acc;
-      },
-      []
-    );
-
-    return items.sort((a, b) => {
-      const dayDiff =
-        (weekdayOrderIndex.get(a.weekday) ?? 99) - (weekdayOrderIndex.get(b.weekday) ?? 99);
-      if (dayDiff !== 0) return dayDiff;
-      return parseTimeToMinutes(a.startTime) - parseTimeToMinutes(b.startTime);
-    });
-  }, [optionBySelectionKey, selectedOptions]);
   const selectedHoursLabel = useMemo(() => {
     const totalMinutes = selectedOptions.reduce((sum, selection) => {
       if (
@@ -171,9 +133,6 @@ export default function CompetitionClassesClient({
 
     setSelectedOptions((prev) => {
       if (isSelected) {
-        if (prev.length === 1) {
-          setTrayExpanded(false);
-        }
         return prev.filter(
           (selection) =>
             buildCompetitionSelectionKey(selection) !== selectionKey
@@ -184,25 +143,6 @@ export default function CompetitionClassesClient({
       next.push({ classId, bookedDurationMinutes });
       return next;
     });
-  };
-
-  const removeClass = (selectionKey: string) => {
-    setSelectedOptions((prev) => {
-      if (
-        prev.length === 1 &&
-        buildCompetitionSelectionKey(prev[0]!) === selectionKey
-      ) {
-        setTrayExpanded(false);
-      }
-      return prev.filter(
-        (selection) => buildCompetitionSelectionKey(selection) !== selectionKey
-      );
-    });
-  };
-
-  const clearSelection = () => {
-    setTrayExpanded(false);
-    setSelectedOptions([]);
   };
 
   const handleContinue = async () => {
@@ -298,30 +238,10 @@ export default function CompetitionClassesClient({
   }
 
   return (
-    <div className="pb-44 sm:pb-48">
+    <div className="pb-28 sm:pb-32">
       <div className="mx-auto w-full max-w-5xl space-y-4 sm:space-y-5">
-        <header className="space-y-2">
-          <div className="px-0.5 py-0.5">
-            <div className="inline-flex items-center rounded-full border border-[#6c35c3]/25 bg-white/85 px-4 py-1.5 text-sm font-semibold uppercase tracking-[0.18em] text-[#2a203c]/70 shadow-[0_12px_28px_-18px_rgba(31,26,37,0.5)] backdrop-blur">
-              Booking for{" "}
-              <span className="ml-1 font-bold text-[#2a203c]">
-                {childName || "selected child"}
-              </span>
-            </div>
-          </div>
-          <p className="pl-4 text-sm font-semibold text-[#2a203c]">
-            Class type: <span className="font-bold">Competition</span>
-          </p>
-          <p className="pl-4 text-sm font-semibold text-[#2a203c]">
-            Age group: <span className="font-bold">{ageGroupLabel}</span>
-          </p>
-          <div className="pt-1">
-            <div className="h-[0.5px] w-full bg-black/20" />
-          </div>
-          {waitlistMessage ? (
-            <p className="pl-4 text-sm font-semibold text-[#2a203c]">{waitlistMessage}</p>
-          ) : null}
-          <div className="pt-2 pl-4">
+        <header className="space-y-3 sm:space-y-4">
+          <div className="pl-4">
             <Link
               href="/account"
               className="inline-flex items-center gap-2 rounded-full border border-[#d8c7f4] bg-white px-4 py-2 text-sm font-semibold text-[#5b2ca7] transition hover:bg-[#faf6ff]"
@@ -330,6 +250,27 @@ export default function CompetitionClassesClient({
               Back to account
             </Link>
           </div>
+          <div className="pl-4">
+            <div className="px-0.5 py-0.5">
+              <div className="inline-flex items-center rounded-full border border-[#6c35c3]/25 bg-white/85 px-4 py-1.5 text-sm font-semibold uppercase tracking-[0.18em] text-[#2a203c]/70 shadow-[0_12px_28px_-18px_rgba(31,26,37,0.5)] backdrop-blur">
+                Booking for{" "}
+                <span className="ml-1 font-bold text-[#2a203c]">
+                  {childName || "selected child"}
+                </span>
+              </div>
+            </div>
+          </div>
+          <div className="pl-4">
+            <span className="inline-flex items-center rounded-full border border-[#efd18a] bg-[#fff6d7] px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.14em] text-[#9a6500] shadow-[0_10px_20px_-16px_rgba(154,101,0,0.28)]">
+              Competition Classes
+            </span>
+          </div>
+          <div className="pt-1">
+            <div className="h-[0.5px] w-full bg-black/20" />
+          </div>
+          {waitlistMessage ? (
+            <p className="pl-4 text-sm font-semibold text-[#2a203c]">{waitlistMessage}</p>
+          ) : null}
         </header>
 
         <div className="space-y-5 pt-3 sm:space-y-6 sm:pt-5">
@@ -346,20 +287,31 @@ export default function CompetitionClassesClient({
           ))}
         </div>
       </div>
+      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-[#e7e1f1] bg-white/96 px-4 pb-[calc(0.85rem+env(safe-area-inset-bottom))] pt-3 shadow-[0_-16px_32px_-24px_rgba(34,24,56,0.42)] backdrop-blur">
+        <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-[11px] font-black uppercase tracking-[0.12em] text-[#6c35c3]">
+              Total Hours
+            </p>
+            <p className="text-lg font-black tracking-tight text-[#1f1a25]">
+              {selectedHoursLabel ? selectedHoursLabel.replace("Total selected hours: ", "") : "0h"}
+            </p>
+            {selectedCount === 0 ? (
+              <p className="text-[11px] text-[#6a5a86]">Select at least one class to continue.</p>
+            ) : null}
+          </div>
 
-      <SelectionTray
-        selectedCount={selectedCount}
-        selectedItems={selectedItems}
-        expanded={trayExpanded}
-        summaryLabel={selectedHoursLabel}
-        onToggleExpanded={() => {
-          if (selectedCount === 0) return;
-          setTrayExpanded((prev) => !prev);
-        }}
-        onClear={clearSelection}
-        onContinue={handleContinue}
-        onRemove={removeClass}
-      />
+          <button
+            type="button"
+            onClick={handleContinue}
+            disabled={selectedCount === 0 || isSavingDraft}
+            className="inline-flex h-11 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-full bg-[#6c35c3] px-5 text-sm font-semibold text-white !text-white shadow-[0_12px_24px_-12px_rgba(69,34,124,0.78)] transition hover:bg-[#5b2ca7] disabled:cursor-not-allowed disabled:bg-[#c5addf] disabled:!text-white"
+          >
+            {isSavingDraft ? "Saving..." : "Review Booking"}
+            <ArrowRight className="h-4 w-4" aria-hidden="true" />
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

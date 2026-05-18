@@ -68,8 +68,7 @@ export default function SiteShell({
       <main className="mt-0 w-full px-0 pt-0 pb-4">{children}</main>
 
       <footer className="border-t border-black/10 bg-[#f7f2fb]">
-        <div className="mx-auto grid w-full max-w-6xl gap-5 px-4 py-5 sm:px-6 md:grid-cols-2 md:gap-8">
-
+        <div className="mx-auto grid w-full max-w-6xl gap-5 px-4 py-5 sm:px-6 lg:grid-cols-[1fr_1fr_auto] lg:items-start lg:gap-8">
           <div className="space-y-2">
             <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[#5f5177]">
               Contact
@@ -140,6 +139,30 @@ export default function SiteShell({
                   className="h-5 w-5"
                 />
               </a>
+            </div>
+          </div>
+
+          <div className="space-y-2 lg:justify-self-end">
+            <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[#5f5177] lg:text-right">
+              Affiliated with NGA and IGA
+            </p>
+            <div className="flex items-center gap-3 lg:justify-end">
+              <Image
+                src="/brand/NGA_logo.jpg"
+                alt="National Gymnastics Association"
+                width={708}
+                height={679}
+                unoptimized
+                className="h-9 w-auto object-contain"
+              />
+              <Image
+                src="/brand/IGA_logo.jpg"
+                alt="Independent Gymnastics Association"
+                width={733}
+                height={89}
+                unoptimized
+                className="h-6 w-auto object-contain"
+              />
             </div>
           </div>
         </div>

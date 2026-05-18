@@ -29,11 +29,13 @@ type MedicalInformationRow = {
 
 type BookingSummary = {
   childId: string
+  bookingKind: 'class' | 'summer-camp'
   className: string | null
   weekday: string | null
   startTime: string | null
   endTime: string | null
   durationMinutes: number | null
+  campDate: string | null
 }
 
 type ChildBadgeSkill = {
@@ -133,6 +135,18 @@ function formatBadgeDate(value: string | null) {
 
 function categoryLabel(category: string | null) {
   return category?.trim() || 'Badge'
+}
+
+function formatCampDate(value: string | null) {
+  if (!value) return '-'
+  const date = new Date(`${value}T12:00:00`)
+  if (Number.isNaN(date.getTime())) return value
+  return new Intl.DateTimeFormat('en-GB', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  }).format(date)
 }
 
 export default function ChildrenClientPanel({
@@ -976,18 +990,27 @@ export default function ChildrenClientPanel({
             <h3 className={styles.cardTitle}>
               {booking.className ?? '-'}
             </h3>
-            <div className={styles.bookingMeta}>
-              <span className={styles.cardBody}>
-                {(booking.startTime ?? '-') +
-                  ' - ' +
-                  (booking.endTime ?? '-')}
-              </span>
-              <span className={styles.bookingDuration}>
-                {booking.durationMinutes != null
-                  ? `${booking.durationMinutes} minutes`
-                  : '-'}
-              </span>
-            </div>
+            {booking.bookingKind === 'summer-camp' ? (
+              <div className={styles.bookingMeta}>
+                <span className={styles.cardBody}>{formatCampDate(booking.campDate)}</span>
+                <span className={styles.bookingDuration}>
+                  {(booking.startTime ?? '-') + ' - ' + (booking.endTime ?? '-')}
+                </span>
+              </div>
+            ) : (
+              <div className={styles.bookingMeta}>
+                <span className={styles.cardBody}>
+                  {(booking.startTime ?? '-') +
+                    ' - ' +
+                    (booking.endTime ?? '-')}
+                </span>
+                <span className={styles.bookingDuration}>
+                  {booking.durationMinutes != null
+                    ? `${booking.durationMinutes} minutes`
+                    : '-'}
+                </span>
+              </div>
+            )}
           </div>
         ))
       )}

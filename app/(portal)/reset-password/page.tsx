@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type FormEvent } from "react";
 import PasswordField from "@/app/components/auth/PasswordField";
-import { logAuthValidation } from "@/lib/authValidationDebug";
 import { validatePassword } from "@/lib/passwordPolicy";
 import { supabase } from "@/lib/supabaseClient";
 
@@ -15,42 +14,38 @@ export default function ResetPasswordPage() {
   const [msg, setMsg] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [hasSession, setHasSession] = useState(false);
-  const [loading, setLoading] = useState(true);
   const [passwordValid, setPasswordValid] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
     let active = true;
+
     const init = async () => {
-      if (typeof window !== "undefined" && window.location.hash) {
-        const params = new URLSearchParams(window.location.hash.slice(1));
-        const access_token = params.get("access_token");
-        const refresh_token = params.get("refresh_token");
-        if (access_token && refresh_token) {
-          await supabase.auth.setSession({ access_token, refresh_token });
-          window.history.replaceState(
-            null,
-            "",
-            window.location.pathname + window.location.search
-          );
-        }
+      if (typeof window === "undefined" || !window.location.hash) {
+        return;
       }
 
-      logAuthValidation({
-        method: "getSession",
-        source: "app/(portal)/reset-password/page.tsx",
-      });
-      const { data } = await supabase.auth.getSession();
+      const params = new URLSearchParams(window.location.hash.slice(1));
+      const access_token = params.get("access_token");
+      const refresh_token = params.get("refresh_token");
+      if (!access_token || !refresh_token) {
+        return;
+      }
+
+      await supabase.auth.setSession({ access_token, refresh_token });
       if (!active) return;
-      setHasSession(!!data.session);
-      setLoading(false);
+      setHasSession(true);
+      window.history.replaceState(
+        null,
+        "",
+        window.location.pathname + window.location.search
+      );
     };
 
     init().catch(() => {
       if (!active) return;
       setHasSession(false);
-      setLoading(false);
     });
     return () => {
       active = false;
@@ -128,9 +123,7 @@ export default function ResetPasswordPage() {
 
       <div className="mx-auto mt-4 w-full max-w-2xl overflow-hidden rounded-2xl border border-[#e1d7ee] bg-white shadow-[0_18px_42px_rgba(22,12,47,0.1)]">
         <div className="p-6 sm:p-8">
-          {loading ? (
-            <p className="text-sm text-[#2E2A33]/70">Loading...</p>
-          ) : hasSession ? (
+          {hasSession ? (
             <form className="flex flex-col gap-4" onSubmit={onReset}>
               <PasswordField
                 label="New password"

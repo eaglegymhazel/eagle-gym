@@ -213,12 +213,11 @@ export default function ReviewClient({
               </span>
             </div>
           </div>
-          <p className="pl-4 text-sm font-semibold text-[#2a203c]">
-            Class type: <span className="font-bold">Competition</span>
-          </p>
-          <p className="pl-4 text-sm font-semibold text-[#2a203c]">
-            Stage: <span className="font-bold">Review and confirm</span>
-          </p>
+          <div className="pl-4">
+            <span className="inline-flex items-center rounded-full border border-[#efd18a] bg-[#fff6d7] px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.14em] text-[#9a6500] shadow-[0_10px_20px_-16px_rgba(154,101,0,0.28)]">
+              Competition Classes
+            </span>
+          </div>
           <div className="pt-1">
             <div className="h-[0.5px] w-full bg-black/20" />
           </div>

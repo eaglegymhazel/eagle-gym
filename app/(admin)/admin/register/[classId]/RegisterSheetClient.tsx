@@ -25,6 +25,11 @@ type RegisterSheetClientProps = {
   initialCollected?: Record<string, boolean>;
   isLocked?: boolean;
   isBeforeSaveWindow?: boolean;
+  sectionLabel?: string;
+  backHref?: string;
+  backLabel?: string;
+  saveEndpoint?: string;
+  savePayload?: Record<string, unknown>;
 };
 
 type FilterState = "all" | AttendanceState;
@@ -65,6 +70,11 @@ export default function RegisterSheetClient({
   initialCollected = {},
   isLocked = false,
   isBeforeSaveWindow = false,
+  sectionLabel = "Class register",
+  backHref = "/admin?tab=register",
+  backLabel = "Back to classes",
+  saveEndpoint = "/api/admin/register/save",
+  savePayload,
 }: RegisterSheetClientProps) {
   const [statuses, setStatuses] = useState<Record<string, AttendanceState>>(initialStatuses);
   const [collected, setCollected] = useState<Record<string, boolean>>(initialCollected);
@@ -184,13 +194,15 @@ export default function RegisterSheetClient({
     }));
 
     try {
-      const response = await fetch("/api/admin/register/save", {
+      const response = await fetch(saveEndpoint, {
         method: "POST",
         credentials: "include",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          classId,
-          sessionDate,
+          ...(savePayload ?? {
+            classId,
+            sessionDate,
+          }),
           entries,
         }),
       });
@@ -228,7 +240,7 @@ export default function RegisterSheetClient({
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-[#726587]">
-                Class register
+                {sectionLabel}
               </p>
               <h1 className="mt-1 text-2xl font-extrabold tracking-[-0.01em] text-[#221833]">
                 {titleLabel}
@@ -244,11 +256,11 @@ export default function RegisterSheetClient({
               ) : null}
             </div>
             <Link
-              href="/admin?tab=register"
-              className="inline-flex h-10 items-center gap-1.5 rounded-none border border-[#c7b4e5] bg-[#f7f2ff] px-3.5 text-sm font-semibold text-[#4f2390] shadow-[0_1px_0_rgba(255,255,255,0.8)_inset] transition hover:border-[#b398dd] hover:bg-[#f1e8ff] active:bg-[#ebddff] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6e2ac0]/35"
+              href={backHref}
+              className="inline-flex h-10 cursor-pointer items-center gap-1.5 rounded-none border border-[#c7b4e5] bg-[#f7f2ff] px-3.5 text-sm font-semibold text-[#4f2390] shadow-[0_1px_0_rgba(255,255,255,0.8)_inset] transition hover:border-[#b398dd] hover:bg-[#f1e8ff] active:bg-[#ebddff] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6e2ac0]/35"
             >
               <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-              Back to classes
+              {backLabel}
             </Link>
           </div>
         </div>

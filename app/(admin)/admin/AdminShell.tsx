@@ -9,12 +9,13 @@ import { ClipboardList, Clock3, Users } from "lucide-react";
 import styles from "@/app/(portal)/(protected)/account/account.module.css";
 import ChildPicker from "@/components/admin/ChildPicker";
 import type { Child } from "@/components/admin/mockChildren";
+import type { Session } from "@/components/admin/mockSessions";
 import ClassRegisterPicker from "@/components/admin/ClassRegisterPicker";
 import { buildUpcomingSessions, type RegisterClassTemplate } from "@/components/admin/sessionBuild";
 import AdminNavItem from "@/components/admin/AdminNavItem";
 import type { AdminWaitlistRow } from "@/lib/server/adminDashboard";
 
-type AdminTabKey = "students" | "register" | "waiting";
+type AdminTabKey = "students" | "register" | "summer-camp-register" | "waiting";
 
 type NavItem = {
   key: AdminTabKey;
@@ -35,22 +36,27 @@ type WaitingRow = {
 const navItems: NavItem[] = [
   { key: "students", label: "Student Management", icon: Users },
   { key: "register", label: "Class Register", icon: ClipboardList },
+  { key: "summer-camp-register", label: "Summer Camp Register", icon: ClipboardList },
   { key: "waiting", label: "Waiting List", icon: Clock3 },
 ];
 
 export default function AdminShell({
   initialChildrenData,
   initialRegisterClasses,
+  initialSummerCampRegisterSessions,
   initialWaitlistRows,
   initialChildrenLoadError,
   initialRegisterClassesError,
+  initialSummerCampRegisterSessionsError,
   initialWaitlistLoadError,
 }: {
   initialChildrenData: Child[];
   initialRegisterClasses: RegisterClassTemplate[];
+  initialSummerCampRegisterSessions: Session[];
   initialWaitlistRows: AdminWaitlistRow[];
   initialChildrenLoadError: string | null;
   initialRegisterClassesError: string | null;
+  initialSummerCampRegisterSessionsError: string | null;
   initialWaitlistLoadError: string | null;
 }) {
   const router = useRouter();
@@ -62,7 +68,12 @@ export default function AdminShell({
   const drawerRef = useRef<HTMLElement | null>(null);
   const initialTab = useMemo<AdminTabKey>(() => {
     const tabParam = searchParams.get("tab");
-    if (tabParam === "students" || tabParam === "register" || tabParam === "waiting") {
+    if (
+      tabParam === "students" ||
+      tabParam === "register" ||
+      tabParam === "summer-camp-register" ||
+      tabParam === "waiting"
+    ) {
       return tabParam;
     }
     return "students";
@@ -82,6 +93,8 @@ export default function AdminShell({
   const childrenLoadError = initialChildrenLoadError;
   const registerClasses = initialRegisterClasses;
   const registerClassesError = initialRegisterClassesError;
+  const summerCampRegisterSessions = initialSummerCampRegisterSessions;
+  const summerCampRegisterSessionsError = initialSummerCampRegisterSessionsError;
   const waitlistLoadError = initialWaitlistLoadError;
 
   const registerSessions = useMemo(
@@ -100,11 +113,14 @@ export default function AdminShell({
   const cardTitle = useMemo(() => {
     if (tab === "students") return "Student Management";
     if (tab === "register") return "Class Register";
+    if (tab === "summer-camp-register") return "Summer Camp Register";
     return "Waiting List";
   }, [tab]);
   const isStudentTab = tab === "students";
   const isRegisterTab = tab === "register";
-  const isFlatContentTab = isStudentTab || isRegisterTab || tab === "waiting";
+  const isSummerCampRegisterTab = tab === "summer-camp-register";
+  const isFlatContentTab =
+    isStudentTab || isRegisterTab || isSummerCampRegisterTab || tab === "waiting";
 
   const formatWaitlistDate = (value: string) => {
     if (!value) return "Unknown";
@@ -338,6 +354,30 @@ export default function AdminShell({
                       const registerDate = session.startAt.slice(0, 10);
                       router.push(
                         `/admin/register/${encodeURIComponent(session.classId)}?date=${encodeURIComponent(registerDate)}`
+                      );
+                    }}
+                  />
+                ) : null}
+              </>
+            ) : null}
+
+            {tab === "summer-camp-register" ? (
+              <>
+                {summerCampRegisterSessionsError ? (
+                  <div className={styles.errorBanner} role="alert">
+                    <span>{summerCampRegisterSessionsError}</span>
+                  </div>
+                ) : null}
+                {!summerCampRegisterSessionsError ? (
+                  <ClassRegisterPicker
+                    sessions={summerCampRegisterSessions}
+                    heading="Upcoming camp days"
+                    showHistorical={false}
+                    programmeOptions={["all"]}
+                    onSelect={(session) => {
+                      const registerDate = session.startAt.slice(0, 10);
+                      router.push(
+                        `/admin/summer-camp-register/${encodeURIComponent(registerDate)}?slug=${encodeURIComponent(session.classId)}`
                       );
                     }}
                   />

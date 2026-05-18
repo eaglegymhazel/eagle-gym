@@ -4,8 +4,9 @@ export type TeamMember = {
   roleTitle: string;
   qualifications: string[];
   photoUrl: string;
+  imageWidth: number;
+  imageHeight: number;
   bio?: string;
   funFact?: string;
   certifications?: string[];
 };
-

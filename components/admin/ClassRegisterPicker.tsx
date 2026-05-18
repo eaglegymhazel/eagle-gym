@@ -7,6 +7,9 @@ import type { Session } from "./mockSessions";
 type ClassRegisterPickerProps = {
   sessions: Session[];
   onSelect: (session: Session) => void;
+  heading?: string;
+  showHistorical?: boolean;
+  programmeOptions?: Array<"all" | Session["programme"]>;
 };
 
 type HistoricalRegister = {
@@ -24,7 +27,7 @@ type HistoricalRegister = {
   takenByLabel: string;
 };
 
-type ProgrammeFilter = "all" | "Recreational" | "Competition";
+type ProgrammeFilter = "all" | Session["programme"];
 
 type GroupedSessions = {
   key: string;
@@ -112,7 +115,41 @@ function formatHeaderDate(day: string): string {
   });
 }
 
-export default function ClassRegisterPicker({ sessions, onSelect }: ClassRegisterPickerProps) {
+function programmeLabel(value: Session["programme"]): string {
+  if (value === "Recreational") return "Recreational";
+  if (value === "Competition") return "Competition";
+  return "Summer Camp";
+}
+
+function programmeBadgeMeta(programme: Session["programme"]): {
+  label: string;
+  className: string;
+} {
+  if (programme === "Competition") {
+    return {
+      label: "Comp",
+      className: "text-[#b97700]",
+    };
+  }
+  if (programme === "Summer Camp") {
+    return {
+      label: "Camp",
+      className: "text-[#c43146]",
+    };
+  }
+  return {
+    label: "Rec",
+    className: "text-[#138a4b]",
+  };
+}
+
+export default function ClassRegisterPicker({
+  sessions,
+  onSelect,
+  heading = "Upcoming sessions",
+  showHistorical = true,
+  programmeOptions,
+}: ClassRegisterPickerProps) {
   const [programmeFilter, setProgrammeFilter] = useState<ProgrammeFilter>("all");
   const [historicalDate, setHistoricalDate] = useState(dayKey(new Date()));
   const [historicalRegisters, setHistoricalRegisters] = useState<HistoricalRegister[]>([]);
@@ -125,6 +162,13 @@ export default function ClassRegisterPicker({ sessions, onSelect }: ClassRegiste
   });
 
   const loading = appliedFilters.programmeFilter !== programmeFilter;
+  const availableProgrammeOptions = useMemo<Array<"all" | Session["programme"]>>(() => {
+    if (programmeOptions && programmeOptions.length > 0) {
+      return programmeOptions;
+    }
+    const unique = Array.from(new Set(sessions.map((session) => session.programme)));
+    return ["all", ...unique];
+  }, [programmeOptions, sessions]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -265,10 +309,11 @@ export default function ClassRegisterPicker({ sessions, onSelect }: ClassRegiste
     <>
     <div className="space-y-3">
       <section className="pt-0">
-        <div className="mb-2 flex items-center gap-1">
-          {(["all", "Recreational", "Competition"] as const).map((value) => {
+        {availableProgrammeOptions.length > 1 ? (
+          <div className="mb-2 flex items-center gap-1">
+            {availableProgrammeOptions.map((value) => {
             const isActive = programmeFilter === value;
-            const label = value === "all" ? "All" : value;
+            const label = value === "all" ? "All" : programmeLabel(value);
             return (
               <button
                 key={value}
@@ -288,8 +333,9 @@ export default function ClassRegisterPicker({ sessions, onSelect }: ClassRegiste
               </button>
             );
           })}
-        </div>
-        <h3 className="mb-2 text-sm font-semibold text-[#2a203c]">Upcoming sessions</h3>
+          </div>
+        ) : null}
+        <h3 className="mb-2 text-sm font-semibold text-[#2a203c]">{heading}</h3>
 
         {loading ? (
           <div className="space-y-1.5">
@@ -330,7 +376,7 @@ export default function ClassRegisterPicker({ sessions, onSelect }: ClassRegiste
                   const status = statusLabel(statusChip(session, new Date()));
                   const statusVariant = statusChip(session, new Date());
                   const range = getTimeRangeParts(session.startAt, session.endAt);
-                  const isCompetition = session.programme === "Competition";
+                  const badgeMeta = programmeBadgeMeta(session.programme);
 
                   return (
                     <button
@@ -382,17 +428,15 @@ export default function ClassRegisterPicker({ sessions, onSelect }: ClassRegiste
                               <span
                                 className={[
                                   "mr-1.5 inline-flex items-center gap-1 text-[11px] font-semibold leading-none",
-                                  isCompetition ? "text-[#b97700]" : "text-[#138a4b]",
+                                  badgeMeta.className,
                                 ].join(" ")}
                               >
                                 <Star className="h-2.5 w-2.5 fill-current" aria-hidden="true" />
-                                <span>{isCompetition ? "Comp" : "Rec"}</span>
+                                <span>{badgeMeta.label}</span>
                               </span>
-                              {session.programme === "Competition"
+                              {session.programme === "Competition" || !session.ageBand
                                 ? ""
-                                : session.ageBand
-                                  ? ` - ${session.ageBand}`
-                                  : ""}
+                                : ` - ${session.ageBand}`}
                             </p>
                             {status ? (
                               <span
@@ -455,6 +499,7 @@ export default function ClassRegisterPicker({ sessions, onSelect }: ClassRegiste
         )}
       </section>
 
+      {showHistorical ? (
       <section className="border-t border-[#e6e0ee] pt-2">
         <h3 className="mb-2 text-sm font-semibold text-[#2a203c]">View historical registers</h3>
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-[240px]">
@@ -583,6 +628,7 @@ export default function ClassRegisterPicker({ sessions, onSelect }: ClassRegiste
           )}
         </div>
       </section>
+      ) : null}
     </div>
     <style jsx global>{`
       #historical-register-date::-webkit-calendar-picker-indicator {

@@ -9,6 +9,7 @@ export type ClassCardItem = {
   bookedDurationMinutes?: number | null;
   minAge: number | null;
   maxAge: number | null;
+  price?: number | null;
   capacity: number | null;
   spotsTaken: number;
   spotsLeft: number | null;
@@ -30,5 +31,6 @@ export type SelectedClassDetail = {
   endTime?: string;
   durationMinutes: number | null;
   bookedDurationMinutes?: number | null;
+  price?: number | null;
   isFull: boolean;
 };

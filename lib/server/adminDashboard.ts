@@ -2,7 +2,12 @@ import "server-only";
 
 import { supabaseAdmin } from "@/lib/admin";
 import type { Child } from "@/components/admin/mockChildren";
+import type { Session } from "@/components/admin/mockSessions";
 import type { RegisterClassTemplate } from "@/components/admin/sessionBuild";
+import {
+  getSummerCampActiveBookingCountsByDate,
+  getSummerCampSessions,
+} from "@/lib/server/summerCampBookings";
 
 type ChildRow = {
   id: string;
@@ -82,6 +87,7 @@ export type AdminWaitlistRow = {
 
 const QUERY_PAGE_SIZE = 1000;
 const IN_CLAUSE_CHUNK_SIZE = 250;
+const LONDON_TZ = "Europe/London";
 
 function chunkArray<T>(items: T[], size: number): T[][] {
   const chunks: T[][] = [];
@@ -135,6 +141,49 @@ function toAgeBand(min: number | string | null, max: number | string | null): st
   if (minVal != null && maxVal != null) return `${minVal}-${maxVal}yrs`;
   if (minVal != null) return `${minVal}+yrs`;
   return `Up to ${maxVal}yrs`;
+}
+
+function parseTime(value: string | null): { hour: number; minute: number } | null {
+  if (!value) return null;
+  const [h, m] = value.split(":");
+  const hour = Number.parseInt(h ?? "", 10);
+  const minute = Number.parseInt(m ?? "", 10);
+  if (!Number.isFinite(hour) || !Number.isFinite(minute)) return null;
+  if (hour < 0 || hour > 23 || minute < 0 || minute > 59) return null;
+  return { hour, minute };
+}
+
+function getOffsetMinutes(timeZone: string, date: Date): number {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone,
+    timeZoneName: "shortOffset",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).formatToParts(date);
+  const offsetToken = parts.find((part) => part.type === "timeZoneName")?.value ?? "GMT";
+  const match = offsetToken.match(/^GMT([+-]\d{1,2})(?::?(\d{2}))?$/);
+  if (!match) return 0;
+  const hours = Number.parseInt(match[1] ?? "0", 10);
+  const minutes = Number.parseInt(match[2] ?? "0", 10);
+  const sign = hours >= 0 ? 1 : -1;
+  return hours * 60 + sign * minutes;
+}
+
+function londonLocalToUtc(dayKey: string, hour: number, minute: number): Date {
+  const [yearRaw, monthRaw, dayRaw] = dayKey.split("-");
+  const year = Number.parseInt(yearRaw ?? "", 10);
+  const month = Number.parseInt(monthRaw ?? "", 10);
+  const day = Number.parseInt(dayRaw ?? "", 10);
+  const baseUtc = Date.UTC(year, month - 1, day, hour, minute, 0, 0);
+
+  let utc = baseUtc;
+  for (let i = 0; i < 2; i += 1) {
+    const offset = getOffsetMinutes(LONDON_TZ, new Date(utc));
+    utc = baseUtc - offset * 60_000;
+  }
+
+  return new Date(utc);
 }
 
 export async function getAdminChildrenDirectory(): Promise<Child[]> {
@@ -304,6 +353,41 @@ export async function getAdminRegisterClasses(): Promise<RegisterClassTemplate[]
     durationMinutes: row.durationMinutes,
     enrolledCount: enrolledCountByClassId.get(row.id) ?? 0,
   }));
+}
+
+export async function getAdminSummerCampRegisterSessions(
+  slug = "summer-camps-2026"
+): Promise<Session[]> {
+  const sessions = await getSummerCampSessions(slug);
+  const bookingCountsByDate = await getSummerCampActiveBookingCountsByDate(
+    slug,
+    sessions.map((session) => session.campDate)
+  );
+
+  return sessions.reduce<Session[]>((acc, session) => {
+      const start = parseTime(session.startTime);
+      const end = parseTime(session.endTime);
+      if (!start || !end) return acc;
+
+      const startAt = londonLocalToUtc(session.campDate, start.hour, start.minute);
+      let endAt = londonLocalToUtc(session.campDate, end.hour, end.minute);
+      if (endAt <= startAt) {
+        endAt = new Date(endAt.getTime() + 24 * 60 * 60 * 1000);
+      }
+
+      acc.push({
+        id: session.id,
+        classId: session.slug,
+        className: session.title,
+        programme: "Summer Camp" as const,
+        ageBand: "Ages 4+",
+        startAt: startAt.toISOString(),
+        endAt: endAt.toISOString(),
+        bookedCount: bookingCountsByDate.get(session.campDate) ?? 0,
+      });
+
+      return acc;
+    }, []);
 }
 
 export async function getAdminWaitlist(): Promise<AdminWaitlistRow[]> {
