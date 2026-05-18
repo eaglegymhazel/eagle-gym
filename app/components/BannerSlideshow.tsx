@@ -207,7 +207,7 @@ export default function BannerSlideshow() {
                 width={708}
                 height={679}
                 unoptimized
-                className="h-8 w-auto object-contain"
+                className="h-10 w-auto object-contain"
               />
               <Image
                 src="/brand/IGA_logo.jpg"

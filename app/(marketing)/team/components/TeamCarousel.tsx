@@ -6,9 +6,7 @@ import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   useCallback,
-  useEffect,
   useMemo,
-  useRef,
   useState,
 } from "react";
 import type { TeamMember } from "../types";
@@ -33,43 +31,17 @@ const slideVariants = {
 };
 
 export default function TeamCarousel({ members }: TeamCarouselProps) {
-  const viewportRef = useRef<HTMLDivElement | null>(null);
-  const cardMeasureRef = useRef<HTMLButtonElement | null>(null);
-  const touchStartXRef = useRef<number | null>(null);
-  const resumeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const userInteractingRef = useRef(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [direction, setDirection] = useState<1 | -1>(1);
-  const [railIndex, setRailIndex] = useState(members.length);
-  const [isAnimatingRail, setIsAnimatingRail] = useState(true);
-  const [cardStride, setCardStride] = useState(320);
 
   const selectedMember = useMemo(
     () => members.find((member) => member.id === selectedId) ?? null,
     [members, selectedId],
   );
   const displayMembers = useMemo(
-    () => [...members, ...members, ...members],
+    () => members,
     [members],
-  );
-
-  const pauseAuto = useCallback(() => {
-    userInteractingRef.current = true;
-    if (resumeTimeoutRef.current) clearTimeout(resumeTimeoutRef.current);
-    resumeTimeoutRef.current = setTimeout(() => {
-      userInteractingRef.current = false;
-    }, 2400);
-  }, []);
-
-  const stepRail = useCallback(
-    (step: 1 | -1) => {
-      if (!members.length) return;
-      pauseAuto();
-      setIsAnimatingRail(true);
-      setRailIndex((current) => current + step);
-    },
-    [members.length, pauseAuto],
   );
 
   const openMember = useCallback(
@@ -94,83 +66,6 @@ export default function TeamCarousel({ members }: TeamCarouselProps) {
     [members, selectedIndex],
   );
 
-  useEffect(() => {
-    const measure = () => {
-      const viewport = viewportRef.current;
-      const sample = cardMeasureRef.current;
-      if (!viewport || !sample) return;
-
-      const viewportStyles = window.getComputedStyle(viewport);
-      const gap = Number.parseFloat(viewportStyles.columnGap || viewportStyles.gap || "0");
-      setCardStride(sample.getBoundingClientRect().width + gap);
-    };
-
-    measure();
-    window.addEventListener("resize", measure);
-    return () => window.removeEventListener("resize", measure);
-  }, []);
-
-  useEffect(() => {
-    if (!members.length) return;
-    setRailIndex(members.length);
-  }, [members.length]);
-
-  useEffect(() => {
-    if (!members.length) return;
-
-    const intervalId = window.setInterval(() => {
-      if (!userInteractingRef.current) {
-        setIsAnimatingRail(true);
-        setRailIndex((current) => current + 1);
-      }
-    }, 2800);
-
-    return () => {
-      window.clearInterval(intervalId);
-      if (resumeTimeoutRef.current) clearTimeout(resumeTimeoutRef.current);
-    };
-  }, [members.length]);
-
-  const handleTrackTransitionEnd = () => {
-    if (!members.length) return;
-
-    if (railIndex >= members.length * 2) {
-      setIsAnimatingRail(false);
-      setRailIndex((current) => current - members.length);
-      return;
-    }
-
-    if (railIndex < members.length) {
-      setIsAnimatingRail(false);
-      setRailIndex((current) => current + members.length);
-      return;
-    }
-  };
-
-  useEffect(() => {
-    if (isAnimatingRail) return;
-    const timer = window.setTimeout(() => {
-      setIsAnimatingRail(true);
-    }, 40);
-    return () => window.clearTimeout(timer);
-  }, [isAnimatingRail]);
-
-  const handleTouchStart = (event: React.TouchEvent<HTMLDivElement>) => {
-    pauseAuto();
-    touchStartXRef.current = event.touches[0]?.clientX ?? null;
-  };
-
-  const handleTouchEnd = (event: React.TouchEvent<HTMLDivElement>) => {
-    const startX = touchStartXRef.current;
-    const endX = event.changedTouches[0]?.clientX ?? null;
-    touchStartXRef.current = null;
-    if (startX === null || endX === null) return;
-
-    const delta = endX - startX;
-    if (Math.abs(delta) < 32) return;
-    stepRail(delta < 0 ? 1 : -1);
-  };
-
   return (
     <>
       <section className="px-1 py-2">
@@ -181,16 +76,24 @@ export default function TeamCarousel({ members }: TeamCarouselProps) {
           <div className="hidden items-center gap-2 md:flex">
             <button
               type="button"
-              onClick={() => stepRail(-1)}
-              className="inline-flex h-11 w-11 items-center justify-center bg-white text-[#143271] transition hover:text-[#6c35c3]"
+              onClick={() => {
+                const rail = document.getElementById("coach-rail");
+                if (!(rail instanceof HTMLDivElement)) return;
+                rail.scrollBy({ left: -320, behavior: "smooth" });
+              }}
+              className="inline-flex h-11 w-11 items-center justify-center bg-white text-[#143271] transition duration-200 ease-out hover:-translate-y-0.5 hover:text-[#6c35c3] active:translate-y-[1px] active:scale-[0.96]"
               aria-label="Scroll coaches left"
             >
               <ChevronLeft className="h-5 w-5" />
             </button>
             <button
               type="button"
-              onClick={() => stepRail(1)}
-              className="inline-flex h-11 w-11 items-center justify-center bg-white text-[#143271] transition hover:text-[#6c35c3]"
+              onClick={() => {
+                const rail = document.getElementById("coach-rail");
+                if (!(rail instanceof HTMLDivElement)) return;
+                rail.scrollBy({ left: 320, behavior: "smooth" });
+              }}
+              className="inline-flex h-11 w-11 items-center justify-center bg-white text-[#143271] transition duration-200 ease-out hover:-translate-y-0.5 hover:text-[#6c35c3] active:translate-y-[1px] active:scale-[0.96]"
               aria-label="Scroll coaches right"
             >
               <ChevronRight className="h-5 w-5" />
@@ -198,29 +101,14 @@ export default function TeamCarousel({ members }: TeamCarouselProps) {
           </div>
         </div>
 
-        <div
-          className="overflow-hidden"
-          onMouseEnter={pauseAuto}
-          onWheel={pauseAuto}
-          onTouchStart={handleTouchStart}
-          onTouchEnd={handleTouchEnd}
-        >
+        <div className="overflow-hidden">
           <div
-            ref={viewportRef}
-            className="flex items-start gap-4 pr-6 md:gap-5 md:pr-0"
-            style={{
-              transform: `translateX(-${railIndex * cardStride}px)`,
-              transition: isAnimatingRail
-                ? "transform 500ms cubic-bezier(0.22, 1, 0.36, 1)"
-                : "none",
-              willChange: "transform",
-            }}
-            onTransitionEnd={handleTrackTransitionEnd}
+            id="coach-rail"
+            className="flex items-start gap-4 overflow-x-auto pb-2 pr-6 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden md:gap-5 md:pr-0"
           >
             {displayMembers.map((member, index) => (
               <motion.button
                 key={`${member.id}-${index}`}
-                ref={index === 0 ? cardMeasureRef : undefined}
                 type="button"
                 onClick={() => openMember(member.id)}
                 whileHover={{ y: -6 }}
@@ -274,7 +162,7 @@ export default function TeamCarousel({ members }: TeamCarouselProps) {
                 </Dialog.Overlay>
                 <Dialog.Content forceMount asChild>
                   <motion.div
-                    className="fixed left-1/2 top-1/2 z-[81] h-[min(620px,78vh)] w-[min(860px,calc(100vw-24px))] -translate-x-1/2 -translate-y-1/2 overflow-hidden bg-white shadow-2xl focus:outline-none"
+                    className="fixed left-1/2 top-1/2 z-[81] max-h-[84vh] w-[min(860px,calc(100vw-24px))] -translate-x-1/2 -translate-y-1/2 overflow-hidden bg-white shadow-2xl focus:outline-none lg:h-[min(620px,78vh)]"
                     initial={{ opacity: 0, y: 18, scale: 0.985 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: 18, scale: 0.985 }}
@@ -284,29 +172,29 @@ export default function TeamCarousel({ members }: TeamCarouselProps) {
                       <motion.div
                         key={selectedMember.id}
                         custom={direction}
-                        variants={slideVariants}
-                        initial="enter"
-                        animate="center"
-                        exit="exit"
-                        transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
-                        className="grid h-full lg:grid-cols-[320px_minmax(0,1fr)]"
-                      >
-                        <div className="bg-[#f4effa]">
-                          <div className="flex h-full items-center justify-center px-4 py-5">
-                            <div className="h-full w-full max-w-[300px]">
-                              <Image
-                                src={selectedMember.photoUrl}
-                                alt={`${selectedMember.name} portrait`}
-                                width={selectedMember.imageWidth}
-                                height={selectedMember.imageHeight}
-                                className="h-full w-full object-contain"
-                                sizes="(max-width: 1023px) 100vw, 300px"
-                              />
+                          variants={slideVariants}
+                          initial="enter"
+                          animate="center"
+                          exit="exit"
+                          transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+                          className="flex max-h-[84vh] flex-col overflow-y-auto lg:grid lg:h-full lg:max-h-none lg:grid-cols-[320px_minmax(0,1fr)] lg:overflow-hidden"
+                        >
+                          <div className="bg-[#f4effa]">
+                            <div className="flex items-center justify-center px-4 py-5 lg:h-full">
+                              <div className="w-full max-w-[300px] lg:h-full">
+                                <Image
+                                  src={selectedMember.photoUrl}
+                                  alt={`${selectedMember.name} portrait`}
+                                  width={selectedMember.imageWidth}
+                                  height={selectedMember.imageHeight}
+                                  className="h-auto w-full object-contain lg:h-full"
+                                  sizes="(max-width: 1023px) 100vw, 300px"
+                                />
+                              </div>
                             </div>
                           </div>
-                        </div>
 
-                        <div className="relative flex h-full flex-col px-5 py-6 sm:px-7 sm:py-7">
+                          <div className="relative flex min-h-0 flex-col px-5 py-6 sm:px-7 sm:py-7 lg:h-full">
                           <Dialog.Close asChild>
                             <button
                               type="button"
