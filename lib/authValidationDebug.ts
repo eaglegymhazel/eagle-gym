@@ -1,4 +1,4 @@
-type AuthValidationMethod = "getUser" | "getSession";
+  type AuthValidationMethod = "getUser" | "getSession";
 
 type AuthValidationLogInput = {
   method: AuthValidationMethod;

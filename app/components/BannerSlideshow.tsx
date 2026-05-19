@@ -28,9 +28,7 @@ export default function BannerSlideshow() {
   const showSummerCampPromo = pathname !== "/members";
   const showAffiliationBadges = pathname !== "/members";
   const primaryBookingHref = isLoggedIn ? "/book" : "/login?redirect=/book";
-  const summerCampHref = isLoggedIn
-    ? "/summer-camps/2026/book"
-    : "/login?redirect=/summer-camps/2026/book";
+  const summerCampHref = primaryBookingHref;
 
   useEffect(() => {
     const interval = window.setInterval(() => {

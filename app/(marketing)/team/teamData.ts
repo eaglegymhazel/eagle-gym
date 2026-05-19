@@ -111,4 +111,14 @@ export const teamMembers: TeamMember[] = [
     imageHeight: 1193,
     bio: "I have been at Eagle Gymnastics since I was 9 and that is how I got into coaching. My favourite part about coaching is building relationships with the gymnasts and watching them progress and get better over time.",
   },
+  {
+    id: "olivia",
+    name: "Olivia",
+    roleTitle: "Coach",
+    qualifications: [],
+    photoUrl: "/coaches/Olivia.jpeg",
+    imageWidth: 1179,
+    imageHeight: 1193,
+    bio: "I first joined Eagles as a gymnast, not as a coach. Eagles gave me the opportunity to begin doing something I never knew I'd love so much. My favourite thing about Eagles is how we're all like a family. It's more than just teaching gymnasts, it's building relationships with the gymnasts.",
+  },
 ];

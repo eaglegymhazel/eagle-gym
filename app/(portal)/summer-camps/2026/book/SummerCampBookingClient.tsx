@@ -19,7 +19,6 @@ import {
   formatCurrency,
   validateSummerCampSelection,
 } from "@/lib/summerCamps";
-import BookingChildPicker from "../../../book/BookingChildPicker";
 
 type SummerCampBookingClientProps = {
   camp: SummerCampConfig;
@@ -53,6 +52,10 @@ export default function SummerCampBookingClient({
 }: SummerCampBookingClientProps) {
   const router = useRouter();
   const [selectedDayIds, setSelectedDayIds] = useState<string[]>(initialSelectedDayIds);
+  const childName = useMemo(() => {
+    const child = children.find((item) => item.id === childId) ?? null;
+    return `${child?.firstName ?? ""} ${child?.lastName ?? ""}`.trim() || "selected child";
+  }, [childId, children]);
 
   const selectedSet = useMemo(() => new Set(selectedDayIds), [selectedDayIds]);
   const validationErrors = useMemo(
@@ -91,14 +94,6 @@ export default function SummerCampBookingClient({
     );
   };
 
-  const handleSelectChild = (nextChildId: string) => {
-    const days = selectedDayIds.join(",");
-    const daysParam = days ? `&days=${encodeURIComponent(days)}` : "";
-    router.replace(
-      `/summer-camps/2026/book?childId=${encodeURIComponent(nextChildId)}${daysParam}`
-    );
-  };
-
   return (
     <section className="relative w-full overflow-x-hidden bg-[#faf7fb] px-4 pb-28 pt-4 sm:px-6 sm:pb-32 sm:pt-6 lg:pb-12">
       <div className="pointer-events-none absolute inset-0 hidden lg:block">
@@ -118,6 +113,21 @@ export default function SummerCampBookingClient({
       <div className="relative z-10 mx-auto w-full max-w-[1040px] space-y-5 sm:space-y-6">
         <header className="space-y-3 sm:space-y-4">
           <div className="pl-4">
+            <p className="text-[1.75rem] font-black uppercase tracking-[0.04em] text-[#b42348] sm:text-[2.1rem]">
+              Summer Camp 2026
+            </p>
+          </div>
+          <div className="pl-4">
+            <div className="px-0.5 py-0.5">
+              <div className="inline-flex items-center rounded-full border border-[#6c35c3]/25 bg-white/85 px-4 py-1.5 text-sm font-semibold uppercase tracking-[0.18em] text-[#2a203c]/70 shadow-[0_12px_28px_-18px_rgba(31,26,37,0.5)] backdrop-blur">
+                Booking for{" "}
+                <span className="ml-1 font-bold text-[#2a203c]">
+                  {childName}
+                </span>
+              </div>
+            </div>
+          </div>
+          <div className="pl-4">
             <Link
               href="/account"
               className="inline-flex items-center gap-2 rounded-full border border-[#d8c7f4] bg-white px-4 py-2 text-sm font-semibold text-[#5b2ca7] transition hover:bg-[#faf6ff]"
@@ -125,18 +135,6 @@ export default function SummerCampBookingClient({
               <ArrowLeft className="h-4 w-4" aria-hidden="true" />
               Back to account
             </Link>
-          </div>
-          <div className="pl-4">
-            <BookingChildPicker
-              childId={childId}
-              children={children}
-              onSelectChild={handleSelectChild}
-            />
-          </div>
-          <div className="pl-4">
-            <span className="inline-flex items-center rounded-full border border-[#ffb7c3] bg-[linear-gradient(90deg,rgba(150,19,45,0.96)_0%,rgba(194,28,63,0.96)_50%,rgba(228,68,87,0.96)_100%)] px-3 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-white shadow-[0_10px_20px_-16px_rgba(92,16,32,0.48)]">
-              Summer Camp 2026
-            </span>
           </div>
           <div className="pt-1">
             <div className="h-[0.5px] w-full bg-black/20" />

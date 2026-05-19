@@ -10,6 +10,7 @@ type ClassRegisterPickerProps = {
   heading?: string;
   showHistorical?: boolean;
   programmeOptions?: Array<"all" | Session["programme"]>;
+  referenceNowIso?: string;
 };
 
 type HistoricalRegister = {
@@ -56,23 +57,51 @@ function addDays(date: Date, days: number): Date {
   return next;
 }
 
-function formatTime(date: Date): string {
-  return date
-    .toLocaleTimeString([], {
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: false,
-      timeZone: LONDON_TZ,
-    })
-    .replace(".", ":");
+function formatStoredTime(value: string | null | undefined): string | null {
+  if (!value) return null;
+  const [hourRaw, minuteRaw] = value.split(":");
+  const hour = Number.parseInt(hourRaw ?? "", 10);
+  const minute = Number.parseInt(minuteRaw ?? "", 10);
+  if (!Number.isFinite(hour) || !Number.isFinite(minute)) return null;
+  return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
 }
 
 function getTimeRangeParts(startIso: string, endIso: string): { start: string; end: string } {
-  const start = new Date(startIso);
-  const end = new Date(endIso);
+  return getTimeRangePartsFromSession({
+    startAt: startIso,
+    endAt: endIso,
+  } as Session);
+}
+
+function getTimeRangePartsFromSession(session: Session): { start: string; end: string } {
+  const storedStart = formatStoredTime(session.displayStartTime);
+  const storedEnd = formatStoredTime(session.displayEndTime);
+  if (storedStart && storedEnd) {
+    return {
+      start: storedStart,
+      end: storedEnd,
+    };
+  }
+
+  const start = new Date(session.startAt);
+  const end = new Date(session.endAt);
   return {
-    start: formatTime(start),
-    end: formatTime(end),
+    start: start
+      .toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+        timeZone: LONDON_TZ,
+      })
+      .replace(".", ":"),
+    end: end
+      .toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+        timeZone: LONDON_TZ,
+      })
+      .replace(".", ":"),
   };
 }
 
@@ -149,9 +178,14 @@ export default function ClassRegisterPicker({
   heading = "Upcoming sessions",
   showHistorical = true,
   programmeOptions,
+  referenceNowIso,
 }: ClassRegisterPickerProps) {
+  const referenceNow = useMemo(
+    () => (referenceNowIso ? new Date(referenceNowIso) : new Date()),
+    [referenceNowIso]
+  );
   const [programmeFilter, setProgrammeFilter] = useState<ProgrammeFilter>("all");
-  const [historicalDate, setHistoricalDate] = useState(dayKey(new Date()));
+  const [historicalDate, setHistoricalDate] = useState(dayKey(referenceNow));
   const [historicalRegisters, setHistoricalRegisters] = useState<HistoricalRegister[]>([]);
   const [historicalLoading, setHistoricalLoading] = useState(false);
   const [historicalError, setHistoricalError] = useState<string | null>(null);
@@ -180,7 +214,6 @@ export default function ClassRegisterPicker({
   }, [programmeFilter]);
 
   const filteredSorted = useMemo(() => {
-    const now = new Date();
     const sorted = [...sessions].sort(
       (a, b) => new Date(a.startAt).getTime() - new Date(b.startAt).getTime()
     );
@@ -192,9 +225,9 @@ export default function ClassRegisterPicker({
         appliedFilters.programmeFilter === "all"
           ? true
           : session.programme === appliedFilters.programmeFilter;
-      return lockAt >= now && programmeMatch;
+      return lockAt >= referenceNow && programmeMatch;
     });
-  }, [appliedFilters, sessions]);
+  }, [appliedFilters, referenceNow, sessions]);
 
   const visibleSessions = useMemo(
     () => filteredSorted.slice(0, showCount),
@@ -204,8 +237,8 @@ export default function ClassRegisterPicker({
   const groupedSessions = useMemo<GroupedSessions[]>(() => {
     if (visibleSessions.length === 0) return [];
 
-    const todayKey = dayKey(new Date());
-    const tomorrowKey = dayKey(addDays(new Date(), 1));
+    const todayKey = dayKey(referenceNow);
+    const tomorrowKey = dayKey(addDays(referenceNow, 1));
     const byDay = new Map<string, Session[]>();
 
     visibleSessions.forEach((session) => {
@@ -221,7 +254,7 @@ export default function ClassRegisterPicker({
       label: groupLabelForDay(key, todayKey, tomorrowKey),
       sessions: byDay.get(key) ?? [],
     }));
-  }, [visibleSessions]);
+  }, [referenceNow, visibleSessions]);
 
   const flatVisibleSessions = useMemo(
     () => groupedSessions.flatMap((group) => group.sessions),
@@ -373,9 +406,9 @@ export default function ClassRegisterPicker({
                 {group.sessions.map((session) => {
                   const index = flatVisibleSessions.findIndex((item) => item.id === session.id);
                   const isActive = index === highlightedIndex;
-                  const status = statusLabel(statusChip(session, new Date()));
-                  const statusVariant = statusChip(session, new Date());
-                  const range = getTimeRangeParts(session.startAt, session.endAt);
+                  const statusVariant = statusChip(session, referenceNow);
+                  const status = statusLabel(statusVariant);
+                  const range = getTimeRangePartsFromSession(session);
                   const badgeMeta = programmeBadgeMeta(session.programme);
 
                   return (

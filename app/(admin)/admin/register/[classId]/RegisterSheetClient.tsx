@@ -13,6 +13,19 @@ type RegisterStudent = {
   hasMedicalAlert: boolean;
 };
 
+type PaymentFollowUpStudent = {
+  id: string;
+  fullName: string;
+  accountFullName: string;
+  accountEmail: string;
+  accountTelNo: string;
+  statuses: string[];
+  programmes: Array<"Recreational" | "Competition">;
+  latestInvoiceCreated: string | null;
+  nextPaymentAttempt: string | null;
+  totalAmountDue: number | null;
+};
+
 type RegisterSheetClientProps = {
   classId: string;
   sessionDate: string;
@@ -21,6 +34,7 @@ type RegisterSheetClientProps = {
   registerLabel: string;
   enrolledCount: number;
   students: RegisterStudent[];
+  paymentFollowUps?: PaymentFollowUpStudent[];
   initialStatuses?: Record<string, Exclude<AttendanceState, "unmarked">>;
   initialCollected?: Record<string, boolean>;
   isLocked?: boolean;
@@ -66,6 +80,7 @@ export default function RegisterSheetClient({
   registerLabel,
   enrolledCount,
   students,
+  paymentFollowUps = [],
   initialStatuses = {},
   initialCollected = {},
   isLocked = false,
@@ -81,6 +96,7 @@ export default function RegisterSheetClient({
   const [activeFilter, setActiveFilter] = useState<FilterState>("all");
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<"register" | "payment-follow-up">("register");
   const [lastSavedSignature, setLastSavedSignature] = useState<string>(() =>
     buildRegisterSignature(students, initialStatuses, initialCollected)
   );
@@ -91,8 +107,30 @@ export default function RegisterSheetClient({
     setCollected(initialCollected);
     setSaveState("idle");
     setSaveMessage(null);
+    setActiveTab("register");
     setLastSavedSignature(buildRegisterSignature(students, initialStatuses, initialCollected));
   }, [classId, sessionDate, initialStatuses, initialCollected, students]);
+
+  const formatMoney = (amountMinor: number | null) => {
+    if (typeof amountMinor !== "number") return "Unknown";
+    return new Intl.NumberFormat("en-GB", {
+      style: "currency",
+      currency: "GBP",
+    }).format(amountMinor / 100);
+  };
+
+  const formatDateTime = (value: string | null) => {
+    if (!value) return "Unknown";
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return value;
+    return new Intl.DateTimeFormat("en-GB", {
+      year: "numeric",
+      month: "short",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+    }).format(parsed);
+  };
 
   const markedCount = useMemo(
     () => students.filter((student) => (statuses[student.id] ?? "unmarked") !== "unmarked").length,
@@ -235,6 +273,38 @@ export default function RegisterSheetClient({
 
   return (
     <main className="mx-auto w-full max-w-6xl px-3 py-6 sm:px-5 sm:py-8">
+      <div className="mb-3 flex flex-wrap items-end gap-1.5">
+        <button
+          type="button"
+          onClick={() => setActiveTab("register")}
+          className={[
+            "inline-flex h-11 items-center border px-5 text-sm font-semibold transition",
+            activeTab === "register"
+              ? "border-[#6e2ac0] bg-[#f3ecfc] text-[#4f2b80]"
+              : "border-[#ddd4ea] bg-white text-[#6f6384] hover:bg-[#f8f5fc]",
+          ].join(" ")}
+        >
+          Register
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab("payment-follow-up")}
+          className={[
+            "inline-flex h-11 items-center border px-5 text-sm font-semibold transition",
+            activeTab === "payment-follow-up"
+              ? "border-[#6e2ac0] bg-[#f3ecfc] text-[#4f2b80]"
+              : "border-[#ddd4ea] bg-white text-[#6f6384] hover:bg-[#f8f5fc]",
+          ].join(" ")}
+        >
+          Payment Follow-up
+          {paymentFollowUps.length > 0 ? (
+            <span className="ml-2 inline-flex min-w-5 items-center justify-center rounded-full bg-[#fff4f6] px-1.5 text-[10px] font-bold text-[#9e2242]">
+              {paymentFollowUps.length}
+            </span>
+          ) : null}
+        </button>
+      </div>
+
       <section className="overflow-hidden rounded-none border border-[#ddd3eb] bg-white shadow-[0_12px_28px_rgba(35,24,52,0.06)]">
         <div className="border-b border-[#e9e1f2] bg-[linear-gradient(180deg,#fdfcff_0%,#f9f6fd_100%)] px-4 py-4 sm:px-6">
           <div className="flex flex-wrap items-start justify-between gap-3">
@@ -280,6 +350,7 @@ export default function RegisterSheetClient({
           </div>
         </div>
 
+        {activeTab === "register" ? (
         <div className="border-b border-[#ece6f5] px-4 py-3 sm:px-6">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex flex-wrap items-center gap-2">
@@ -333,7 +404,9 @@ export default function RegisterSheetClient({
             </div>
           </div>
         </div>
+        ) : null}
 
+        {activeTab === "register" ? (
         <div className="px-4 py-2 sm:px-6 sm:py-3">
           <div className="hidden rounded-none border border-[#ebe4f5] bg-[#f8f4fd] px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.06em] text-[#6f6384] md:grid md:grid-cols-[minmax(220px,1fr)_340px_220px] md:items-center">
             <span>Student</span>
@@ -477,9 +550,71 @@ export default function RegisterSheetClient({
             )}
           </div>
         </div>
+        ) : (
+        <div className="px-4 py-4 sm:px-6">
+          {paymentFollowUps.length === 0 ? (
+            <div className="rounded-none border border-dashed border-[#dfd6eb] px-3 py-5 text-sm text-[#716586]">
+              No students in this register currently have overdue payments on their account.
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <div className="rounded-none border border-[#ece6f5] bg-[#fcfbfe] px-3 py-3 text-sm text-[#5e536f]">
+                These students belong to accounts with overdue Stripe payments. This section is
+                read-only and is provided only as a follow-up prompt for coaches or admin.
+              </div>
+              <div className="divide-y divide-[#ede7f6] border border-[#ece6f5]">
+                {paymentFollowUps.map((student) => (
+                  <article
+                    key={student.id}
+                    className="grid gap-3 bg-white px-3 py-3 md:grid-cols-[minmax(0,1fr)_220px_220px_180px]"
+                  >
+                    <div className="min-w-0">
+                      <p className="text-[11px] uppercase tracking-[0.06em] text-[#807393]">
+                        Student
+                      </p>
+                      <p className="mt-1 text-[15px] font-semibold text-[#201734]">{student.fullName}</p>
+                      <p className="mt-3 text-[11px] uppercase tracking-[0.06em] text-[#807393]">
+                        Parent or guardian
+                      </p>
+                      <p className="mt-1 text-sm font-medium text-[#2b1f3c]">
+                        {student.accountFullName}
+                      </p>
+                      <p className="mt-1 text-sm text-[#5e536f]">
+                        {student.accountEmail || "No account email"}
+                      </p>
+                      <p className="mt-1 text-xs uppercase tracking-[0.06em] text-[#7b2437]">
+                        {student.statuses.map((status) => status.replaceAll("_", " ")).join(" / ")}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-[11px] uppercase tracking-[0.06em] text-[#807393]">Phone</p>
+                      <p className="mt-1 text-sm font-medium text-[#2b1f3c]">
+                        {student.accountTelNo || "Not set"}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-[11px] uppercase tracking-[0.06em] text-[#807393]">Amount due</p>
+                      <p className="mt-1 text-sm font-semibold text-[#9e2242]">
+                        {formatMoney(student.totalAmountDue)}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-[11px] uppercase tracking-[0.06em] text-[#807393]">Latest invoice</p>
+                      <p className="mt-1 text-sm font-medium text-[#2b1f3c]">
+                        {formatDateTime(student.latestInvoiceCreated)}
+                      </p>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+        )}
       </section>
 
-        {isBeforeSaveWindow && !isReadOnly ? (
+      {activeTab === "register" ? (
+        isBeforeSaveWindow && !isReadOnly ? (
           <div className="sticky bottom-0 z-20 mt-3 border border-[#efc5cf] bg-[#fff4f6] px-4 py-3 shadow-[0_-12px_24px_rgba(28,19,43,0.09)] sm:px-6">
             <p className="text-sm font-semibold text-[#9e2242]">
               Registration is currently closed. It opens 15 minutes before class starts.
@@ -489,13 +624,13 @@ export default function RegisterSheetClient({
           <div className="sticky bottom-0 z-20 mt-3 border border-[#d6cae8] bg-white px-4 py-3 shadow-[0_-12px_24px_rgba(28,19,43,0.09)] sm:px-6">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="min-w-[220px] flex-1">
-              <div className="mb-1 flex items-center justify-between gap-2 text-xs text-[#706486]">
-                <span>
-                  <span className="font-semibold text-[#25193a]">{markedCount}</span> of{" "}
-                  <span className="font-semibold text-[#25193a]">{totalStudents}</span> marked
-                </span>
-                <span className="font-semibold text-[#5f536f]">{progressPercent}%</span>
-              </div>
+                <div className="mb-1 flex items-center justify-between gap-2 text-xs text-[#706486]">
+                  <span>
+                    <span className="font-semibold text-[#25193a]">{markedCount}</span> of{" "}
+                    <span className="font-semibold text-[#25193a]">{totalStudents}</span> marked
+                  </span>
+                  <span className="font-semibold text-[#5f536f]">{progressPercent}%</span>
+                </div>
                 <div className="h-2 w-full overflow-hidden rounded-none bg-[#ece6f5]">
                   <div
                     className="h-full rounded-none transition-all duration-200 ease-out"
@@ -551,7 +686,8 @@ export default function RegisterSheetClient({
               </button>
             </div>
           </div>
-        )}
+        )
+      ) : null}
     </main>
   );
 }

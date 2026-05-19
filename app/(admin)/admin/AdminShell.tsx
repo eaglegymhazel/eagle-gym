@@ -14,8 +14,14 @@ import ClassRegisterPicker from "@/components/admin/ClassRegisterPicker";
 import { buildUpcomingSessions, type RegisterClassTemplate } from "@/components/admin/sessionBuild";
 import AdminNavItem from "@/components/admin/AdminNavItem";
 import type { AdminWaitlistRow } from "@/lib/server/adminDashboard";
+import type { AdminMissedPaymentRow } from "@/lib/server/adminMissedPayments";
 
-type AdminTabKey = "students" | "register" | "summer-camp-register" | "waiting";
+type AdminTabKey =
+  | "students"
+  | "register"
+  | "summer-camp-register"
+  | "waiting"
+  | "missed-payments";
 
 type NavItem = {
   key: AdminTabKey;
@@ -38,26 +44,33 @@ const navItems: NavItem[] = [
   { key: "register", label: "Class Register", icon: ClipboardList },
   { key: "summer-camp-register", label: "Summer Camp Register", icon: ClipboardList },
   { key: "waiting", label: "Waiting List", icon: Clock3 },
+  { key: "missed-payments", label: "Missed Payments", icon: Clock3 },
 ];
 
 export default function AdminShell({
+  referenceNowIso,
   initialChildrenData,
   initialRegisterClasses,
   initialSummerCampRegisterSessions,
   initialWaitlistRows,
+  initialMissedPaymentsRows,
   initialChildrenLoadError,
   initialRegisterClassesError,
   initialSummerCampRegisterSessionsError,
   initialWaitlistLoadError,
+  initialMissedPaymentsLoadError,
 }: {
+  referenceNowIso: string;
   initialChildrenData: Child[];
   initialRegisterClasses: RegisterClassTemplate[];
   initialSummerCampRegisterSessions: Session[];
   initialWaitlistRows: AdminWaitlistRow[];
+  initialMissedPaymentsRows: AdminMissedPaymentRow[];
   initialChildrenLoadError: string | null;
   initialRegisterClassesError: string | null;
   initialSummerCampRegisterSessionsError: string | null;
   initialWaitlistLoadError: string | null;
+  initialMissedPaymentsLoadError: string | null;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -72,7 +85,8 @@ export default function AdminShell({
       tabParam === "students" ||
       tabParam === "register" ||
       tabParam === "summer-camp-register" ||
-      tabParam === "waiting"
+      tabParam === "waiting" ||
+      tabParam === "missed-payments"
     ) {
       return tabParam;
     }
@@ -85,6 +99,16 @@ export default function AdminShell({
   const [waitlistQuery, setWaitlistQuery] = useState("");
   const [waitlistClassFilter, setWaitlistClassFilter] = useState("all");
   const [waitlistSort, setWaitlistSort] = useState<"oldest" | "newest">("oldest");
+  const [missedPaymentsQuery, setMissedPaymentsQuery] = useState("");
+  const [missedPaymentsProgrammeFilter, setMissedPaymentsProgrammeFilter] = useState<
+    "all" | "Recreational" | "Competition"
+  >("all");
+  const [missedPaymentsStatusFilter, setMissedPaymentsStatusFilter] = useState<
+    "all" | "past_due" | "unpaid"
+  >("all");
+  const [missedPaymentsSort, setMissedPaymentsSort] = useState<
+    "newest" | "oldest" | "amount-desc" | "amount-asc"
+  >("newest");
   const [waitlistActionError, setWaitlistActionError] = useState<string | null>(null);
   const [waitlistActionMessage, setWaitlistActionMessage] = useState<string | null>(null);
   const [waitlistRemovingKey, setWaitlistRemovingKey] = useState<string | null>(null);
@@ -96,10 +120,12 @@ export default function AdminShell({
   const summerCampRegisterSessions = initialSummerCampRegisterSessions;
   const summerCampRegisterSessionsError = initialSummerCampRegisterSessionsError;
   const waitlistLoadError = initialWaitlistLoadError;
+  const missedPaymentsRows = initialMissedPaymentsRows;
+  const missedPaymentsLoadError = initialMissedPaymentsLoadError;
 
   const registerSessions = useMemo(
-    () => buildUpcomingSessions(registerClasses, 14),
-    [registerClasses]
+    () => buildUpcomingSessions(registerClasses, 14, new Date(referenceNowIso)),
+    [referenceNowIso, registerClasses]
   );
 
   const childPickerProps = {
@@ -114,13 +140,15 @@ export default function AdminShell({
     if (tab === "students") return "Student Management";
     if (tab === "register") return "Class Register";
     if (tab === "summer-camp-register") return "Summer Camp Register";
+    if (tab === "missed-payments") return "Missed Payments";
     return "Waiting List";
   }, [tab]);
   const isStudentTab = tab === "students";
   const isRegisterTab = tab === "register";
   const isSummerCampRegisterTab = tab === "summer-camp-register";
+  const isMissedPaymentsTab = tab === "missed-payments";
   const isFlatContentTab =
-    isStudentTab || isRegisterTab || isSummerCampRegisterTab || tab === "waiting";
+    isStudentTab || isRegisterTab || isSummerCampRegisterTab || isMissedPaymentsTab || tab === "waiting";
 
   const formatWaitlistDate = (value: string) => {
     if (!value) return "Unknown";
@@ -134,6 +162,129 @@ export default function AdminShell({
       minute: "2-digit",
     }).format(parsed);
   };
+
+  const formatMoney = (amountMinor: number | null, currency: string) => {
+    if (typeof amountMinor !== "number") return "Unknown";
+    return new Intl.NumberFormat("en-GB", {
+      style: "currency",
+      currency: currency || "GBP",
+    }).format(amountMinor / 100);
+  };
+
+  const formatDateTime = (value: string | null) => {
+    if (!value) return "Unknown";
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return value;
+    return new Intl.DateTimeFormat("en-GB", {
+      year: "numeric",
+      month: "short",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+    }).format(parsed);
+  };
+
+  const formatDate = (value: string | null) => {
+    if (!value) return "Unknown";
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return value;
+    return new Intl.DateTimeFormat("en-GB", {
+      year: "numeric",
+      month: "short",
+      day: "2-digit",
+    }).format(parsed);
+  };
+
+  const getStripeSubscriptionUrl = (subscriptionId: string) =>
+    `https://dashboard.stripe.com/subscriptions/${encodeURIComponent(subscriptionId)}`;
+
+  const getStripeCustomerUrl = (customerId: string) =>
+    `https://dashboard.stripe.com/customers/${encodeURIComponent(customerId)}`;
+
+  const missedPaymentStatusOptions = useMemo(
+    () =>
+      Array.from(new Set(missedPaymentsRows.map((row) => row.status)))
+        .filter((status): status is "past_due" | "unpaid" => status === "past_due" || status === "unpaid")
+        .sort(),
+    [missedPaymentsRows]
+  );
+
+  const filteredMissedPaymentsRows = useMemo(() => {
+    const query = missedPaymentsQuery.trim().toLowerCase();
+    const rows = missedPaymentsRows.filter((row) => {
+      if (
+        missedPaymentsProgrammeFilter !== "all" &&
+        row.programme !== missedPaymentsProgrammeFilter
+      ) {
+        return false;
+      }
+      if (missedPaymentsStatusFilter !== "all" && row.status !== missedPaymentsStatusFilter) {
+        return false;
+      }
+      if (!query) return true;
+      return [
+        row.programme,
+        row.accountFullName,
+        row.email,
+        row.status,
+        row.subscriptionId,
+        row.customerId,
+        row.invoiceId,
+      ]
+        .join(" ")
+        .toLowerCase()
+        .includes(query);
+    });
+
+    rows.sort((a, b) => {
+      if (missedPaymentsSort === "amount-desc") {
+        return (b.amountDue ?? -1) - (a.amountDue ?? -1);
+      }
+      if (missedPaymentsSort === "amount-asc") {
+        return (a.amountDue ?? Number.MAX_SAFE_INTEGER) - (b.amountDue ?? Number.MAX_SAFE_INTEGER);
+      }
+
+      const aTime = a.invoiceCreated ? Date.parse(a.invoiceCreated) : 0;
+      const bTime = b.invoiceCreated ? Date.parse(b.invoiceCreated) : 0;
+      return missedPaymentsSort === "oldest" ? aTime - bTime : bTime - aTime;
+    });
+
+    return rows;
+  }, [
+    missedPaymentsProgrammeFilter,
+    missedPaymentsQuery,
+    missedPaymentsRows,
+    missedPaymentsSort,
+    missedPaymentsStatusFilter,
+  ]);
+
+  const missedPaymentsSummary = useMemo(() => {
+    const summary = {
+      totalRows: filteredMissedPaymentsRows.length,
+      totalAmountDue: 0,
+      recreationalCount: 0,
+      competitionCount: 0,
+      pastDueCount: 0,
+      unpaidCount: 0,
+      affectedAccounts: new Set<string>(),
+    };
+
+    filteredMissedPaymentsRows.forEach((row) => {
+      if (typeof row.amountDue === "number") {
+        summary.totalAmountDue += row.amountDue;
+      }
+      if (row.programme === "Recreational") summary.recreationalCount += 1;
+      if (row.programme === "Competition") summary.competitionCount += 1;
+      if (row.status === "past_due") summary.pastDueCount += 1;
+      if (row.status === "unpaid") summary.unpaidCount += 1;
+      if (row.email) summary.affectedAccounts.add(row.email.toLowerCase());
+    });
+
+    return {
+      ...summary,
+      affectedAccountCount: summary.affectedAccounts.size,
+    };
+  }, [filteredMissedPaymentsRows]);
 
   const waitlistClassOptions = useMemo(
     () =>
@@ -350,6 +501,7 @@ export default function AdminShell({
                 {!registerClassesError ? (
                   <ClassRegisterPicker
                     sessions={registerSessions}
+                    referenceNowIso={referenceNowIso}
                     onSelect={(session) => {
                       const registerDate = session.startAt.slice(0, 10);
                       router.push(
@@ -371,6 +523,7 @@ export default function AdminShell({
                 {!summerCampRegisterSessionsError ? (
                   <ClassRegisterPicker
                     sessions={summerCampRegisterSessions}
+                    referenceNowIso={referenceNowIso}
                     heading="Upcoming camp days"
                     showHistorical={false}
                     programmeOptions={["all"]}
@@ -527,6 +680,210 @@ export default function AdminShell({
                     </div>
                   ) : (
                     <p className="text-sm text-[#2a203c]/75">No children are currently on the waiting list.</p>
+                  )
+                ) : null}
+              </div>
+            ) : null}
+
+            {tab === "missed-payments" ? (
+              <div className="space-y-4">
+                {missedPaymentsLoadError ? (
+                  <div className={styles.errorBanner} role="alert">
+                    <span>{missedPaymentsLoadError}</span>
+                  </div>
+                ) : null}
+                {!missedPaymentsLoadError ? (
+                  missedPaymentsRows.length > 0 ? (
+                    <div className="space-y-3">
+                      <div className="rounded-xl border border-[#e6e0ee] bg-white p-3 text-sm text-[#2a203c]/78">
+                        This view is pulled directly from both Stripe accounts and grouped at
+                        account/email level rather than child level.
+                      </div>
+
+                      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+                        <div className="rounded-xl border border-[#e6e0ee] bg-white p-4">
+                          <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#6c35c3]">
+                            Affected accounts
+                          </p>
+                          <p className="mt-2 text-2xl font-black tracking-tight text-[#24193a]">
+                            {missedPaymentsSummary.affectedAccountCount}
+                          </p>
+                        </div>
+                        <div className="rounded-xl border border-[#e6e0ee] bg-white p-4">
+                          <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#6c35c3]">
+                            Total amount due
+                          </p>
+                          <p className="mt-2 text-2xl font-black tracking-tight text-[#24193a]">
+                            {formatMoney(missedPaymentsSummary.totalAmountDue, "GBP")}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col gap-2 rounded-xl border border-[#e6e0ee] bg-white p-3">
+                        <div className="grid w-full grid-cols-1 gap-2 xl:grid-cols-[minmax(0,1fr)_220px_180px_180px]">
+                          <input
+                            type="text"
+                            value={missedPaymentsQuery}
+                            onChange={(event) => setMissedPaymentsQuery(event.target.value)}
+                            placeholder="Search email, subscription, invoice or customer"
+                            className="h-10 rounded-lg border border-[#d7c7ef] bg-white px-3 text-sm text-[#2a203c] outline-none ring-[#6e2ac0]/25 transition focus:ring-2"
+                          />
+                          <select
+                            value={missedPaymentsProgrammeFilter}
+                            onChange={(event) =>
+                              setMissedPaymentsProgrammeFilter(
+                                event.target.value as "all" | "Recreational" | "Competition"
+                              )
+                            }
+                            className="h-10 rounded-lg border border-[#d7c7ef] bg-white px-3 text-sm text-[#2a203c] outline-none ring-[#6e2ac0]/25 transition focus:ring-2"
+                          >
+                            <option value="all">All programmes</option>
+                            <option value="Recreational">Recreational</option>
+                            <option value="Competition">Competition</option>
+                          </select>
+                          <select
+                            value={missedPaymentsStatusFilter}
+                            onChange={(event) =>
+                              setMissedPaymentsStatusFilter(
+                                event.target.value as "all" | "past_due" | "unpaid"
+                              )
+                            }
+                            className="h-10 rounded-lg border border-[#d7c7ef] bg-white px-3 text-sm text-[#2a203c] outline-none ring-[#6e2ac0]/25 transition focus:ring-2"
+                          >
+                            <option value="all">All statuses</option>
+                            {missedPaymentStatusOptions.map((status) => (
+                              <option key={status} value={status}>
+                                {status.replaceAll("_", " ")}
+                              </option>
+                            ))}
+                          </select>
+                          <select
+                            value={missedPaymentsSort}
+                            onChange={(event) =>
+                              setMissedPaymentsSort(
+                                event.target.value as "newest" | "oldest" | "amount-desc" | "amount-asc"
+                              )
+                            }
+                            className="h-10 rounded-lg border border-[#d7c7ef] bg-white px-3 text-sm text-[#2a203c] outline-none ring-[#6e2ac0]/25 transition focus:ring-2"
+                          >
+                            <option value="newest">Newest invoice first</option>
+                            <option value="oldest">Oldest invoice first</option>
+                            <option value="amount-desc">Highest amount due</option>
+                            <option value="amount-asc">Lowest amount due</option>
+                          </select>
+                        </div>
+
+                        <p className="text-sm text-[#2a203c]/80">
+                          Showing {filteredMissedPaymentsRows.length} of {missedPaymentsRows.length} late subscriptions.
+                        </p>
+                      </div>
+
+                      <div className="hidden overflow-hidden rounded-xl border border-[#e6e0ee] md:block">
+                        <table className="min-w-full border-collapse">
+                          <thead className="bg-[#f6f1ff]">
+                            <tr className="text-left text-xs uppercase tracking-[0.08em] text-[#2a203c]/75">
+                              <th className="px-3 py-2 font-semibold">Programme</th>
+                              <th className="px-3 py-2 font-semibold">Account</th>
+                              <th className="px-3 py-2 font-semibold">Payment status</th>
+                              <th className="px-3 py-2 font-semibold">Subscription</th>
+                              <th className="px-3 py-2 font-semibold">Amount due</th>
+                              <th className="px-3 py-2 font-semibold">Latest invoice</th>
+                              <th className="px-3 py-2 font-semibold">Next attempt</th>
+                              <th className="px-3 py-2 font-semibold">Stripe</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-[#ece6f4] bg-white text-sm text-[#2a203c]">
+                            {filteredMissedPaymentsRows.map((row) => (
+                              <tr key={row.id}>
+                                <td className="px-3 py-3 font-semibold">{row.programme}</td>
+                                <td className="px-3 py-3">
+                                  <p className="font-semibold text-[#24193a]">{row.accountFullName}</p>
+                                  <p className="mt-0.5 text-[#5b526a]">{row.email}</p>
+                                </td>
+                                <td className="px-3 py-3 uppercase">{row.status.replaceAll("_", " ")}</td>
+                                <td className="px-3 py-3 uppercase">
+                                  {row.subscriptionState.replaceAll("_", " ")}
+                                </td>
+                                <td className="px-3 py-3">
+                                  {formatMoney(row.amountDue, row.currency)}
+                                </td>
+                                <td className="px-3 py-3">{formatDate(row.invoiceCreated)}</td>
+                                <td className="px-3 py-3">
+                                  {formatDate(row.nextPaymentAttempt)}
+                                </td>
+                                <td className="px-3 py-3">
+                                  <div className="flex flex-col items-start gap-1.5">
+                                    <a
+                                      href={getStripeSubscriptionUrl(row.subscriptionId)}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className="inline-flex min-h-9 items-center rounded-lg border border-[#d9ccef] bg-[#faf7ff] px-3 text-xs font-semibold text-[#5b2ca7] transition hover:border-[#cbb6ea] hover:bg-[#f4eeff] hover:text-[#49228c]"
+                                    >
+                                      View subscription
+                                    </a>
+                                    <a
+                                      href={getStripeCustomerUrl(row.customerId)}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className="inline-flex min-h-9 items-center rounded-lg border border-[#d9ccef] bg-[#faf7ff] px-3 text-xs font-semibold text-[#5b2ca7] transition hover:border-[#cbb6ea] hover:bg-[#f4eeff] hover:text-[#49228c]"
+                                    >
+                                      View customer
+                                    </a>
+                                  </div>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+
+                      <div className="space-y-2 md:hidden">
+                        {filteredMissedPaymentsRows.map((row) => (
+                          <div key={row.id} className="rounded-xl border border-[#e6e0ee] bg-white p-3">
+                            <div className="space-y-1.5 text-sm text-[#2a203c]">
+                              <p className="font-semibold">{row.programme}</p>
+                              <p className="font-semibold text-[#24193a]">{row.accountFullName}</p>
+                              <p>{row.email}</p>
+                              <p className="uppercase">Payment: {row.status.replaceAll("_", " ")}</p>
+                              <p className="uppercase">
+                                Subscription: {row.subscriptionState.replaceAll("_", " ")}
+                              </p>
+                              <p>{formatMoney(row.amountDue, row.currency)}</p>
+                              <p>Invoice: {formatDate(row.invoiceCreated)}</p>
+                              <p>Next attempt: {formatDate(row.nextPaymentAttempt)}</p>
+                              <div className="grid grid-cols-1 gap-2 pt-2 sm:grid-cols-2">
+                                <a
+                                  href={getStripeSubscriptionUrl(row.subscriptionId)}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="inline-flex min-h-10 items-center justify-center rounded-lg border border-[#d9ccef] bg-[#faf7ff] px-3 text-sm font-semibold text-[#5b2ca7] transition hover:border-[#cbb6ea] hover:bg-[#f4eeff] hover:text-[#49228c]"
+                                >
+                                  View subscription
+                                </a>
+                                <a
+                                  href={getStripeCustomerUrl(row.customerId)}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="inline-flex min-h-10 items-center justify-center rounded-lg border border-[#d9ccef] bg-[#faf7ff] px-3 text-sm font-semibold text-[#5b2ca7] transition hover:border-[#cbb6ea] hover:bg-[#f4eeff] hover:text-[#49228c]"
+                                >
+                                  View customer
+                                </a>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      {filteredMissedPaymentsRows.length === 0 ? (
+                        <p className="rounded-lg border border-[#e6e0ee] bg-white px-3 py-5 text-sm text-[#2a203c]/75">
+                          No missed payments match your current filters.
+                        </p>
+                      ) : null}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-[#2a203c]/75">
+                      No late or missed subscription payments found in the configured Stripe accounts.
+                    </p>
                   )
                 ) : null}
               </div>

@@ -1,8 +1,5 @@
-import EventsClient from "./EventsClient";
-import { getCalendarEvents } from "@/lib/server/calendarEvents";
+import { redirect } from "next/navigation";
 
-export default async function EventsPage() {
-  const events = await getCalendarEvents();
-
-  return <EventsClient events={events} />;
+export default function EventsRedirectPage() {
+  redirect("/recreational-events-calendar");
 }

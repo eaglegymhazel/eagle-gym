@@ -383,6 +383,8 @@ export async function getAdminSummerCampRegisterSessions(
         ageBand: "Ages 4+",
         startAt: startAt.toISOString(),
         endAt: endAt.toISOString(),
+        displayStartTime: session.startTime,
+        displayEndTime: session.endTime,
         bookedCount: bookingCountsByDate.get(session.campDate) ?? 0,
       });
 

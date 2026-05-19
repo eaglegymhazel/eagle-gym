@@ -19,27 +19,31 @@ type NavItem = {
 };
 
 const bookItems = [
-  { href: "/book", label: "Book Classes" },
-  { href: "/summer-camps/2026/book", label: "Summer Camp" },
-  { href: "/birthday-party", label: "Birthday Parties" },
+  { key: "book-classes", href: "/book", label: "Book Classes" },
+  { key: "summer-camp", href: "/summer-camps/2026/book", label: "Summer Camp" },
+  { key: "birthday-parties", href: "/birthday-party", label: "Birthday Parties" },
 ] as const satisfies ReadonlyArray<{
+  key: string;
   href: string;
   label: string;
 }>;
 
 const aboutItems = [
-  { href: "/about", label: "About the Club" },
-  { href: "/team", label: "Coaches" },
+  { key: "about-club", href: "/about", label: "About the Club" },
+  { key: "coaches", href: "/team", label: "Coaches" },
 ] as const satisfies ReadonlyArray<{
+  key: string;
   href: string;
   label: string;
 }>;
 
 const updateItems = [
-  { href: "/news", label: "News" },
-  { href: "/events", label: "Events" },
-  { href: "/gallery", label: "Gallery" },
+  { key: "news", href: "/news", label: "News" },
+  { key: "recreational-events", href: "/recreational-events-calendar", label: "Recreational Events" },
+  { key: "competition-events", href: "/competition-events-calendar", label: "Competition Events" },
+  { key: "gallery", href: "/gallery", label: "Gallery" },
 ] as const satisfies ReadonlyArray<{
+  key: string;
   href: string;
   label: string;
 }>;
@@ -71,14 +75,13 @@ export default function Nav({
   const isLoggedIn = Boolean(user?.email);
   const resolvedBookItems = useMemo(
     () => [
-      { href: isLoggedIn ? "/book" : "/login?redirect=/book", label: "Book Classes" },
+      { key: "book-classes", href: isLoggedIn ? "/book" : "/login?redirect=/book", label: "Book Classes" },
       {
-        href: isLoggedIn
-          ? "/summer-camps/2026/book"
-          : "/login?redirect=/summer-camps/2026/book",
+        key: "summer-camp",
+        href: isLoggedIn ? "/book" : "/login?redirect=/book",
         label: "Summer Camp",
       },
-      { href: "/birthday-party", label: "Birthday Parties" },
+      { key: "birthday-parties", href: "/birthday-party", label: "Birthday Parties" },
     ],
     [isLoggedIn]
   );
@@ -292,7 +295,7 @@ export default function Nav({
                           const isDropdownItemActive = pathname?.startsWith(dropdownItem.href);
                           return (
                             <Link
-                              key={dropdownItem.href}
+                              key={dropdownItem.key}
                               href={dropdownItem.href}
                               onClick={() => setDesktopOpenDropdown(null)}
                               className={[
@@ -533,7 +536,7 @@ export default function Nav({
                                     const isDropdownItemActive = pathname?.startsWith(dropdownItem.href);
                                     return (
                                       <Link
-                                        key={dropdownItem.href}
+                                        key={dropdownItem.key}
                                         href={dropdownItem.href}
                                         onClick={closeMobileMenu}
                                         className={[

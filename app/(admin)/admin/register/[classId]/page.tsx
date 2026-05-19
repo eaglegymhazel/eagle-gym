@@ -2,6 +2,7 @@ import RegisterSheetClient from "./RegisterSheetClient";
 import { supabaseAdmin } from "@/lib/admin";
 import { isBeforeSaveWindow, isRegisterLocked, shouldBypassSaveWindow } from "@/lib/server/registerLock";
 import { getMedicalInfoForChildren } from "@/lib/server/medical";
+import { getDelinquentAccountFlags } from "@/lib/server/adminMissedPayments";
 
 type RegisterDetailPageProps = {
   params: Promise<{ classId: string }>;
@@ -26,10 +27,24 @@ type BookingRow = {
 
 type ChildRow = {
   id: string;
+  accountId: string | number | null;
   firstName: string | null;
   lastName: string | null;
   dateOfBirth: string | null;
   pickedUp: string | null;
+};
+
+type PaymentFollowUpStudent = {
+  id: string;
+  fullName: string;
+  accountFullName: string;
+  accountEmail: string;
+  accountTelNo: string;
+  statuses: string[];
+  programmes: Array<"Recreational" | "Competition">;
+  latestInvoiceCreated: string | null;
+  nextPaymentAttempt: string | null;
+  totalAmountDue: number | null;
 };
 
 type RegisterHeaderRow = {
@@ -207,7 +222,7 @@ export default async function RegisterDetailPage({
     const [{ data: childRows }, medicalMap] = await Promise.all([
       supabaseAdmin
         .from("Children")
-        .select("id,firstName,lastName,dateOfBirth,pickedUp")
+        .select("id,accountId,firstName,lastName,dateOfBirth,pickedUp")
         .in("id", childIds),
       getMedicalInfoForChildren(childIds),
     ]);
@@ -239,6 +254,36 @@ export default async function RegisterDetailPage({
     .sort((a, b) => a.fullName.localeCompare(b.fullName, "en-GB"));
 
   const programme = classData?.isCompetitionClass ? "Competition" : "Recreational";
+  const delinquentAccountFlags = await getDelinquentAccountFlags();
+  const paymentFollowUps: PaymentFollowUpStudent[] = childIds
+    .map((childId) => {
+      const child = childrenById.get(childId);
+      const accountId =
+        child?.accountId !== null && child?.accountId !== undefined ? String(child.accountId) : "";
+      if (!accountId) return null;
+      const flag = delinquentAccountFlags.get(accountId);
+      if (!flag) return null;
+      if (!flag.programmes.includes(programme)) return null;
+
+      const firstName = child?.firstName?.trim() || "";
+      const lastName = child?.lastName?.trim() || "";
+
+      return {
+        id: childId,
+        fullName: `${firstName} ${lastName}`.trim() || "Unknown student",
+        accountFullName: flag.accountFullName,
+        accountEmail: flag.email,
+        accountTelNo: flag.accTelNo,
+        statuses: flag.statuses,
+        programmes: flag.programmes,
+        latestInvoiceCreated: flag.latestInvoiceCreated,
+        nextPaymentAttempt: flag.nextPaymentAttempt,
+        totalAmountDue: flag.totalAmountDue,
+      } satisfies PaymentFollowUpStudent;
+    })
+    .filter((row): row is PaymentFollowUpStudent => row !== null)
+    .sort((a, b) => a.fullName.localeCompare(b.fullName, "en-GB"));
+
   const ageBandLabel = classData
     ? toAgeBand(classData.ageMin, classData.ageMax)
     : null;
@@ -306,6 +351,7 @@ export default async function RegisterDetailPage({
       registerLabel={registerLabel}
       enrolledCount={students.length}
       students={students}
+      paymentFollowUps={paymentFollowUps}
       initialStatuses={initialStatuses}
       initialCollected={initialCollected}
       isLocked={isLocked}

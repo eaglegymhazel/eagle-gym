@@ -7,19 +7,26 @@ import {
   getAdminWaitlist,
   type AdminWaitlistRow,
 } from "@/lib/server/adminDashboard";
+import {
+  getAdminMissedPayments,
+  type AdminMissedPaymentRow,
+} from "@/lib/server/adminMissedPayments";
 import type { Child } from "@/components/admin/mockChildren";
 import type { Session } from "@/components/admin/mockSessions";
 import type { RegisterClassTemplate } from "@/components/admin/sessionBuild";
 
 export default async function AdminPage() {
+  const referenceNowIso = new Date().toISOString();
   let childrenData: Child[] = [];
   let registerClasses: RegisterClassTemplate[] = [];
   let summerCampRegisterSessions: Session[] = [];
   let waitlistRows: AdminWaitlistRow[] = [];
+  let missedPaymentsRows: AdminMissedPaymentRow[] = [];
   let childrenLoadError: string | null = null;
   let registerClassesError: string | null = null;
   let summerCampRegisterSessionsError: string | null = null;
   let waitlistLoadError: string | null = null;
+  let missedPaymentsLoadError: string | null = null;
 
   try {
     childrenData = await getAdminChildrenDirectory();
@@ -47,17 +54,27 @@ export default async function AdminPage() {
     waitlistLoadError = error instanceof Error ? error.message : "Unable to load waiting list.";
   }
 
+  try {
+    missedPaymentsRows = await getAdminMissedPayments();
+  } catch (error) {
+    missedPaymentsLoadError =
+      error instanceof Error ? error.message : "Unable to load missed payments.";
+  }
+
   return (
     <Suspense fallback={null}>
       <AdminShell
+        referenceNowIso={referenceNowIso}
         initialChildrenData={childrenData}
         initialRegisterClasses={registerClasses}
         initialSummerCampRegisterSessions={summerCampRegisterSessions}
         initialWaitlistRows={waitlistRows}
+        initialMissedPaymentsRows={missedPaymentsRows}
         initialChildrenLoadError={childrenLoadError}
         initialRegisterClassesError={registerClassesError}
         initialSummerCampRegisterSessionsError={summerCampRegisterSessionsError}
         initialWaitlistLoadError={waitlistLoadError}
+        initialMissedPaymentsLoadError={missedPaymentsLoadError}
       />
     </Suspense>
   );

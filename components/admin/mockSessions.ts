@@ -7,6 +7,8 @@ export type Session = {
   location?: string;
   startAt: string;
   endAt: string;
+  displayStartTime?: string | null;
+  displayEndTime?: string | null;
   bookedCount: number;
 };
 
@@ -127,6 +129,8 @@ export function generateMockSessions(days = 14): Session[] {
         location: template.location,
         startAt: start.toISOString(),
         endAt: end.toISOString(),
+        displayStartTime: `${String(template.startHour).padStart(2, "0")}:${String(template.startMinute).padStart(2, "0")}:00`,
+        displayEndTime: `${String(end.getHours()).padStart(2, "0")}:${String(end.getMinutes()).padStart(2, "0")}:00`,
         bookedCount,
       });
     }

@@ -5,6 +5,9 @@ import type { CalendarEventRow } from "@/lib/server/calendarEvents";
 
 type EventsClientProps = {
   events: CalendarEventRow[];
+  eyebrow?: string;
+  title?: string;
+  description?: string;
 };
 
 type EventMonthGroup = {
@@ -36,7 +39,12 @@ function formatDayLabel(day: number, month: number, year: number) {
   });
 }
 
-export default function EventsClient({ events }: EventsClientProps) {
+export default function EventsClient({
+  events,
+  eyebrow = "Club Dates",
+  title = "Events",
+  description = "Key club dates, holiday sessions, and important upcoming events.",
+}: EventsClientProps) {
   const years = useMemo(
     () => Array.from(new Set(events.map((event) => event.year))).sort((a, b) => a - b),
     [events]
@@ -97,14 +105,16 @@ export default function EventsClient({ events }: EventsClientProps) {
     <main className="mx-auto w-full max-w-5xl px-6 py-10">
       <header className="mb-10 space-y-4">
         <div className="space-y-3">
-          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#6c35c3]">
-            Club Dates
-          </p>
+          {eyebrow ? (
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#6c35c3]">
+              {eyebrow}
+            </p>
+          ) : null}
           <h1 className="text-4xl font-bold tracking-[-0.02em] text-[#143271] sm:text-5xl">
-            Events
+            {title}
           </h1>
           <p className="max-w-3xl text-base leading-7 text-[#2a0c4f]/80 sm:text-lg">
-            Key club dates, holiday sessions, and important upcoming events.
+            {description}
           </p>
         </div>
 

@@ -16,23 +16,19 @@ export default function BookingGateway({
   const router = useRouter();
 
   return (
-    <div className="relative flex min-h-[78vh] flex-col overflow-hidden rounded-[24px] md:flex-row">
+    <div className="relative flex flex-col overflow-hidden rounded-[24px] md:flex-row">
       <div className="pointer-events-none absolute inset-0">
         <div className="absolute -left-10 top-16 h-28 w-28 rounded-full bg-[radial-gradient(circle,_rgba(200,170,255,0.14),_transparent_70%)] blur-lg" />
         <div className="absolute right-12 bottom-10 h-32 w-32 rounded-full bg-[radial-gradient(circle,_rgba(124,92,255,0.12),_transparent_70%)] blur-lg" />
       </div>
 
-      <div className="relative flex min-h-[35vh] flex-1 items-start justify-start overflow-hidden px-8 py-12 text-left md:min-h-[78vh]">
+      <div className="relative flex min-h-[35vh] flex-1 items-start justify-start overflow-hidden px-8 py-10 text-left md:min-h-[32rem]">
         <div className="absolute inset-0 bg-[linear-gradient(160deg,_rgba(246,236,255,0.98),_rgba(228,210,250,0.92))]" />
         <div className="pointer-events-none absolute inset-y-0 right-0 w-[56px] bg-[linear-gradient(90deg,_transparent,_rgba(124,58,237,0.22))]" />
-        <div
-          className="pointer-events-none absolute -left-20 top-8 h-64 w-64 rounded-full bg-[radial-gradient(circle,_rgba(200,170,255,0.18),_transparent_70%)] blur-2xl"
-        />
-        <div
-          className="pointer-events-none absolute right-10 top-1/4 h-52 w-52 rounded-full bg-[radial-gradient(circle,_rgba(255,222,186,0.14),_transparent_70%)] blur-2xl"
-        />
+        <div className="pointer-events-none absolute -left-20 top-8 h-64 w-64 rounded-full bg-[radial-gradient(circle,_rgba(200,170,255,0.18),_transparent_70%)] blur-2xl" />
+        <div className="pointer-events-none absolute right-10 top-1/4 h-52 w-52 rounded-full bg-[radial-gradient(circle,_rgba(255,222,186,0.14),_transparent_70%)] blur-2xl" />
         <div className="pointer-events-none absolute inset-y-0 right-0 w-[32px] bg-[linear-gradient(90deg,_transparent,_rgba(124,58,237,0.14))] md:block" />
-        <div className="relative mt-4 flex h-full min-w-0 max-w-sm flex-col items-start gap-3 md:ml-6 md:mt-8">
+        <div className="relative mt-4 flex h-full min-w-0 max-w-sm flex-col items-start gap-3 md:ml-6 md:mt-4">
           <span className="text-sm font-extrabold uppercase tracking-[0.3em] text-[#6c35c3]">
             Recreational
           </span>
@@ -40,32 +36,25 @@ export default function BookingGateway({
             <span className="block">Multi-Sports</span>
             <span className="block">Academy</span>
           </h2>
-          <div className="mt-4 space-y-3 text-sm font-medium leading-6 text-[#2E2A33]/70 min-h-[200px]">
+          <div className="mt-3 space-y-3 text-sm font-medium leading-6 text-[#2E2A33]/70">
+            <p>Fun, confidence-building classes for all levels.</p>
             <p>
-              Fun, confidence-building classes for all levels.
+              These classes are designed for children who want to take part in the sport with or
+              without the intention of going further, the classes are fun and structured working on
+              basic gymnastic moves.
             </p>
-            <p>
-              These classes are designed for children who want to take part in
-              the sport with or without the intention of going further, the
-              classes are fun and structured working on basic gymnastic moves.
-            </p>
-            <p>
-              Gymnasts get to use the apparatus and will work on B.A.G.A. badge
-              work.
-            </p>
+            <p>Gymnasts get to use the apparatus and will work on B.A.G.A. badge work.</p>
           </div>
-          <div className="mt-auto mb-8 flex w-full justify-center">
+          <div className="mt-5 flex w-full justify-center md:mt-auto md:pt-4">
             <button
               type="button"
               disabled={isSwitchingChild}
-              onClick={() =>
-                router.push(`/book/recreational?childId=${childId}`)
-              }
+              onClick={() => router.push(`/book/recreational?childId=${childId}`)}
               className={`group inline-flex h-[56px] w-[260px] items-center justify-center rounded-full bg-[#6c35c3] px-6 text-sm font-semibold !text-white shadow-[0_18px_40px_-18px_rgba(108,53,195,0.85)] transition-colors hover:bg-[#5325a3] ${
                 isSwitchingChild
                   ? "cursor-not-allowed opacity-60 shadow-none hover:bg-[#6c35c3]"
-                  : ""
-              } ${!isSwitchingChild ? "cursor-pointer" : ""}`}
+                  : "cursor-pointer"
+              }`}
             >
               Book Recreational
               <span className="ml-2 inline-block !text-white transition-transform duration-300 group-hover:translate-x-1">
@@ -76,20 +65,14 @@ export default function BookingGateway({
         </div>
       </div>
 
-      <div className="relative flex min-h-[35vh] flex-1 items-start justify-start overflow-hidden px-8 py-12 text-left md:min-h-[78vh]">
+      <div className="relative flex min-h-[35vh] flex-1 items-start justify-start overflow-hidden px-8 py-10 text-left md:min-h-[32rem]">
         <div className="absolute inset-0 bg-[linear-gradient(135deg,_rgba(24,12,62,0.98),_rgba(68,40,140,0.96))]" />
         <div className="pointer-events-none absolute inset-y-0 left-0 w-[56px] bg-[linear-gradient(270deg,_transparent,_rgba(210,190,255,0.24))]" />
-        <div
-          className="pointer-events-none absolute right-0 top-0 h-64 w-64 rounded-full bg-[radial-gradient(circle,_rgba(170,140,255,0.16),_transparent_70%)] blur-2xl"
-        />
-        <div
-          className="pointer-events-none absolute left-12 bottom-12 h-52 w-52 rounded-full bg-[radial-gradient(circle,_rgba(110,80,230,0.14),_transparent_70%)] blur-2xl"
-        />
-        <div
-          className="pointer-events-none absolute bottom-0 right-0 h-56 w-56 rounded-full bg-[radial-gradient(circle,_rgba(120,90,220,0.12),_transparent_70%)] blur-2xl"
-        />
+        <div className="pointer-events-none absolute right-0 top-0 h-64 w-64 rounded-full bg-[radial-gradient(circle,_rgba(170,140,255,0.16),_transparent_70%)] blur-2xl" />
+        <div className="pointer-events-none absolute left-12 bottom-12 h-52 w-52 rounded-full bg-[radial-gradient(circle,_rgba(110,80,230,0.14),_transparent_70%)] blur-2xl" />
+        <div className="pointer-events-none absolute bottom-0 right-0 h-56 w-56 rounded-full bg-[radial-gradient(circle,_rgba(120,90,220,0.12),_transparent_70%)] blur-2xl" />
         <div className="pointer-events-none absolute inset-y-0 left-0 w-[32px] bg-[linear-gradient(270deg,_transparent,_rgba(210,190,255,0.18))] md:block" />
-        <div className="relative mt-4 flex h-full min-w-0 max-w-sm flex-col items-start gap-3 md:ml-6 md:mt-8">
+        <div className="relative mt-4 flex h-full min-w-0 max-w-sm flex-col items-start gap-3 md:ml-6 md:mt-4">
           <span className="text-sm font-extrabold uppercase tracking-[0.3em] !text-white">
             Competition
           </span>
@@ -104,33 +87,25 @@ export default function BookingGateway({
               Eagle Gymnastics
             </span>
             <br />
-            <span style={{ color: "#ffffff", WebkitTextFillColor: "#ffffff" }}>
-              Academy
-            </span>
+            <span style={{ color: "#ffffff", WebkitTextFillColor: "#ffffff" }}>Academy</span>
           </h2>
           <div
-            className="mt-4 space-y-3 text-sm font-medium leading-6 min-h-[200px]"
+            className="mt-3 space-y-3 text-sm font-medium leading-6"
             style={{ color: "#ffffff", WebkitTextFillColor: "#ffffff" }}
           >
             <p>
-              Invite-only training for children in the recreational programme
-              who demonstrate the ability, commitment, and potential to
-              progress to competitive gymnastics. Selection is at the
-              discretion of the coaching team.
+              Invite-only training for children in the recreational programme who demonstrate the
+              ability, commitment, and potential to progress to competitive gymnastics. Selection
+              is at the discretion of the coaching team.
             </p>
-            <p>
-              For more information or to discuss this pathway, speak with a
-              coach.
-            </p>
+            <p>For more information or to discuss this pathway, speak with a coach.</p>
           </div>
           {competitionEligible ? (
-            <div className="mt-auto mb-8 flex w-full justify-center">
+            <div className="mt-5 flex w-full justify-center md:mt-auto md:pt-4">
               <button
                 type="button"
                 disabled={isSwitchingChild}
-                onClick={() =>
-                  router.push(`/book/competition?childId=${childId}`)
-                }
+                onClick={() => router.push(`/book/competition?childId=${childId}`)}
                 className={`group inline-flex h-[56px] w-[260px] items-center justify-center rounded-full bg-white px-6 text-sm font-semibold text-[#2b1b4f] shadow-[0_18px_40px_-18px_rgba(12,8,30,0.7)] transition-colors hover:bg-white/95 ${
                   isSwitchingChild ? "cursor-not-allowed opacity-60 shadow-none" : "cursor-pointer"
                 }`}
@@ -142,8 +117,7 @@ export default function BookingGateway({
               </button>
             </div>
           ) : (
-            <>
-              <div className="mt-auto mb-8 flex w-full justify-center">
+            <div className="mt-5 flex w-full justify-center md:mt-auto md:pt-4">
               <button
                 type="button"
                 disabled
@@ -175,8 +149,7 @@ export default function BookingGateway({
                 </svg>
                 Invite-only
               </button>
-              </div>
-            </>
+            </div>
           )}
         </div>
       </div>

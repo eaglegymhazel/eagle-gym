@@ -131,9 +131,9 @@ function normalizeWeekday(value: string | number | null): string | null {
   return map[lower] ?? null;
 }
 
-function nextLondonDayKeys(days: number): string[] {
+function nextLondonDayKeys(days: number, baseDate: Date): string[] {
   const keys: string[] = [];
-  const start = new Date();
+  const start = new Date(baseDate);
   for (let i = 0; i < days; i += 1) {
     const date = new Date(start.getTime() + i * 24 * 60 * 60 * 1000);
     keys.push(dayKeyInLondon(date));
@@ -143,9 +143,10 @@ function nextLondonDayKeys(days: number): string[] {
 
 export function buildUpcomingSessions(
   templates: RegisterClassTemplate[],
-  days = 14
+  days = 14,
+  baseDate = new Date()
 ): Session[] {
-  const dayKeys = nextLondonDayKeys(days);
+  const dayKeys = nextLondonDayKeys(days, baseDate);
   const sessions: Session[] = [];
 
   templates.forEach((template) => {
@@ -179,6 +180,8 @@ export function buildUpcomingSessions(
         location: template.location,
         startAt: start.toISOString(),
         endAt: end.toISOString(),
+        displayStartTime: template.startTime,
+        displayEndTime: template.endTime,
         bookedCount: template.enrolledCount,
       });
     });

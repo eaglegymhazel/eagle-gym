@@ -242,13 +242,9 @@ export default function CompetitionClassesClient({
       <div className="mx-auto w-full max-w-5xl space-y-4 sm:space-y-5">
         <header className="space-y-3 sm:space-y-4">
           <div className="pl-4">
-            <Link
-              href="/account"
-              className="inline-flex items-center gap-2 rounded-full border border-[#d8c7f4] bg-white px-4 py-2 text-sm font-semibold text-[#5b2ca7] transition hover:bg-[#faf6ff]"
-            >
-              <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-              Back to account
-            </Link>
+            <p className="text-[1.75rem] font-black uppercase tracking-[0.04em] text-[#9a6500] sm:text-[2.1rem]">
+              Competition Classes
+            </p>
           </div>
           <div className="pl-4">
             <div className="px-0.5 py-0.5">
@@ -261,9 +257,13 @@ export default function CompetitionClassesClient({
             </div>
           </div>
           <div className="pl-4">
-            <span className="inline-flex items-center rounded-full border border-[#efd18a] bg-[#fff6d7] px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.14em] text-[#9a6500] shadow-[0_10px_20px_-16px_rgba(154,101,0,0.28)]">
-              Competition Classes
-            </span>
+            <Link
+              href="/account"
+              className="inline-flex items-center gap-2 rounded-full border border-[#d8c7f4] bg-white px-4 py-2 text-sm font-semibold text-[#5b2ca7] transition hover:bg-[#faf6ff]"
+            >
+              <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+              Back to account
+            </Link>
           </div>
           <div className="pt-1">
             <div className="h-[0.5px] w-full bg-black/20" />

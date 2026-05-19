@@ -213,6 +213,11 @@ export default function ReviewClient({
       <div className="relative z-10 mx-auto w-full max-w-[1040px] space-y-5 sm:space-y-6">
         <header className="space-y-2">
           <div className="px-0.5 py-0.5">
+            <p className="text-[1.75rem] font-black uppercase tracking-[0.04em] text-[#1f7a3a] sm:text-[2.1rem]">
+              Recreational Classes
+            </p>
+          </div>
+          <div className="px-0.5 py-0.5">
             <div className="inline-flex items-center rounded-full border border-[#6c35c3]/25 bg-white/85 px-4 py-1.5 text-sm font-semibold uppercase tracking-[0.18em] text-[#2a203c]/70 shadow-[0_12px_28px_-18px_rgba(31,26,37,0.5)] backdrop-blur">
               Booking for{" "}
               <span className="ml-1 font-bold text-[#2a203c]">
@@ -221,16 +226,6 @@ export default function ReviewClient({
             </div>
           </div>
           <div className="pl-4">
-            <span className="inline-flex items-center rounded-full border border-[#bfe2cb] bg-[#edf9f0] px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.14em] text-[#1f7a3a] shadow-[0_10px_20px_-16px_rgba(24,106,53,0.34)]">
-              Recreational Classes
-            </span>
-          </div>
-          <div className="pt-1">
-            <div className="h-[0.5px] w-full bg-black/20" />
-          </div>
-        </header>
-
-        <div className="flex items-center justify-between gap-4">
           <a
             href={backHref}
             className="inline-flex items-center gap-2 rounded-full border border-[#d8c7f4] bg-white px-4 py-2 text-sm font-semibold text-[#5b2ca7] transition hover:bg-[#faf6ff]"
@@ -238,6 +233,13 @@ export default function ReviewClient({
             <ArrowLeft className="h-4 w-4" aria-hidden="true" />
             Back to class selection
           </a>
+          </div>
+          <div className="pt-1">
+            <div className="h-[0.5px] w-full bg-black/20" />
+          </div>
+        </header>
+
+        <div className="flex items-center justify-between gap-4">
         </div>
 
         {validation.errors.length > 0 ? (
