@@ -26,6 +26,13 @@ type PaymentFollowUpStudent = {
   totalAmountDue: number | null;
 };
 
+type BirthdayStudent = {
+  id: string;
+  fullName: string;
+  dateOfBirth: string;
+  ageTurning: number | null;
+};
+
 type RegisterSheetClientProps = {
   classId: string;
   sessionDate: string;
@@ -35,6 +42,7 @@ type RegisterSheetClientProps = {
   enrolledCount: number;
   students: RegisterStudent[];
   paymentFollowUps?: PaymentFollowUpStudent[];
+  birthdayStudents?: BirthdayStudent[];
   initialStatuses?: Record<string, Exclude<AttendanceState, "unmarked">>;
   initialCollected?: Record<string, boolean>;
   isLocked?: boolean;
@@ -81,6 +89,7 @@ export default function RegisterSheetClient({
   enrolledCount,
   students,
   paymentFollowUps = [],
+  birthdayStudents = [],
   initialStatuses = {},
   initialCollected = {},
   isLocked = false,
@@ -96,7 +105,7 @@ export default function RegisterSheetClient({
   const [activeFilter, setActiveFilter] = useState<FilterState>("all");
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"register" | "payment-follow-up">("register");
+  const [activeTab, setActiveTab] = useState<"register" | "payment-follow-up" | "birthdays">("register");
   const [lastSavedSignature, setLastSavedSignature] = useState<string>(() =>
     buildRegisterSignature(students, initialStatuses, initialCollected)
   );
@@ -129,6 +138,16 @@ export default function RegisterSheetClient({
       day: "2-digit",
       hour: "2-digit",
       minute: "2-digit",
+    }).format(parsed);
+  };
+
+  const formatDate = (value: string) => {
+    const parsed = new Date(`${value}T12:00:00`);
+    if (Number.isNaN(parsed.getTime())) return value;
+    return new Intl.DateTimeFormat("en-GB", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
     }).format(parsed);
   };
 
@@ -273,12 +292,12 @@ export default function RegisterSheetClient({
 
   return (
     <main className="mx-auto w-full max-w-6xl px-3 py-6 sm:px-5 sm:py-8">
-      <div className="mb-3 flex flex-wrap items-end gap-1.5">
+      <div className="mb-3 grid grid-cols-2 gap-1.5 sm:flex sm:flex-wrap sm:items-end">
         <button
           type="button"
           onClick={() => setActiveTab("register")}
           className={[
-            "inline-flex h-11 items-center border px-5 text-sm font-semibold transition",
+            "inline-flex h-11 items-center justify-center border px-4 text-sm font-semibold transition sm:justify-start sm:px-5",
             activeTab === "register"
               ? "border-[#6e2ac0] bg-[#f3ecfc] text-[#4f2b80]"
               : "border-[#ddd4ea] bg-white text-[#6f6384] hover:bg-[#f8f5fc]",
@@ -290,7 +309,7 @@ export default function RegisterSheetClient({
           type="button"
           onClick={() => setActiveTab("payment-follow-up")}
           className={[
-            "inline-flex h-11 items-center border px-5 text-sm font-semibold transition",
+            "inline-flex h-11 items-center justify-center border px-4 text-sm font-semibold transition sm:justify-start sm:px-5",
             activeTab === "payment-follow-up"
               ? "border-[#6e2ac0] bg-[#f3ecfc] text-[#4f2b80]"
               : "border-[#ddd4ea] bg-white text-[#6f6384] hover:bg-[#f8f5fc]",
@@ -300,6 +319,24 @@ export default function RegisterSheetClient({
           {paymentFollowUps.length > 0 ? (
             <span className="ml-2 inline-flex min-w-5 items-center justify-center rounded-full bg-[#fff4f6] px-1.5 text-[10px] font-bold text-[#9e2242]">
               {paymentFollowUps.length}
+            </span>
+          ) : null}
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab("birthdays")}
+          className={[
+            "inline-flex h-11 items-center justify-center border px-4 text-sm font-semibold transition sm:justify-start sm:px-5",
+            "col-span-2 sm:col-span-1",
+            activeTab === "birthdays"
+              ? "border-[#6e2ac0] bg-[#f3ecfc] text-[#4f2b80]"
+              : "border-[#ddd4ea] bg-white text-[#6f6384] hover:bg-[#f8f5fc]",
+          ].join(" ")}
+        >
+          Birthdays
+          {birthdayStudents.length > 0 ? (
+            <span className="ml-2 inline-flex min-w-5 items-center justify-center rounded-full bg-[#fff4f6] px-1.5 text-[10px] font-bold text-[#9e2242]">
+              {birthdayStudents.length}
             </span>
           ) : null}
         </button>
@@ -335,6 +372,7 @@ export default function RegisterSheetClient({
           </div>
         </div>
 
+        {activeTab === "register" ? (
         <div className="grid gap-2 border-b border-[#ece6f5] bg-[#fcfbfe] px-4 py-3 sm:grid-cols-3 sm:gap-3 sm:px-6">
           <div className="rounded-none border border-[#e7e1f0] bg-[#faf8fc] px-3 py-2">
             <p className="text-[11px] uppercase tracking-[0.06em] text-[#807393]">Enrolled</p>
@@ -349,6 +387,7 @@ export default function RegisterSheetClient({
             <p className="mt-0.5 text-lg font-bold text-[#9e2242]">{absentCount}</p>
           </div>
         </div>
+        ) : null}
 
         {activeTab === "register" ? (
         <div className="border-b border-[#ece6f5] px-4 py-3 sm:px-6">
@@ -550,7 +589,7 @@ export default function RegisterSheetClient({
             )}
           </div>
         </div>
-        ) : (
+        ) : activeTab === "payment-follow-up" ? (
         <div className="px-4 py-4 sm:px-6">
           {paymentFollowUps.length === 0 ? (
             <div className="rounded-none border border-dashed border-[#dfd6eb] px-3 py-5 text-sm text-[#716586]">
@@ -602,6 +641,52 @@ export default function RegisterSheetClient({
                       <p className="text-[11px] uppercase tracking-[0.06em] text-[#807393]">Latest invoice</p>
                       <p className="mt-1 text-sm font-medium text-[#2b1f3c]">
                         {formatDateTime(student.latestInvoiceCreated)}
+                      </p>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+        ) : (
+        <div className="px-4 py-4 sm:px-6">
+          {birthdayStudents.length === 0 ? (
+            <div className="rounded-none border border-dashed border-[#dfd6eb] px-3 py-5 text-sm text-[#716586]">
+              No students in this register have a birthday on this class date.
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <div className="rounded-none border border-[#ece6f5] bg-[#fcfbfe] px-3 py-3 text-sm text-[#5e536f]">
+                These students have a birthday on this class date. This section is read-only and is
+                provided only as a quick prompt for coaches or admin.
+              </div>
+              <div className="divide-y divide-[#ede7f6] border border-[#ece6f5]">
+                {birthdayStudents.map((student) => (
+                  <article
+                    key={student.id}
+                    className="grid gap-3 bg-white px-3 py-3 md:grid-cols-[minmax(0,1fr)_220px_180px]"
+                  >
+                    <div className="min-w-0">
+                      <p className="text-[11px] uppercase tracking-[0.06em] text-[#807393]">
+                        Student
+                      </p>
+                      <p className="mt-1 text-[15px] font-semibold text-[#201734]">{student.fullName}</p>
+                    </div>
+                    <div>
+                      <p className="text-[11px] uppercase tracking-[0.06em] text-[#807393]">
+                        Date of birth
+                      </p>
+                      <p className="mt-1 text-sm font-medium text-[#2b1f3c]">
+                        {formatDate(student.dateOfBirth)}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-[11px] uppercase tracking-[0.06em] text-[#807393]">
+                        Turning
+                      </p>
+                      <p className="mt-1 text-sm font-semibold text-[#6e2ac0]">
+                        {student.ageTurning ?? "Unknown"}
                       </p>
                     </div>
                   </article>

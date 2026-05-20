@@ -47,6 +47,13 @@ type PaymentFollowUpStudent = {
   totalAmountDue: number | null;
 };
 
+type BirthdayStudent = {
+  id: string;
+  fullName: string;
+  dateOfBirth: string;
+  ageTurning: number | null;
+};
+
 type RegisterHeaderRow = {
   id: string;
 };
@@ -168,6 +175,23 @@ function formatSessionDateIso(date: Date): string {
   return `${year}-${month}-${day}`;
 }
 
+function isBirthdayOnDate(dateOfBirth: string | null, registerDate: Date): boolean {
+  if (!dateOfBirth) return false;
+  const birthDate = new Date(`${dateOfBirth}T12:00:00`);
+  if (Number.isNaN(birthDate.getTime())) return false;
+  return (
+    birthDate.getDate() === registerDate.getDate() &&
+    birthDate.getMonth() === registerDate.getMonth()
+  );
+}
+
+function getAgeTurning(dateOfBirth: string | null, registerDate: Date): number | null {
+  if (!dateOfBirth) return null;
+  const birthDate = new Date(`${dateOfBirth}T12:00:00`);
+  if (Number.isNaN(birthDate.getTime())) return null;
+  return registerDate.getFullYear() - birthDate.getFullYear();
+}
+
 function formatTitleTime(value: string | null): string {
   if (!value) return "--";
   const date = new Date(`1970-01-01T${value}`);
@@ -253,6 +277,7 @@ export default async function RegisterDetailPage({
     })
     .sort((a, b) => a.fullName.localeCompare(b.fullName, "en-GB"));
 
+  const registerDate = toRegisterDate(resolvedSearchParams?.date);
   const programme = classData?.isCompetitionClass ? "Competition" : "Recreational";
   const delinquentAccountFlags = await getDelinquentAccountFlags();
   const paymentFollowUps: PaymentFollowUpStudent[] = childIds
@@ -284,6 +309,22 @@ export default async function RegisterDetailPage({
     .filter((row): row is PaymentFollowUpStudent => row !== null)
     .sort((a, b) => a.fullName.localeCompare(b.fullName, "en-GB"));
 
+  const birthdayStudents: BirthdayStudent[] = childIds
+    .map((childId) => {
+      const child = childrenById.get(childId);
+      if (!child || !isBirthdayOnDate(child.dateOfBirth, registerDate)) return null;
+      const firstName = child.firstName?.trim() || "";
+      const lastName = child.lastName?.trim() || "";
+      return {
+        id: childId,
+        fullName: `${firstName} ${lastName}`.trim() || "Unknown student",
+        dateOfBirth: child.dateOfBirth ?? "",
+        ageTurning: getAgeTurning(child.dateOfBirth, registerDate),
+      } satisfies BirthdayStudent;
+    })
+    .filter((row): row is BirthdayStudent => row !== null)
+    .sort((a, b) => a.fullName.localeCompare(b.fullName, "en-GB"));
+
   const ageBandLabel = classData
     ? toAgeBand(classData.ageMin, classData.ageMax)
     : null;
@@ -291,7 +332,6 @@ export default async function RegisterDetailPage({
   const scheduleLabel = `${formatTime(
     classData?.startTime ?? null
   )}-${formatTime(classData?.endTime ?? null)}`;
-  const registerDate = toRegisterDate(resolvedSearchParams?.date);
   const registerDateLabel = formatRegisterDate(registerDate);
   const sessionDate = formatSessionDateIso(registerDate);
   const isLocked = isRegisterLocked({
@@ -352,6 +392,7 @@ export default async function RegisterDetailPage({
       enrolledCount={students.length}
       students={students}
       paymentFollowUps={paymentFollowUps}
+      birthdayStudents={birthdayStudents}
       initialStatuses={initialStatuses}
       initialCollected={initialCollected}
       isLocked={isLocked}

@@ -2,7 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { getChildrenForAccount } from "@/lib/server/children";
 import { getMedicalInfoForChildren } from "@/lib/server/medical";
-import { getActiveBookingsForChildren } from "@/lib/server/bookings";
+import {
+  getActiveBookingsForAccount,
+  type AccountBookingSummary,
+} from "@/lib/server/bookings";
 import { getAssignedBadgesForChildren } from "@/lib/server/badges";
 import {
   getServerAuthRequestKey,
@@ -205,7 +208,7 @@ export async function POST(request: NextRequest) {
             account: null,
             children: [],
             medicalByChildId: {},
-            bookingsByChildId: {},
+            accountBookings: [],
             badgesByChildId: {},
             childDetailsIncluded: false,
             accountExists: false,
@@ -237,7 +240,7 @@ export async function POST(request: NextRequest) {
     if (account?.id) {
       let children: Awaited<ReturnType<typeof getChildrenForAccount>> = [];
       let medicalByChildId = {};
-      let bookingsByChildId = {};
+      let accountBookings: AccountBookingSummary[] = [];
       let badgesByChildId = {};
       let childIds: string[] = [];
 
@@ -249,7 +252,7 @@ export async function POST(request: NextRequest) {
       if (includeChildDetails && childIds.length > 0) {
         const [medicalResult, bookingsResult, badgesResult] = await Promise.allSettled([
           getMedicalInfoForChildren(childIds),
-          getActiveBookingsForChildren(childIds),
+          getActiveBookingsForAccount(account.id, childIds),
           getAssignedBadgesForChildren(childIds),
         ]);
 
@@ -257,10 +260,17 @@ export async function POST(request: NextRequest) {
           medicalByChildId = medicalResult.value;
         }
         if (bookingsResult.status === "fulfilled") {
-          bookingsByChildId = bookingsResult.value;
+          accountBookings = bookingsResult.value;
         }
         if (badgesResult.status === "fulfilled") {
           badgesByChildId = badgesResult.value;
+        }
+      } else if (includeChildDetails) {
+        const bookingsResult = await Promise.allSettled([
+          getActiveBookingsForAccount(account.id, childIds),
+        ]);
+        if (bookingsResult[0].status === "fulfilled") {
+          accountBookings = bookingsResult[0].value;
         }
       }
 
@@ -286,7 +296,7 @@ export async function POST(request: NextRequest) {
           },
           children,
           medicalByChildId,
-          bookingsByChildId,
+          accountBookings,
           badgesByChildId,
           childDetailsIncluded: includeChildDetails,
           accountExists: true,
@@ -303,7 +313,7 @@ export async function POST(request: NextRequest) {
         account: null,
         children: [],
         medicalByChildId: {},
-        bookingsByChildId: {},
+        accountBookings: [],
         badgesByChildId: {},
         childDetailsIncluded: false,
         accountExists: false,

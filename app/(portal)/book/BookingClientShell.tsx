@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { AlertCircle, ArrowRight } from "lucide-react";
+import { AlertCircle, ArrowLeft, ArrowRight } from "lucide-react";
 import BookingGateway from "./BookingGateway";
 import BookingChildPicker from "./BookingChildPicker";
 
@@ -95,6 +95,16 @@ export default function BookingClientShell({
 
   return (
     <div className="w-full">
+      <div className="mb-4">
+        <button
+          type="button"
+          onClick={() => router.push("/account")}
+          className="inline-flex h-11 cursor-pointer items-center gap-2 rounded-none border border-[#cdbce8] bg-[#f7f2ff] px-4 text-sm font-semibold text-[#4f2390] transition hover:border-[#b398dd] hover:bg-[#f1e8ff] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6e2ac0]/35"
+        >
+          <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+          Back to account
+        </button>
+      </div>
       <div className="mb-6 mt-1">
         <BookingChildPicker
           childId={childId}

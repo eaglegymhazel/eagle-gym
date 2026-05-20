@@ -27,17 +27,6 @@ type MedicalInformationRow = {
   surgeryTelephone: string | null
 }
 
-type BookingSummary = {
-  childId: string
-  bookingKind: 'class' | 'summer-camp'
-  className: string | null
-  weekday: string | null
-  startTime: string | null
-  endTime: string | null
-  durationMinutes: number | null
-  campDate: string | null
-}
-
 type ChildBadgeSkill = {
   id: string
   name: string
@@ -57,7 +46,7 @@ type ChildAssignedBadge = {
   skills: ChildBadgeSkill[]
 }
 
-type DetailTab = 'profile' | 'medical' | 'bookings' | 'badges'
+type DetailTab = 'profile' | 'medical' | 'badges'
 type MobileSection = DetailTab
 
 type EditableProfile = {
@@ -137,29 +126,15 @@ function categoryLabel(category: string | null) {
   return category?.trim() || 'Badge'
 }
 
-function formatCampDate(value: string | null) {
-  if (!value) return '-'
-  const date = new Date(`${value}T12:00:00`)
-  if (Number.isNaN(date.getTime())) return value
-  return new Intl.DateTimeFormat('en-GB', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-  }).format(date)
-}
-
 export default function ChildrenClientPanel({
   childSummaries,
   medicalByChildId,
-  bookingsByChildId,
   badgesByChildId,
   onSelectionChange,
   onActiveChildChange,
 }: {
   childSummaries: ChildSummary[]
   medicalByChildId: Record<string, MedicalInformationRow>
-  bookingsByChildId: Record<string, BookingSummary[]>
   badgesByChildId: Record<string, ChildAssignedBadge[]>
   onSelectionChange?: (isDetail: boolean) => void
   onActiveChildChange?: (childId: string | null) => void
@@ -319,7 +294,6 @@ export default function ChildrenClientPanel({
 
   const age = computeAge(selectedChild.dateOfBirth)
   const medical = medicalRecords[selectedChild.id] ?? null
-  const bookings = bookingsByChildId[selectedChild.id] ?? []
   const assignedBadges = badgesByChildId[selectedChild.id] ?? []
   const showEditButton = activeTab === 'profile' || activeTab === 'medical'
 
@@ -978,45 +952,6 @@ export default function ChildrenClientPanel({
     </div>
   )
 
-  const bookingsPanel = (
-    <div className={styles.childCardStack}>
-      {bookings.length === 0 ? (
-        <p className={`${styles.cardBody} ${styles.bookingsEmptyMessage}`}>
-          There are no active bookings for this child.
-        </p>
-      ) : (
-        bookings.map((booking, index) => (
-          <div key={`${booking.childId}-${index}`} className={styles.childCard}>
-            <h3 className={styles.cardTitle}>
-              {booking.className ?? '-'}
-            </h3>
-            {booking.bookingKind === 'summer-camp' ? (
-              <div className={styles.bookingMeta}>
-                <span className={styles.cardBody}>{formatCampDate(booking.campDate)}</span>
-                <span className={styles.bookingDuration}>
-                  {(booking.startTime ?? '-') + ' - ' + (booking.endTime ?? '-')}
-                </span>
-              </div>
-            ) : (
-              <div className={styles.bookingMeta}>
-                <span className={styles.cardBody}>
-                  {(booking.startTime ?? '-') +
-                    ' - ' +
-                    (booking.endTime ?? '-')}
-                </span>
-                <span className={styles.bookingDuration}>
-                  {booking.durationMinutes != null
-                    ? `${booking.durationMinutes} minutes`
-                    : '-'}
-                </span>
-              </div>
-            )}
-          </div>
-        ))
-      )}
-    </div>
-  )
-
   const completedBadgeCount = assignedBadges.filter((badge) => badge.isCompleted).length
 
   const badgesPanel = (
@@ -1263,7 +1198,7 @@ export default function ChildrenClientPanel({
       <div className={styles.desktopChildView}>
         <div className={styles.childTabsRow}>
           <div className={styles.childTabs}>
-            {(['profile', 'medical', 'bookings', 'badges'] as DetailTab[]).map((tab) => (
+            {(['profile', 'medical', 'badges'] as DetailTab[]).map((tab) => (
               <button
                 key={tab}
                 type="button"
@@ -1276,8 +1211,6 @@ export default function ChildrenClientPanel({
                   ? 'Profile'
                   : tab === 'medical'
                   ? 'Medical'
-                  : tab === 'bookings'
-                  ? 'Bookings'
                   : 'Badges'}
               </button>
             ))}
@@ -1286,7 +1219,6 @@ export default function ChildrenClientPanel({
 
         {activeTab === 'profile' ? profilePanel : null}
         {activeTab === 'medical' ? medicalPanel : null}
-        {activeTab === 'bookings' ? bookingsPanel : null}
         {activeTab === 'badges' ? badgesPanel : null}
       </div>
 
@@ -1295,7 +1227,6 @@ export default function ChildrenClientPanel({
           {([
             { key: 'profile', label: 'Profile', content: profilePanel, editable: true },
             { key: 'medical', label: 'Medical', content: medicalPanel, editable: true },
-            { key: 'bookings', label: 'Bookings', content: bookingsPanel, editable: false },
             { key: 'badges', label: 'Badges', content: badgesPanel, editable: false },
           ] as const).map((section) => {
             const open = activeMobileSection === section.key

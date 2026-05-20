@@ -5,23 +5,27 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { createPortal } from "react-dom";
 import * as Dialog from "@radix-ui/react-dialog";
-import { ClipboardList, Clock3, Users } from "lucide-react";
+import { ClipboardList, Clock3, Gift, Users } from "lucide-react";
 import styles from "@/app/(portal)/(protected)/account/account.module.css";
 import ChildPicker from "@/components/admin/ChildPicker";
 import type { Child } from "@/components/admin/mockChildren";
 import type { Session } from "@/components/admin/mockSessions";
 import ClassRegisterPicker from "@/components/admin/ClassRegisterPicker";
+import BirthdayPartyAvailabilityManager from "@/components/admin/BirthdayPartyAvailabilityManager";
 import { buildUpcomingSessions, type RegisterClassTemplate } from "@/components/admin/sessionBuild";
 import AdminNavItem from "@/components/admin/AdminNavItem";
 import type { AdminWaitlistRow } from "@/lib/server/adminDashboard";
 import type { AdminMissedPaymentRow } from "@/lib/server/adminMissedPayments";
+import type { AdminBirthdayPartyBookingRow } from "@/lib/server/adminBirthdayPartyBookings";
+import type { BirthdayPartyCalendarSlotSummary } from "@/lib/server/birthdayPartyBookings";
 
 type AdminTabKey =
   | "students"
   | "register"
   | "summer-camp-register"
   | "waiting"
-  | "missed-payments";
+  | "missed-payments"
+  | "birthday-parties";
 
 type NavItem = {
   key: AdminTabKey;
@@ -45,6 +49,7 @@ const navItems: NavItem[] = [
   { key: "summer-camp-register", label: "Summer Camp Register", icon: ClipboardList },
   { key: "waiting", label: "Waiting List", icon: Clock3 },
   { key: "missed-payments", label: "Missed Payments", icon: Clock3 },
+  { key: "birthday-parties", label: "Birthday Parties", icon: Gift },
 ];
 
 export default function AdminShell({
@@ -54,11 +59,15 @@ export default function AdminShell({
   initialSummerCampRegisterSessions,
   initialWaitlistRows,
   initialMissedPaymentsRows,
+  initialBirthdayPartyBookingsRows,
+  initialBirthdayPartyCalendarSlots,
   initialChildrenLoadError,
   initialRegisterClassesError,
   initialSummerCampRegisterSessionsError,
   initialWaitlistLoadError,
   initialMissedPaymentsLoadError,
+  initialBirthdayPartyBookingsLoadError,
+  initialBirthdayPartyAvailabilityLoadError,
 }: {
   referenceNowIso: string;
   initialChildrenData: Child[];
@@ -66,11 +75,15 @@ export default function AdminShell({
   initialSummerCampRegisterSessions: Session[];
   initialWaitlistRows: AdminWaitlistRow[];
   initialMissedPaymentsRows: AdminMissedPaymentRow[];
+  initialBirthdayPartyBookingsRows: AdminBirthdayPartyBookingRow[];
+  initialBirthdayPartyCalendarSlots: BirthdayPartyCalendarSlotSummary[];
   initialChildrenLoadError: string | null;
   initialRegisterClassesError: string | null;
   initialSummerCampRegisterSessionsError: string | null;
   initialWaitlistLoadError: string | null;
   initialMissedPaymentsLoadError: string | null;
+  initialBirthdayPartyBookingsLoadError: string | null;
+  initialBirthdayPartyAvailabilityLoadError: string | null;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -86,7 +99,8 @@ export default function AdminShell({
       tabParam === "register" ||
       tabParam === "summer-camp-register" ||
       tabParam === "waiting" ||
-      tabParam === "missed-payments"
+      tabParam === "missed-payments" ||
+      tabParam === "birthday-parties"
     ) {
       return tabParam;
     }
@@ -122,6 +136,10 @@ export default function AdminShell({
   const waitlistLoadError = initialWaitlistLoadError;
   const missedPaymentsRows = initialMissedPaymentsRows;
   const missedPaymentsLoadError = initialMissedPaymentsLoadError;
+  const birthdayPartyBookingsRows = initialBirthdayPartyBookingsRows;
+  const birthdayPartyBookingsLoadError = initialBirthdayPartyBookingsLoadError;
+  const birthdayPartyCalendarSlots = initialBirthdayPartyCalendarSlots;
+  const birthdayPartyAvailabilityLoadError = initialBirthdayPartyAvailabilityLoadError;
 
   const registerSessions = useMemo(
     () => buildUpcomingSessions(registerClasses, 14, new Date(referenceNowIso)),
@@ -141,14 +159,21 @@ export default function AdminShell({
     if (tab === "register") return "Class Register";
     if (tab === "summer-camp-register") return "Summer Camp Register";
     if (tab === "missed-payments") return "Missed Payments";
+    if (tab === "birthday-parties") return "Birthday Parties";
     return "Waiting List";
   }, [tab]);
   const isStudentTab = tab === "students";
   const isRegisterTab = tab === "register";
   const isSummerCampRegisterTab = tab === "summer-camp-register";
   const isMissedPaymentsTab = tab === "missed-payments";
+  const isBirthdayPartiesTab = tab === "birthday-parties";
   const isFlatContentTab =
-    isStudentTab || isRegisterTab || isSummerCampRegisterTab || isMissedPaymentsTab || tab === "waiting";
+    isStudentTab ||
+    isRegisterTab ||
+    isSummerCampRegisterTab ||
+    isMissedPaymentsTab ||
+    isBirthdayPartiesTab ||
+    tab === "waiting";
 
   const formatWaitlistDate = (value: string) => {
     if (!value) return "Unknown";
@@ -193,6 +218,28 @@ export default function AdminShell({
       month: "short",
       day: "2-digit",
     }).format(parsed);
+  };
+
+  const formatBirthdayTimeRange = (startTime: string, endTime: string) => {
+    const formatOne = (value: string) => {
+      const [hourRaw, minuteRaw] = value.split(":");
+      const hour = Number.parseInt(hourRaw ?? "", 10);
+      const minute = Number.parseInt(minuteRaw ?? "", 10);
+      if (Number.isNaN(hour) || Number.isNaN(minute)) return value;
+      const date = new Date(Date.UTC(1970, 0, 1, hour, minute, 0, 0));
+      return new Intl.DateTimeFormat("en-GB", {
+        hour: "numeric",
+        minute: "2-digit",
+        hour12: true,
+        timeZone: "UTC",
+      })
+        .format(date)
+        .replace(":00", "")
+        .replace(" ", "")
+        .toLowerCase();
+    };
+
+    return `${formatOne(startTime)}-${formatOne(endTime)}`;
   };
 
   const getStripeSubscriptionUrl = (subscriptionId: string) =>
@@ -257,6 +304,37 @@ export default function AdminShell({
     missedPaymentsSort,
     missedPaymentsStatusFilter,
   ]);
+
+  const [birthdayPartyQuery, setBirthdayPartyQuery] = useState("");
+  const [birthdayPartySubview, setBirthdayPartySubview] = useState<"bookings" | "availability">(
+    "bookings"
+  );
+
+  const filteredBirthdayPartyRows = useMemo(() => {
+    const query = birthdayPartyQuery.trim().toLowerCase();
+    return birthdayPartyBookingsRows.filter((row) => {
+      if (!query) return true;
+
+      return [
+        row.accountFullName,
+        row.email,
+        row.accTelNo,
+        row.birthdayChildFullName,
+        row.slotDate,
+      ]
+        .join(" ")
+        .toLowerCase()
+        .includes(query);
+    });
+  }, [birthdayPartyBookingsRows, birthdayPartyQuery]);
+
+  const birthdayPartySummary = useMemo(() => {
+    const nextPartyDate = filteredBirthdayPartyRows[0]?.slotDate ?? null;
+    return {
+      upcomingCount: filteredBirthdayPartyRows.length,
+      nextPartyDate,
+    };
+  }, [filteredBirthdayPartyRows]);
 
   const missedPaymentsSummary = useMemo(() => {
     const summary = {
@@ -798,6 +876,9 @@ export default function AdminShell({
                                 <td className="px-3 py-3 font-semibold">{row.programme}</td>
                                 <td className="px-3 py-3">
                                   <p className="font-semibold text-[#24193a]">{row.accountFullName}</p>
+                                  <p className="mt-0.5 text-[#5b526a]">
+                                    {row.accTelNo || "No contact number"}
+                                  </p>
                                   <p className="mt-0.5 text-[#5b526a]">{row.email}</p>
                                 </td>
                                 <td className="px-3 py-3 uppercase">{row.status.replaceAll("_", " ")}</td>
@@ -843,6 +924,7 @@ export default function AdminShell({
                             <div className="space-y-1.5 text-sm text-[#2a203c]">
                               <p className="font-semibold">{row.programme}</p>
                               <p className="font-semibold text-[#24193a]">{row.accountFullName}</p>
+                              <p>{row.accTelNo || "No contact number"}</p>
                               <p>{row.email}</p>
                               <p className="uppercase">Payment: {row.status.replaceAll("_", " ")}</p>
                               <p className="uppercase">
@@ -885,6 +967,163 @@ export default function AdminShell({
                       No late or missed subscription payments found in the configured Stripe accounts.
                     </p>
                   )
+                ) : null}
+              </div>
+            ) : null}
+
+            {tab === "birthday-parties" ? (
+              <div className="space-y-4">
+                <div className="inline-flex flex-wrap gap-2 rounded-xl border border-[#e6e0ee] bg-white p-1">
+                  <button
+                    type="button"
+                    onClick={() => setBirthdayPartySubview("bookings")}
+                    className={[
+                      "rounded-lg px-3 py-2 text-sm font-semibold transition",
+                      birthdayPartySubview === "bookings"
+                        ? "bg-[#6c35c3] text-white"
+                        : "text-[#5b2ca7] hover:bg-[#faf7ff]",
+                    ].join(" ")}
+                  >
+                    Upcoming parties
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setBirthdayPartySubview("availability")}
+                    className={[
+                      "rounded-lg px-3 py-2 text-sm font-semibold transition",
+                      birthdayPartySubview === "availability"
+                        ? "bg-[#6c35c3] text-white"
+                        : "text-[#5b2ca7] hover:bg-[#faf7ff]",
+                    ].join(" ")}
+                  >
+                    Manage availability
+                  </button>
+                </div>
+
+                {birthdayPartyBookingsLoadError ? (
+                  <div className={styles.errorBanner} role="alert">
+                    <span>{birthdayPartyBookingsLoadError}</span>
+                  </div>
+                ) : null}
+                {!birthdayPartyBookingsLoadError && birthdayPartySubview === "bookings" ? (
+                  birthdayPartyBookingsRows.length > 0 ? (
+                    <div className="space-y-3">
+                      <div className="grid gap-3 md:grid-cols-2">
+                        <div className="rounded-xl border border-[#e6e0ee] bg-white p-4">
+                          <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#6c35c3]">
+                            Upcoming parties
+                          </p>
+                          <p className="mt-2 text-2xl font-black tracking-tight text-[#24193a]">
+                            {birthdayPartySummary.upcomingCount}
+                          </p>
+                        </div>
+                        <div className="rounded-xl border border-[#e6e0ee] bg-white p-4">
+                          <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#6c35c3]">
+                            Next party date
+                          </p>
+                          <p className="mt-2 text-lg font-black tracking-tight text-[#24193a]">
+                            {formatDate(birthdayPartySummary.nextPartyDate)}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col gap-2 rounded-xl border border-[#e6e0ee] bg-white p-3">
+                        <div className="grid w-full grid-cols-1 gap-2">
+                          <input
+                            type="text"
+                            value={birthdayPartyQuery}
+                            onChange={(event) => setBirthdayPartyQuery(event.target.value)}
+                            placeholder="Search account, child, email or phone"
+                            className="h-10 rounded-lg border border-[#d7c7ef] bg-white px-3 text-sm text-[#2a203c] outline-none ring-[#6e2ac0]/25 transition focus:ring-2"
+                          />
+                        </div>
+
+                        <p className="text-sm text-[#2a203c]/80">
+                          Showing {filteredBirthdayPartyRows.length} of {birthdayPartyBookingsRows.length} upcoming birthday party bookings.
+                        </p>
+                      </div>
+
+                      <div className="space-y-3">
+                        {filteredBirthdayPartyRows.map((row) => (
+                          <button
+                            key={row.id}
+                            type="button"
+                            onClick={() => router.push(`/admin/birthday-parties/${encodeURIComponent(row.id)}`)}
+                            className="group relative w-full overflow-hidden rounded-xl border border-[#e6e0ee] bg-white p-4 text-left transition hover:border-[#cbb6ea]"
+                          >
+                            <span
+                              aria-hidden
+                              className="pointer-events-none absolute inset-0 origin-left scale-x-0 bg-[#f0e8fb] transition-transform duration-300 ease-out group-hover:scale-x-100"
+                            />
+                            <span
+                              aria-hidden
+                              className="pointer-events-none absolute inset-y-2 left-0 z-[1] w-[2px] rounded-full bg-[#6e2ac0] opacity-0 transition-opacity duration-200 group-hover:opacity-75"
+                            />
+                            <div className="relative z-[1] grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.1fr)_120px]">
+                              <div>
+                                <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[#6f6287]">
+                                  Party date
+                                </p>
+                                <p className="mt-1 font-semibold text-[#24193a]">{formatDate(row.slotDate)}</p>
+                                <p className="mt-0.5 text-sm text-[#5b526a]">
+                                  {formatBirthdayTimeRange(row.startTime, row.endTime)}
+                                </p>
+                              </div>
+                              <div>
+                                <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[#6f6287]">
+                                  Birthday child
+                                </p>
+                                <p className="mt-1 font-semibold text-[#24193a]">{row.birthdayChildFullName}</p>
+                                <p className="mt-0.5 text-sm text-[#5b526a]">
+                                  DOB: {formatDate(row.birthdayChildDateOfBirth)}
+                                </p>
+                                <p className="mt-1 text-sm text-[#5b526a]">
+                                  Turning{" "}
+                                  {typeof row.ageTurningAtParty === "number" ? row.ageTurningAtParty : "Unknown"}
+                                </p>
+                              </div>
+                              <div>
+                                <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[#6f6287]">
+                                  Account
+                                </p>
+                                <p className="mt-1 font-semibold text-[#24193a]">{row.accountFullName}</p>
+                                <p className="mt-0.5 text-sm text-[#5b526a]">
+                                  {row.accTelNo || "No contact number"}
+                                </p>
+                                <p className="mt-0.5 text-sm text-[#5b526a] break-all">
+                                  {row.email || "No email address"}
+                                </p>
+                              </div>
+                              <div className="lg:text-right">
+                                <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[#6f6287]">
+                                  Party size
+                                </p>
+                                <p className="mt-1 font-semibold text-[#24193a]">{row.partySize}</p>
+                              </div>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+
+                      {filteredBirthdayPartyRows.length === 0 ? (
+                        <p className="rounded-lg border border-[#e6e0ee] bg-white px-3 py-5 text-sm text-[#2a203c]/75">
+                          No birthday party bookings match your current filters.
+                        </p>
+                      ) : null}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-[#2a203c]/75">
+                      There are no upcoming birthday party bookings right now.
+                    </p>
+                  )
+                ) : null}
+
+                {birthdayPartySubview === "availability" && !birthdayPartyAvailabilityLoadError ? (
+                  <BirthdayPartyAvailabilityManager initialSlots={birthdayPartyCalendarSlots} />
+                ) : birthdayPartySubview === "availability" ? (
+                  <div className={styles.errorBanner} role="alert">
+                    <span>{birthdayPartyAvailabilityLoadError}</span>
+                  </div>
                 ) : null}
               </div>
             ) : null}

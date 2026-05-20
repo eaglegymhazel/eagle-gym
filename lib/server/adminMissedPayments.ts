@@ -8,6 +8,7 @@ export type AdminMissedPaymentRow = {
   programme: "Recreational" | "Competition";
   accountFullName: string;
   email: string;
+  accTelNo: string;
   subscriptionId: string;
   customerId: string;
   status: string;
@@ -107,6 +108,7 @@ async function listLateSubscriptionsForProgramme(
           programme: config.programme,
           accountFullName: "Unknown parent or guardian",
           email,
+          accTelNo: "",
           subscriptionId: subscription.id,
           customerId,
           status: subscription.status,
@@ -147,12 +149,12 @@ export async function getAdminMissedPayments(): Promise<AdminMissedPaymentRow[]>
 
   const combinedRows = [...recreationalRows, ...competitionRows];
   const emails = [...new Set(combinedRows.map((row) => normalizeEmail(row.email)).filter(Boolean))];
-  const accountNamesByEmail = new Map<string, string>();
+  const accountDetailsByEmail = new Map<string, { accountFullName: string; accTelNo: string }>();
 
   if (emails.length > 0) {
     const { data: accountRows, error } = await supabaseAdmin
       .from("Accounts")
-      .select("email,accFirstName,accLastName")
+      .select("email,accFirstName,accLastName,accTelNo")
       .in("email", emails);
 
     if (error) {
@@ -163,18 +165,24 @@ export async function getAdminMissedPayments(): Promise<AdminMissedPaymentRow[]>
       email: string | null;
       accFirstName: string | null;
       accLastName: string | null;
+      accTelNo: string | null;
     }>) {
       const emailKey = normalizeEmail(account.email);
       if (!emailKey) continue;
       const fullName = `${account.accFirstName?.trim() ?? ""} ${account.accLastName?.trim() ?? ""}`.trim();
-      accountNamesByEmail.set(emailKey, fullName || "Unknown parent or guardian");
+      accountDetailsByEmail.set(emailKey, {
+        accountFullName: fullName || "Unknown parent or guardian",
+        accTelNo: account.accTelNo?.trim() ?? "",
+      });
     }
   }
 
   return combinedRows.map((row) => ({
     ...row,
     accountFullName:
-      accountNamesByEmail.get(normalizeEmail(row.email)) ?? "Unknown parent or guardian",
+      accountDetailsByEmail.get(normalizeEmail(row.email))?.accountFullName ??
+      "Unknown parent or guardian",
+    accTelNo: accountDetailsByEmail.get(normalizeEmail(row.email))?.accTelNo ?? "",
   })).sort((a, b) => {
     const aTime = a.invoiceCreated ? Date.parse(a.invoiceCreated) : 0;
     const bTime = b.invoiceCreated ? Date.parse(b.invoiceCreated) : 0;

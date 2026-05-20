@@ -11,6 +11,14 @@ import {
   getAdminMissedPayments,
   type AdminMissedPaymentRow,
 } from "@/lib/server/adminMissedPayments";
+import {
+  getAdminBirthdayPartyBookings,
+  type AdminBirthdayPartyBookingRow,
+} from "@/lib/server/adminBirthdayPartyBookings";
+import {
+  getBirthdayPartyCalendarSlots,
+  type BirthdayPartyCalendarSlotSummary,
+} from "@/lib/server/birthdayPartyBookings";
 import type { Child } from "@/components/admin/mockChildren";
 import type { Session } from "@/components/admin/mockSessions";
 import type { RegisterClassTemplate } from "@/components/admin/sessionBuild";
@@ -22,11 +30,15 @@ export default async function AdminPage() {
   let summerCampRegisterSessions: Session[] = [];
   let waitlistRows: AdminWaitlistRow[] = [];
   let missedPaymentsRows: AdminMissedPaymentRow[] = [];
+  let birthdayPartyBookingsRows: AdminBirthdayPartyBookingRow[] = [];
+  let birthdayPartyCalendarSlots: BirthdayPartyCalendarSlotSummary[] = [];
   let childrenLoadError: string | null = null;
   let registerClassesError: string | null = null;
   let summerCampRegisterSessionsError: string | null = null;
   let waitlistLoadError: string | null = null;
   let missedPaymentsLoadError: string | null = null;
+  let birthdayPartyBookingsLoadError: string | null = null;
+  let birthdayPartyAvailabilityLoadError: string | null = null;
 
   try {
     childrenData = await getAdminChildrenDirectory();
@@ -61,6 +73,20 @@ export default async function AdminPage() {
       error instanceof Error ? error.message : "Unable to load missed payments.";
   }
 
+  try {
+    birthdayPartyBookingsRows = await getAdminBirthdayPartyBookings();
+  } catch (error) {
+    birthdayPartyBookingsLoadError =
+      error instanceof Error ? error.message : "Unable to load birthday party bookings.";
+  }
+
+  try {
+    birthdayPartyCalendarSlots = await getBirthdayPartyCalendarSlots();
+  } catch (error) {
+    birthdayPartyAvailabilityLoadError =
+      error instanceof Error ? error.message : "Unable to load birthday party availability.";
+  }
+
   return (
     <Suspense fallback={null}>
       <AdminShell
@@ -70,11 +96,15 @@ export default async function AdminPage() {
         initialSummerCampRegisterSessions={summerCampRegisterSessions}
         initialWaitlistRows={waitlistRows}
         initialMissedPaymentsRows={missedPaymentsRows}
+        initialBirthdayPartyBookingsRows={birthdayPartyBookingsRows}
+        initialBirthdayPartyCalendarSlots={birthdayPartyCalendarSlots}
         initialChildrenLoadError={childrenLoadError}
         initialRegisterClassesError={registerClassesError}
         initialSummerCampRegisterSessionsError={summerCampRegisterSessionsError}
         initialWaitlistLoadError={waitlistLoadError}
         initialMissedPaymentsLoadError={missedPaymentsLoadError}
+        initialBirthdayPartyBookingsLoadError={birthdayPartyBookingsLoadError}
+        initialBirthdayPartyAvailabilityLoadError={birthdayPartyAvailabilityLoadError}
       />
     </Suspense>
   );

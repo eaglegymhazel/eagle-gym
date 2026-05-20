@@ -40,14 +40,22 @@ type MedicalInformationRow = {
 }
 
 type BookingSummary = {
-  childId: string
-  bookingKind: "class" | "summer-camp"
+  bookingKind: "class" | "summer-camp" | "birthday-party"
+  childId: string | null
   className: string | null
   weekday: string | null
   startTime: string | null
   endTime: string | null
   durationMinutes: number | null
   campDate: string | null
+  createdAt: string | null
+  status: string | null
+  partySize: number | null
+  totalAmountPence: number | null
+  birthdayChildFirstName: string | null
+  birthdayChildLastName: string | null
+  birthdayChildDateOfBirth: string | null
+  slotDate: string | null
 }
 
 type ChildBadgeSkill = {
@@ -76,7 +84,7 @@ type BootstrapResponse =
       account: AccountDetails
       children: ChildSummary[]
       medicalByChildId: Record<string, MedicalInformationRow>
-      bookingsByChildId: Record<string, BookingSummary[]>
+      accountBookings: BookingSummary[]
       badgesByChildId: Record<string, ChildAssignedBadge[]>
       childDetailsIncluded: boolean
       accountExists: true
@@ -89,7 +97,7 @@ type BootstrapResponse =
       account: null
       children: []
       medicalByChildId: Record<string, MedicalInformationRow>
-      bookingsByChildId: Record<string, BookingSummary[]>
+      accountBookings: BookingSummary[]
       badgesByChildId: Record<string, ChildAssignedBadge[]>
       childDetailsIncluded: false
       accountExists: false
@@ -98,7 +106,7 @@ type BootstrapResponse =
     }
   | { error: string }
 
-type TabKey = "details" | "children"
+type TabKey = "details" | "children" | "bookings"
 type NavItem = {
   key: TabKey
   label: string
@@ -122,6 +130,15 @@ type DetailRow = {
 const NAME_PATTERN = /^[A-Za-z]+$/
 const PHONE_PATTERN = /^[0-9]+$/
 const ADDRESS_PATTERN = /^[A-Za-z0-9 ]*$/
+const WEEKDAY_ORDER = new Map([
+  ["Monday", 1],
+  ["Tuesday", 2],
+  ["Wednesday", 3],
+  ["Thursday", 4],
+  ["Friday", 5],
+  ["Saturday", 6],
+  ["Sunday", 7],
+])
 
 const sanitizeEditableValue = (field: keyof EditableFields, value: string) => {
   if (field === "accFirstName" || field === "accLastName") {
@@ -145,6 +162,45 @@ const normalizeEditableFields = (account: AccountDetails): EditableFields => ({
       .replace(/\s+/g, " ")
       .trim() ?? "",
 })
+
+const formatAccountDate = (value: string | null) => {
+  if (!value) return "-"
+  const date = new Date(`${value}T12:00:00`)
+  if (Number.isNaN(date.getTime())) return value
+  return new Intl.DateTimeFormat("en-GB", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  }).format(date)
+}
+
+const formatDateOfBirth = (value: string | null) => {
+  if (!value) return "-"
+  const date = new Date(`${value}T12:00:00`)
+  if (Number.isNaN(date.getTime())) return value
+  return new Intl.DateTimeFormat("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  }).format(date)
+}
+
+const formatPaidAmount = (value: number | null) => {
+  if (typeof value !== "number") return null
+  return new Intl.NumberFormat("en-GB", {
+    style: "currency",
+    currency: "GBP",
+  }).format(value / 100)
+}
+
+const getBirthdayTurningAge = (dateOfBirth: string | null, slotDate: string | null) => {
+  if (!dateOfBirth || !slotDate) return null
+  const birth = new Date(`${dateOfBirth}T12:00:00`)
+  const party = new Date(`${slotDate}T12:00:00`)
+  if (Number.isNaN(birth.getTime()) || Number.isNaN(party.getTime())) return null
+  return party.getFullYear() - birth.getFullYear()
+}
 
 function PanelSkeleton() {
   return (
@@ -256,6 +312,67 @@ export default function AccountShell() {
       { key: "accEmergencyTelNo", label: "Emergency contact number", value: account.accEmergencyTelNo },
       { key: "accAddress", label: "Address", value: account.accAddress },
     ]
+  }, [data])
+
+  const childNameById = useMemo(() => {
+    const map = new Map<string, string>()
+    if (!data || "error" in data || data.status !== "existing") {
+      return map
+    }
+
+    data.children.forEach((child) => {
+      const name = `${child.firstName?.trim() ?? ""} ${child.lastName?.trim() ?? ""}`.trim()
+      map.set(child.id, name || "Child")
+    })
+
+    return map
+  }, [data])
+
+  const groupedBookings = useMemo(() => {
+    const grouped = {
+      classes: [] as BookingSummary[],
+      summerCamps: [] as BookingSummary[],
+      birthdayParties: [] as BookingSummary[],
+    }
+
+    if (!data || "error" in data || data.status !== "existing") {
+      return grouped
+    }
+
+    data.accountBookings.forEach((booking) => {
+      if (booking.bookingKind === "class") {
+        grouped.classes.push(booking)
+        return
+      }
+      if (booking.bookingKind === "summer-camp") {
+        grouped.summerCamps.push(booking)
+        return
+      }
+      grouped.birthdayParties.push(booking)
+    })
+
+    grouped.classes.sort((a, b) => {
+      const aOrder = WEEKDAY_ORDER.get(a.weekday ?? "") ?? 99
+      const bOrder = WEEKDAY_ORDER.get(b.weekday ?? "") ?? 99
+      if (aOrder !== bOrder) return aOrder - bOrder
+      return `${a.startTime ?? ""}${a.className ?? ""}`.localeCompare(
+        `${b.startTime ?? ""}${b.className ?? ""}`
+      )
+    })
+
+    grouped.summerCamps.sort((a, b) =>
+      `${a.campDate ?? ""}${a.startTime ?? ""}`.localeCompare(
+        `${b.campDate ?? ""}${b.startTime ?? ""}`
+      )
+    )
+
+    grouped.birthdayParties.sort((a, b) =>
+      `${a.slotDate ?? ""}${a.startTime ?? ""}`.localeCompare(
+        `${b.slotDate ?? ""}${b.startTime ?? ""}`
+      )
+    )
+
+    return grouped
   }, [data])
 
   useEffect(() => {
@@ -387,7 +504,7 @@ export default function AccountShell() {
   }
 
   const handleTab = (nextTab: TabKey) => {
-    if (nextTab === "children") {
+    if (nextTab === "children" || nextTab === "bookings") {
       setChildrenResetKey((prev) => prev + 1)
       const shouldLoadChildDetails =
         !!data &&
@@ -436,6 +553,7 @@ export default function AccountShell() {
   const navItems: NavItem[] = [
     { key: "details", label: "Account details" },
     { key: "children", label: "Children" },
+    { key: "bookings", label: "Bookings" },
   ]
 
   return (
@@ -505,7 +623,13 @@ export default function AccountShell() {
                 }`}
               >
                 <div>
-                  <h2>{tab === "children" ? "Children" : "Account Details"}</h2>
+                  <h2>
+                    {tab === "children"
+                      ? "Children"
+                      : tab === "bookings"
+                        ? "Bookings"
+                        : "Account Details"}
+                  </h2>
                 </div>
                 {tab === "children" ? (
                   <div className={styles.headerAction}>
@@ -517,7 +641,7 @@ export default function AccountShell() {
                       Add Child
                     </button>
                   </div>
-                ) : (
+                ) : tab === "details" ? (
                   <div className={styles.headerAction}>
                     <button
                       type="button"
@@ -527,7 +651,7 @@ export default function AccountShell() {
                       {isEditingDetails ? "Cancel" : "Edit"}
                     </button>
                   </div>
-                )}
+                ) : null}
               </div>
             )}
 
@@ -629,11 +753,160 @@ export default function AccountShell() {
                     key={`children-${childrenResetKey}`}
                     childSummaries={data.children}
                     medicalByChildId={data.medicalByChildId}
-                    bookingsByChildId={data.bookingsByChildId}
                     badgesByChildId={data.badgesByChildId}
                     onSelectionChange={setIsChildDetail}
                     onActiveChildChange={setActiveChildId}
                   />
+                  )
+                )}
+                {tab === "bookings" && (
+                  loadingChildDetails ? (
+                    <PanelSkeleton />
+                  ) : (
+                  <div className={styles.accountBookingsLayout}>
+                    {data.accountBookings.length === 0 ? (
+                      <p className={styles.accountBookingsEmpty}>
+                        There are no active bookings on this account right now.
+                      </p>
+                    ) : (
+                      <>
+                        {groupedBookings.classes.length > 0 ? (
+                          <section className={styles.accountBookingsSection}>
+                            <div className={styles.accountBookingsSectionHeader}>
+                              <h3>Classes</h3>
+                              <p>Active recreational and competition class bookings.</p>
+                            </div>
+                            <div className={styles.accountBookingsGrid}>
+                              {groupedBookings.classes.map((booking, index) => (
+                                <article
+                                  key={`class-${booking.childId ?? "unknown"}-${booking.className ?? "class"}-${index}`}
+                                  className={styles.accountBookingCard}
+                                >
+                                  <div className={styles.accountBookingType}>Class booking</div>
+                                  <h3 className={styles.accountBookingTitle}>
+                                    {booking.className ?? "Class"}
+                                  </h3>
+                                  <div className={styles.accountBookingMeta}>
+                                    <span className={styles.accountBookingMetaLabel}>Booked for</span>
+                                    <span>{booking.childId ? childNameById.get(booking.childId) ?? "Child" : "Child"}</span>
+                                  </div>
+                                  <div className={styles.accountBookingMeta}>
+                                    <span className={styles.accountBookingMetaLabel}>Schedule</span>
+                                    <span>
+                                      {[booking.weekday, booking.startTime && booking.endTime ? `${booking.startTime}-${booking.endTime}` : booking.startTime ?? booking.endTime]
+                                        .filter(Boolean)
+                                        .join(" | ") || "-"}
+                                    </span>
+                                  </div>
+                                  <div className={styles.accountBookingMeta}>
+                                    <span className={styles.accountBookingMetaLabel}>Duration</span>
+                                    <span>
+                                      {booking.durationMinutes != null
+                                        ? `${booking.durationMinutes} minutes`
+                                        : "-"}
+                                    </span>
+                                  </div>
+                                </article>
+                              ))}
+                            </div>
+                          </section>
+                        ) : null}
+
+                        {groupedBookings.summerCamps.length > 0 ? (
+                          <section className={styles.accountBookingsSection}>
+                            <div className={styles.accountBookingsSectionHeader}>
+                              <h3>Summer Camps</h3>
+                              <p>Active summer camp sessions booked on this account.</p>
+                            </div>
+                            <div className={styles.accountBookingsGrid}>
+                              {groupedBookings.summerCamps.map((booking, index) => (
+                                <article
+                                  key={`camp-${booking.childId ?? "unknown"}-${booking.campDate ?? "camp"}-${index}`}
+                                  className={styles.accountBookingCard}
+                                >
+                                  <div className={styles.accountBookingType}>Summer camp</div>
+                                  <h3 className={styles.accountBookingTitle}>
+                                    {booking.className ?? "Summer Camp"}
+                                  </h3>
+                                  <div className={styles.accountBookingMeta}>
+                                    <span className={styles.accountBookingMetaLabel}>Booked for</span>
+                                    <span>{booking.childId ? childNameById.get(booking.childId) ?? "Child" : "Child"}</span>
+                                  </div>
+                                  <div className={styles.accountBookingMeta}>
+                                    <span className={styles.accountBookingMetaLabel}>Date</span>
+                                    <span>{formatAccountDate(booking.campDate)}</span>
+                                  </div>
+                                  <div className={styles.accountBookingMeta}>
+                                    <span className={styles.accountBookingMetaLabel}>Time</span>
+                                    <span>
+                                      {booking.startTime && booking.endTime
+                                        ? `${booking.startTime}-${booking.endTime}`
+                                        : booking.startTime ?? booking.endTime ?? "-"}
+                                    </span>
+                                  </div>
+                                </article>
+                              ))}
+                            </div>
+                          </section>
+                        ) : null}
+
+                        {groupedBookings.birthdayParties.length > 0 ? (
+                          <section className={styles.accountBookingsSection}>
+                            <div className={styles.accountBookingsSectionHeader}>
+                              <h3>Birthday Parties</h3>
+                              <p>Party bookings made directly against this account.</p>
+                            </div>
+                            <div className={styles.accountBookingsGrid}>
+                              {groupedBookings.birthdayParties.map((booking, index) => {
+                                const childName = `${booking.birthdayChildFirstName?.trim() ?? ""} ${booking.birthdayChildLastName?.trim() ?? ""}`.trim() || "Birthday child"
+                                const turningAge = getBirthdayTurningAge(
+                                  booking.birthdayChildDateOfBirth,
+                                  booking.slotDate
+                                )
+                                return (
+                                  <article
+                                    key={`birthday-${booking.slotDate ?? "party"}-${index}`}
+                                    className={styles.accountBookingCard}
+                                  >
+                                    <div className={styles.accountBookingType}>Birthday party</div>
+                                    <h3 className={styles.accountBookingTitle}>{childName}</h3>
+                                    <div className={styles.accountBookingMeta}>
+                                      <span className={styles.accountBookingMetaLabel}>Party date</span>
+                                      <span>{formatAccountDate(booking.slotDate)}</span>
+                                    </div>
+                                    <div className={styles.accountBookingMeta}>
+                                      <span className={styles.accountBookingMetaLabel}>Party time</span>
+                                      <span>
+                                        {booking.startTime && booking.endTime
+                                          ? `${booking.startTime}-${booking.endTime}`
+                                          : booking.startTime ?? booking.endTime ?? "-"}
+                                      </span>
+                                    </div>
+                                    <div className={styles.accountBookingMeta}>
+                                      <span className={styles.accountBookingMetaLabel}>Date of birth</span>
+                                      <span>{formatDateOfBirth(booking.birthdayChildDateOfBirth)}</span>
+                                    </div>
+                                    <div className={styles.accountBookingMeta}>
+                                      <span className={styles.accountBookingMetaLabel}>Turning</span>
+                                      <span>{turningAge == null ? "-" : `${turningAge} years old`}</span>
+                                    </div>
+                                    <div className={styles.accountBookingMeta}>
+                                      <span className={styles.accountBookingMetaLabel}>Party size</span>
+                                      <span>{booking.partySize ?? "-"}</span>
+                                    </div>
+                                    <div className={styles.accountBookingMeta}>
+                                      <span className={styles.accountBookingMetaLabel}>Amount paid</span>
+                                      <span>{formatPaidAmount(booking.totalAmountPence) ?? "-"}</span>
+                                    </div>
+                                  </article>
+                                )
+                              })}
+                            </div>
+                          </section>
+                        ) : null}
+                      </>
+                    )}
+                  </div>
                   )
                 )}
                 <ChildSelectModal

@@ -1,6 +1,7 @@
 import Stripe from "stripe";
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/admin";
+import { sendBirthdayPartyConfirmationEmail } from "@/lib/server/bookingEmails";
 
 export const runtime = "nodejs";
 
@@ -125,6 +126,115 @@ export async function POST(req: Request) {
         console.warn("[stripe-webhook] Missing summer-camp bookingGroupId in metadata", {
           sessionId: session.id,
         });
+      }
+    } else if (bookingType === "birthday-party") {
+      const birthdayPartyBookingId =
+        typeof session.metadata?.birthdayPartyBookingId === "string"
+          ? session.metadata.birthdayPartyBookingId.trim()
+          : "";
+      const paymentIntentId =
+        typeof session.payment_intent === "string"
+          ? session.payment_intent
+          : session.payment_intent?.id ?? null;
+
+      if (!birthdayPartyBookingId) {
+        console.warn("[stripe-webhook] Missing birthday-party booking id in metadata", {
+          sessionId: session.id,
+        });
+      } else {
+        const { data: existingBirthdayBooking, error: existingBirthdayBookingError } = await supabaseAdmin
+          .from("BirthdayPartyBookings")
+          .select('id,status,"stripeCheckoutSessionId"')
+          .eq("id", birthdayPartyBookingId);
+
+        if (existingBirthdayBookingError) {
+          console.error("[stripe-webhook] Failed to update BirthdayPartyBookings", {
+            birthdayPartyBookingId,
+            error: existingBirthdayBookingError.message,
+          });
+          return NextResponse.json({ error: existingBirthdayBookingError.message }, { status: 500 });
+        }
+
+        const birthdayBookingRow = Array.isArray(existingBirthdayBooking)
+          ? existingBirthdayBooking[0]
+          : existingBirthdayBooking;
+
+        if (!birthdayBookingRow) {
+          console.warn("[stripe-webhook] Birthday party booking not found", {
+            birthdayPartyBookingId,
+          });
+          return NextResponse.json({ ok: true });
+        }
+
+        const alreadyConfirmed =
+          birthdayBookingRow.status === "confirmed" &&
+          birthdayBookingRow.stripeCheckoutSessionId === session.id;
+
+        if (!alreadyConfirmed) {
+          const paidAt = new Date().toISOString();
+          const { error: updateBirthdayBookingError } = await supabaseAdmin
+            .from("BirthdayPartyBookings")
+            .update({
+              status: "confirmed",
+              stripeCheckoutSessionId: session.id,
+              stripePaymentIntentId: paymentIntentId,
+              paid_at: paidAt,
+              updated_at: paidAt,
+            })
+            .eq("id", birthdayPartyBookingId);
+
+          if (updateBirthdayBookingError) {
+            console.error("[stripe-webhook] Failed to update BirthdayPartyBookings", {
+              birthdayPartyBookingId,
+              error: updateBirthdayBookingError.message,
+            });
+            return NextResponse.json({ error: updateBirthdayBookingError.message }, { status: 500 });
+          }
+        }
+
+        if (!alreadyConfirmed) {
+          const { data: bookingForEmail, error: bookingForEmailError } = await supabaseAdmin
+            .from("BirthdayPartyBookings")
+            .select(
+              'id,"accountId",slot_date,start_time,end_time,"totalAmountPence","birthdayChildFirstName","birthdayChildLastName","birthdayChildDateOfBirth"'
+            )
+            .eq("id", birthdayPartyBookingId)
+            .maybeSingle();
+
+          if (!bookingForEmailError && bookingForEmail) {
+            const { data: accountRow, error: accountError } = await supabaseAdmin
+              .from("Accounts")
+              .select("accFirstName,accLastName,email")
+              .eq("id", bookingForEmail.accountId)
+              .maybeSingle();
+
+            if (!accountError && accountRow?.email) {
+              const accountName =
+                `${accountRow.accFirstName?.trim() ?? ""} ${accountRow.accLastName?.trim() ?? ""}`.trim() ||
+                "there";
+              const birthdayChildName =
+                `${bookingForEmail.birthdayChildFirstName?.trim() ?? ""} ${bookingForEmail.birthdayChildLastName?.trim() ?? ""}`.trim();
+
+              const emailResult = await sendBirthdayPartyConfirmationEmail({
+                toEmail: accountRow.email,
+                accountName,
+                birthdayChildName,
+                birthdayChildDateOfBirth: bookingForEmail.birthdayChildDateOfBirth,
+                slotDate: bookingForEmail.slot_date,
+                startTime: bookingForEmail.start_time,
+                endTime: bookingForEmail.end_time,
+                totalAmountPence: bookingForEmail.totalAmountPence,
+              });
+
+              if (!emailResult.ok) {
+                console.error("[stripe-webhook] Failed to send birthday confirmation email", {
+                  birthdayPartyBookingId,
+                  error: emailResult.error,
+                });
+              }
+            }
+          }
+        }
       }
     } else {
       const subscriptionId =

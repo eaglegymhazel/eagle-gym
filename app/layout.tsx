@@ -8,7 +8,7 @@ export const metadata: Metadata = {
   description:
     "Children's gymnastics academy: recreational classes and competition training.",
   icons: {
-    icon: "/brand/Logo.png",
+    icon: "/brand/new_logo1.png",
   },
 };
 

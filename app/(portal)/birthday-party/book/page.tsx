@@ -1,25 +1,66 @@
-export default function BirthdayPartyBookingPlaceholderPage() {
+import { redirect } from "next/navigation";
+import BirthdayPartyBookingClient, {
+  type BirthdayPartyBookingCalendarSlot,
+  type BirthdayPartyBookingSlotOption,
+} from "./BirthdayPartyBookingClient";
+import { getBookingContext } from "@/lib/server/bookingContext";
+import {
+  calculateBirthdayPartyPrice,
+  getBirthdayPartyAccountSummary,
+  getBirthdayPartyCalendarSlots,
+  getBirthdayPartySlotDisplay,
+} from "@/lib/server/birthdayPartyBookings";
+
+export default async function BirthdayPartyBookingPage() {
+  const bookingContext = await getBookingContext();
+
+  if (bookingContext.status === "unauthorized") {
+    redirect("/login?redirect=/birthday-party/book");
+  }
+
+  if (bookingContext.status !== "existing") {
+    redirect("/account");
+  }
+
+  const [accountSummary, calendarSlotsRaw] = await Promise.all([
+    getBirthdayPartyAccountSummary(bookingContext.accountId),
+    getBirthdayPartyCalendarSlots(),
+  ]);
+
+  if (!accountSummary) {
+    redirect("/account");
+  }
+
+  const calendarSlots: BirthdayPartyBookingCalendarSlot[] = calendarSlotsRaw.map((slot) => {
+    const display = getBirthdayPartySlotDisplay(slot);
+    return {
+      id: slot.id,
+      slotDate: slot.slotDate,
+      startTime: slot.startTime,
+      endTime: slot.endTime,
+      formattedDate: display.formattedDate,
+      formattedTime: display.formattedTime,
+      isAvailable: slot.isAvailable,
+    };
+  });
+
+  const slots: BirthdayPartyBookingSlotOption[] = calendarSlots
+    .filter((slot) => slot.isAvailable)
+    .map((slot) => ({
+      id: slot.id,
+      slotDate: slot.slotDate,
+      startTime: slot.startTime,
+      endTime: slot.endTime,
+      formattedDate: slot.formattedDate,
+      formattedTime: slot.formattedTime,
+    }));
+
   return (
-    <section className="relative w-full overflow-hidden px-6 pb-12 pt-10">
-      <div className="mx-auto w-full max-w-7xl">
-        <div className="rounded-[32px] border border-[#e6dbf0] bg-white p-8 shadow-[0_22px_52px_-36px_rgba(39,25,68,0.42)] sm:p-10">
-          <p className="text-xs font-black uppercase tracking-[0.18em] text-[#6c35c3]">
-            Birthday Party Booking
-          </p>
-          <h1 className="mt-4 text-[clamp(34px,4vw,58px)] font-extrabold leading-[0.98] tracking-[0.01em] text-[#143271]">
-            Booking Page Placeholder
-          </h1>
-          <p className="mt-5 max-w-3xl text-base leading-8 text-[#2E2A33]/76 sm:text-[17px]">
-            This page is reserved for the birthday party booking flow. The
-            booking system can be added here when you&apos;re ready.
-          </p>
-          <div className="mt-8 rounded-2xl border border-dashed border-[#d8caeb] bg-[#faf7ff] px-5 py-10 text-center">
-            <p className="text-sm font-semibold text-[#6a5a86]">
-              Birthday party booking content coming soon.
-            </p>
-          </div>
-        </div>
-      </div>
-    </section>
+    <BirthdayPartyBookingClient
+      accountName={accountSummary.fullName}
+      slots={slots}
+      calendarSlots={calendarSlots}
+      initialPricePreview={calculateBirthdayPartyPrice(12)}
+    />
   );
 }
