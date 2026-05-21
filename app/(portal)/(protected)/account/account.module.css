@@ -62,6 +62,13 @@
   font-weight: 600;
 }
 
+.devImpersonationBanner {
+  margin: 6px 0 0;
+  color: #7c2d12;
+  font-size: 12px;
+  font-weight: 700;
+}
+
 .settings {
   display: grid;
   grid-template-columns: minmax(240px, 280px) 1fr;
@@ -293,6 +300,31 @@
   margin-top: 8px;
 }
 
+.accountBookingsSwitcher {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.accountBookingsSwitcherButton {
+  appearance: none;
+  border: 1px solid rgba(108, 53, 195, 0.16);
+  background: #ffffff;
+  color: #5f6772;
+  padding: 8px 12px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: border-color 0.18s ease, background-color 0.18s ease, color 0.18s ease;
+}
+
+.accountBookingsSwitcherButtonActive {
+  background: rgba(108, 53, 195, 0.1);
+  border-color: rgba(108, 53, 195, 0.28);
+  color: #2a0c4f;
+}
+
 .accountBookingsEmpty {
   margin: 0;
   color: #6b7280;
@@ -350,6 +382,27 @@
   font-size: 18px;
   font-weight: 700;
   color: #1f1a25;
+}
+
+.accountBookingPrimary {
+  color: #1c3f88;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.accountBookingSecondary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  color: #6b7280;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.accountBookingSecondary span:not(:last-child)::after {
+  content: "·";
+  margin-left: 8px;
+  color: rgba(108, 53, 195, 0.45);
 }
 
 .accountBookingMeta {
@@ -743,6 +796,12 @@
 .childDetail {
   display: grid;
   gap: 16px;
+}
+
+.childDangerZone {
+  display: flex;
+  justify-content: flex-start;
+  padding-top: 4px;
 }
 
 .desktopChildView {
@@ -1403,11 +1462,16 @@
   }
   .settingsNav li {
     min-width: 0;
+    display: flex;
   }
   .navItem {
     width: 100%;
+    height: 100%;
     min-height: 46px;
     padding: 10px 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     text-align: center;
     border: 0;
     border-right: 1px solid rgba(108, 53, 195, 0.14);
@@ -1531,6 +1595,12 @@
   }
   .mobileSectionCard .cardBody {
     padding: 0 0 12px;
+  }
+  .childDangerZone {
+    justify-content: stretch;
+  }
+  .childDangerZone .deleteButton {
+    width: 100%;
   }
   .badgesSummary {
     display: grid;

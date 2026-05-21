@@ -4,6 +4,8 @@ import { getChildrenForAccount } from "@/lib/server/children";
 import { getMedicalInfoForChildren } from "@/lib/server/medical";
 import {
   getActiveBookingsForAccount,
+  getBillingSummariesForSubscriptions,
+  type AccountBillingSummary,
   type AccountBookingSummary,
 } from "@/lib/server/bookings";
 import { getAssignedBadgesForChildren } from "@/lib/server/badges";
@@ -88,18 +90,19 @@ export async function POST(request: NextRequest) {
     }
 
     const authUserId = data.user.id;
+    const devImpersonateEmail = process.env.DEV_IMPERSONATE_EMAIL?.trim() || null;
+    const isDevImpersonating =
+      process.env.NODE_ENV !== "production" &&
+      !!devImpersonateEmail;
     let email = data.user.email;
 
-    if (
-      process.env.NODE_ENV === "development" &&
-      process.env.DEV_IMPERSONATE_EMAIL
-    ) {
-      email = process.env.DEV_IMPERSONATE_EMAIL;
+    if (isDevImpersonating) {
+      email = devImpersonateEmail;
     }
 
     if (
       process.env.NODE_ENV === "production" &&
-      process.env.DEV_IMPERSONATE_EMAIL
+      devImpersonateEmail
     ) {
       throw new Error("DEV_IMPERSONATE_EMAIL must not be set in production");
     }
@@ -149,28 +152,102 @@ export async function POST(request: NextRequest) {
         .maybeSingle();
 
       if (insertError) {
-        return applyCookies(
-          NextResponse.json({ error: insertError.message }, { status: 500 })
-        );
-      }
+        const isDuplicateAuthUserInsert =
+          insertError.code === "23505" &&
+          insertError.message.includes("web_accounts_auth_user_id_key");
 
-      webAccount = inserted ?? {
-        id: "",
-        auth_user_id: authUserId,
-        email,
-        account_id: null,
-      };
+        if (!isDuplicateAuthUserInsert) {
+          return applyCookies(
+            NextResponse.json({ error: insertError.message }, { status: 500 })
+          );
+        }
+
+        const { data: existingAfterDuplicate, error: existingAfterDuplicateError } =
+          await serviceRole
+            .from("web_accounts")
+            .select("id,auth_user_id,email,account_id")
+            .eq("auth_user_id", authUserId)
+            .maybeSingle();
+
+        if (existingAfterDuplicateError || !existingAfterDuplicate) {
+          return applyCookies(
+            NextResponse.json(
+              {
+                error:
+                  existingAfterDuplicateError?.message ??
+                  "Unable to load account link after duplicate insert.",
+              },
+              { status: 500 }
+            )
+          );
+        }
+
+        webAccount = existingAfterDuplicate;
+      } else {
+        webAccount = inserted ?? {
+          id: "",
+          auth_user_id: authUserId,
+          email,
+          account_id: null,
+        };
+      }
     }
 
     let account = null;
 
-    if (!webAccount.account_id) {
+    if (isDevImpersonating) {
       const { data: legacyAccount, error: legacyError } = await serviceRole
         .from("Accounts")
         .select(
           "id,email,accFirstName,accLastName,accTelNo,accEmergencyTelNo,accAddress"
         )
-        .eq("email", email)
+        .ilike("email", email ?? "")
+        .maybeSingle();
+
+      if (legacyError) {
+        if (legacyError.code === "PGRST116") {
+          return applyCookies(
+            NextResponse.json(
+              { error: "Multiple accounts found for this email." },
+              { status: 409 }
+            )
+          );
+        }
+        return applyCookies(
+          NextResponse.json({ error: legacyError.message }, { status: 500 })
+        );
+      }
+
+      if (!legacyAccount?.id) {
+        return applyCookies(
+          NextResponse.json({
+            ok: true,
+            status: "missing",
+            account: null,
+            children: [],
+            medicalByChildId: {},
+            accountBookings: [],
+            accountBillingSummaries: [],
+            badgesByChildId: {},
+            childDetailsIncluded: false,
+            accountExists: false,
+            profileComplete: false,
+            nextRoute: "/account/setup",
+            devImpersonatedEmail: isDevImpersonating ? email ?? null : null,
+          })
+        );
+      }
+
+      account = legacyAccount;
+    }
+
+    if (!account && !webAccount.account_id) {
+      const { data: legacyAccount, error: legacyError } = await serviceRole
+        .from("Accounts")
+        .select(
+          "id,email,accFirstName,accLastName,accTelNo,accEmergencyTelNo,accAddress"
+        )
+        .ilike("email", email ?? "")
         .maybeSingle();
 
       if (legacyError) {
@@ -209,11 +286,13 @@ export async function POST(request: NextRequest) {
             children: [],
             medicalByChildId: {},
             accountBookings: [],
+            accountBillingSummaries: [],
             badgesByChildId: {},
             childDetailsIncluded: false,
             accountExists: false,
             profileComplete: false,
             nextRoute: "/account/setup",
+            devImpersonatedEmail: isDevImpersonating ? email ?? null : null,
           })
         );
       }
@@ -241,6 +320,7 @@ export async function POST(request: NextRequest) {
       let children: Awaited<ReturnType<typeof getChildrenForAccount>> = [];
       let medicalByChildId = {};
       let accountBookings: AccountBookingSummary[] = [];
+      let accountBillingSummaries: AccountBillingSummary[] = [];
       let badgesByChildId = {};
       let childIds: string[] = [];
 
@@ -261,6 +341,19 @@ export async function POST(request: NextRequest) {
         }
         if (bookingsResult.status === "fulfilled") {
           accountBookings = bookingsResult.value;
+          accountBillingSummaries = await getBillingSummariesForSubscriptions(
+            bookingsResult.value
+              .filter(
+                (booking) =>
+                  booking.bookingKind === "class" &&
+                  (booking.programme === "recreational" ||
+                    booking.programme === "competition")
+              )
+              .map((booking) => ({
+                programme: booking.programme as "recreational" | "competition",
+                subscriptionId: booking.stripeSubscriptionId,
+              }))
+          );
         }
         if (badgesResult.status === "fulfilled") {
           badgesByChildId = badgesResult.value;
@@ -271,6 +364,19 @@ export async function POST(request: NextRequest) {
         ]);
         if (bookingsResult[0].status === "fulfilled") {
           accountBookings = bookingsResult[0].value;
+          accountBillingSummaries = await getBillingSummariesForSubscriptions(
+            bookingsResult[0].value
+              .filter(
+                (booking) =>
+                  booking.bookingKind === "class" &&
+                  (booking.programme === "recreational" ||
+                    booking.programme === "competition")
+              )
+              .map((booking) => ({
+                programme: booking.programme as "recreational" | "competition",
+                subscriptionId: booking.stripeSubscriptionId,
+              }))
+          );
         }
       }
 
@@ -297,11 +403,13 @@ export async function POST(request: NextRequest) {
           children,
           medicalByChildId,
           accountBookings,
+          accountBillingSummaries,
           badgesByChildId,
           childDetailsIncluded: includeChildDetails,
           accountExists: true,
           profileComplete,
           nextRoute: profileComplete ? "/account" : "/account/setup",
+          devImpersonatedEmail: isDevImpersonating ? email ?? null : null,
         })
       );
     }
@@ -314,11 +422,13 @@ export async function POST(request: NextRequest) {
         children: [],
         medicalByChildId: {},
         accountBookings: [],
+        accountBillingSummaries: [],
         badgesByChildId: {},
         childDetailsIncluded: false,
         accountExists: false,
         profileComplete: false,
         nextRoute: "/account/setup",
+        devImpersonatedEmail: isDevImpersonating ? email ?? null : null,
       })
     );
   } catch (err) {

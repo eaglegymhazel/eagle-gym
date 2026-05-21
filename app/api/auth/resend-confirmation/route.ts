@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
-import { validatePassword } from "@/lib/passwordPolicy";
 
 export async function POST(request: NextRequest) {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -13,26 +12,13 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const { email, password } = await request.json();
+  const { email } = await request.json().catch(() => ({}));
+  const normalizedEmail =
+    typeof email === "string" ? email.trim().toLowerCase() : "";
 
-  if (!email || typeof email !== "string") {
+  if (!normalizedEmail) {
     return NextResponse.json(
       { error: "Email is required." },
-      { status: 400 }
-    );
-  }
-
-  if (!password || typeof password !== "string") {
-    return NextResponse.json(
-      { error: "Password is required." },
-      { status: 400 }
-    );
-  }
-
-  const validation = validatePassword(password);
-  if (!validation.isValid) {
-    return NextResponse.json(
-      { error: "Password does not meet requirements." },
       { status: 400 }
     );
   }
@@ -67,9 +53,9 @@ export async function POST(request: NextRequest) {
     process.env.NEXT_PUBLIC_SITE_URL?.trim() ||
     `${request.nextUrl.protocol}//${request.nextUrl.host}`;
 
-  const { error } = await supabase.auth.signUp({
-    email,
-    password,
+  const { error } = await supabase.auth.resend({
+    type: "signup",
+    email: normalizedEmail,
     options: {
       emailRedirectTo: `${redirectTo}/auth/callback?next=/login%3Fverified%3Dsignup%26redirect%3D%252Faccount`,
     },

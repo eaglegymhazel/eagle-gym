@@ -2,23 +2,73 @@
 
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
+import { useAuth } from '@/app/components/auth/AuthProvider'
 import { supabase } from '@/lib/supabaseClient'
 
-export default function LoginClient({ redirectTo = '/account' }: { redirectTo?: string }) {
+const RESEND_COOLDOWN_SECONDS = 120
+
+export default function LoginClient({
+  redirectTo = '/account',
+  verified,
+}: {
+  redirectTo?: string
+  verified?: 'signup'
+}) {
+  const { user, loading } = useAuth()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [msg, setMsg] = useState<string | null>(null)
   const [msgType, setMsgType] = useState<'error' | 'success' | null>(null)
+  const [needsVerification, setNeedsVerification] = useState(false)
+  const [resending, setResending] = useState(false)
+  const [resendCooldownUntil, setResendCooldownUntil] = useState<number | null>(null)
+  const [now, setNow] = useState(() => Date.now())
   const router = useRouter()
+  const resendSecondsRemaining =
+    resendCooldownUntil == null
+      ? 0
+      : Math.max(0, Math.ceil((resendCooldownUntil - now) / 1000))
+
+  useEffect(() => {
+    if (resendCooldownUntil == null) return
+    if (resendCooldownUntil <= now) {
+      setResendCooldownUntil(null)
+      return
+    }
+
+    const timer = window.setInterval(() => {
+      setNow(Date.now())
+    }, 1000)
+
+    return () => window.clearInterval(timer)
+  }, [now, resendCooldownUntil])
+
+  useEffect(() => {
+    if (loading) return
+    if (!user) return
+    router.replace(redirectTo)
+  }, [loading, redirectTo, router, user])
 
   const onLogin = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     setMsg(null)
     setMsgType(null)
+    setNeedsVerification(false)
     const { error } = await supabase.auth.signInWithPassword({ email, password })
     if (error) {
+      const normalizedError = error.message.toLowerCase()
+      if (
+        normalizedError.includes('email not confirmed') ||
+        normalizedError.includes('email_not_confirmed')
+      ) {
+        setNeedsVerification(true)
+        setMsg('Your account has not been verified yet. Please confirm your email address to continue.')
+        setMsgType('error')
+        return
+      }
+
       setMsg('Incorrect email or password. Please try again.')
       setMsgType('error')
     } else {
@@ -32,6 +82,33 @@ export default function LoginClient({ redirectTo = '/account' }: { redirectTo?: 
     setMsg('Logged out.')
   }
 
+  const onResendConfirmation = async () => {
+    if (!email || resendSecondsRemaining > 0 || resending) return
+
+    setResending(true)
+    setMsg(null)
+    setMsgType(null)
+
+    const response = await fetch('/api/auth/resend-confirmation', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+    })
+
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}))
+      setMsg(data?.error ?? 'Unable to resend confirmation email.')
+      setMsgType('error')
+      setResending(false)
+      return
+    }
+
+    setMsg(`A new confirmation email has been sent to ${email}.`)
+    setMsgType('success')
+    setResendCooldownUntil(Date.now() + RESEND_COOLDOWN_SECONDS * 1000)
+    setResending(false)
+  }
+
   return (
     <section className="w-full bg-[#faf7fb] px-6 pb-16 pt-4 sm:pt-5">
       <div className="mx-auto flex w-full max-w-3xl flex-col gap-2 text-center">
@@ -40,12 +117,22 @@ export default function LoginClient({ redirectTo = '/account' }: { redirectTo?: 
           Welcome Back
         </h1>
         <p className="text-sm font-medium text-[#2E2A33]/60 sm:text-base">
-          Log in to book classes and manage your children.
+          Log in to view your account and manage your bookings.
         </p>
       </div>
 
       <div className="mx-auto mt-4 w-full max-w-2xl overflow-hidden rounded-2xl border border-[#e1d7ee] bg-white shadow-[0_18px_42px_rgba(22,12,47,0.1)]">
         <div className="p-6 sm:p-8">
+          {verified === 'signup' ? (
+            <div className="mb-5 rounded-2xl border border-[#d8ceeb] bg-[#f7f2ff] px-5 py-4">
+              <p className="text-base font-bold text-[#4f2390]">
+                Account verified
+              </p>
+              <p className="mt-1 text-sm font-medium leading-7 text-[#2E2A33]/82 sm:text-[15px]">
+                Your email address has been confirmed. Please log in to continue.
+              </p>
+            </div>
+          ) : null}
           <form className="flex flex-col gap-4" onSubmit={onLogin}>
               <div className="flex flex-col">
                 <label>Email</label>
@@ -118,7 +205,7 @@ export default function LoginClient({ redirectTo = '/account' }: { redirectTo?: 
                 className={[
                   'overflow-hidden rounded-xl border border-[#f2c6cf] bg-[#fdf2f4] bg-clip-padding shadow-[0_6px_14px_rgba(143,45,61,0.1)] transition-all duration-200',
                   msgType === 'error'
-                    ? 'mt-2 max-h-40 opacity-100'
+                    ? 'mt-2 max-h-64 opacity-100'
                     : 'max-h-0 opacity-0 pointer-events-none',
                 ].join(' ')}
                 aria-live="polite"
@@ -134,18 +221,36 @@ export default function LoginClient({ redirectTo = '/account' }: { redirectTo?: 
                   </span>
                   <div className="flex flex-1 flex-col gap-2">
                     <p>{msg}</p>
-                    <Link
-                      href="/reset-password"
-                      className="w-fit font-semibold text-[#6c35c3] underline-offset-4 transition hover:underline"
-                    >
-                      Forgot your password?
-                    </Link>
+                    {needsVerification ? (
+                      <div className="flex flex-col gap-1.5">
+                        <button
+                          type="button"
+                          onClick={onResendConfirmation}
+                          disabled={resendSecondsRemaining > 0 || resending}
+                          className="w-fit font-semibold text-[#6c35c3] underline-offset-4 transition hover:underline disabled:cursor-not-allowed disabled:no-underline disabled:opacity-70"
+                        >
+                          {resending ? 'Resending...' : 'Resend confirmation email'}
+                        </button>
+                        {resendSecondsRemaining > 0 ? (
+                          <p className="text-xs font-medium text-rose-700/80">
+                            Available again in {resendSecondsRemaining}s
+                          </p>
+                        ) : null}
+                      </div>
+                    ) : (
+                      <Link
+                        href="/reset-password"
+                        className="w-fit font-semibold text-[#6c35c3] underline-offset-4 transition hover:underline"
+                      >
+                        Forgot your password?
+                      </Link>
+                    )}
                   </div>
                 </div>
               </div>
 
               {msgType === 'success' && (
-                <p className="text-sm text-[#2E2A33]/75">{msg}</p>
+                <p className="text-sm font-bold italic text-[#4f2390]">{msg}</p>
               )}
 
               <p className="-mt-1 text-sm text-[#2E2A33]/70">

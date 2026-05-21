@@ -187,6 +187,15 @@ export default function ResetPasswordPage() {
                   Log in
                 </Link>
               </p>
+              <p className="-mt-2 text-sm text-[#2E2A33]/70">
+                Don&apos;t have an account?{" "}
+                <Link
+                  href="/register"
+                  className="font-semibold text-[#6c35c3] underline-offset-4 transition hover:underline"
+                >
+                  Create one
+                </Link>
+              </p>
             </form>
           )}
 

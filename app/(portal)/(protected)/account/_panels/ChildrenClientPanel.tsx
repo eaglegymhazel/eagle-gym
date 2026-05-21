@@ -1069,15 +1069,6 @@ export default function ChildrenClientPanel({
             <div className={styles.desktopBookButton}>
               <button
                 type="button"
-                className={styles.deleteButton}
-                onClick={() => {
-                  void previewDeleteChild()
-                }}
-              >
-                Delete child
-              </button>
-              <button
-                type="button"
                 className={`${styles.editButton} ${styles.childHeaderEditButton}`}
                 onClick={handleToggleEdit}
               >
@@ -1282,6 +1273,20 @@ export default function ChildrenClientPanel({
           })}
         </div>
       </div>
+
+      {activeTab === 'profile' ? (
+        <div className={styles.childDangerZone}>
+          <button
+            type="button"
+            className={styles.deleteButton}
+            onClick={() => {
+              void previewDeleteChild()
+            }}
+          >
+            Delete child
+          </button>
+        </div>
+      ) : null}
 
     </div>
   )

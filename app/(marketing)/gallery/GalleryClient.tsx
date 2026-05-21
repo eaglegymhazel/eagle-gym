@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import {
   AnimatePresence,
   motion,
@@ -9,158 +8,21 @@ import {
   useSpring,
 } from "framer-motion";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
-
-type GalleryImage = {
-  src: string;
-  alt: string;
-  aspect: string;
-  objectPosition?: string;
-};
-
-const galleryImages: GalleryImage[] = [
-  {
-    src: "/brand/img7.JPG",
-    alt: "Gymnastics training in the gym",
-    aspect: "aspect-[4/5]",
-    objectPosition: "center 35%",
-  },
-  {
-    src: "/brand/img15.webp",
-    alt: "Competitive gymnastics floor training",
-    aspect: "aspect-[16/10]",
-    objectPosition: "center",
-  },
-  {
-    src: "/brand/img3.JPG",
-    alt: "Gymnasts together in the club",
-    aspect: "aspect-[4/3]",
-    objectPosition: "center 25%",
-  },
-  {
-    src: "/brand/img20.JPG",
-    alt: "Gym equipment and training space",
-    aspect: "aspect-[3/4]",
-    objectPosition: "center",
-  },
-  {
-    src: "/brand/img10.JPG",
-    alt: "Pre-school gymnastics class",
-    aspect: "aspect-[4/5]",
-    objectPosition: "center 30%",
-  },
-  {
-    src: "/brand/img13.webp",
-    alt: "Recreational gymnastics session",
-    aspect: "aspect-[16/11]",
-    objectPosition: "center",
-  },
-  {
-    src: "/brand/img18.JPG",
-    alt: "Gymnast balancing during practice",
-    aspect: "aspect-[4/5]",
-    objectPosition: "center 30%",
-  },
-  {
-    src: "/brand/img11.JPG",
-    alt: "Young gymnast during class",
-    aspect: "aspect-[3/4]",
-    objectPosition: "center 20%",
-  },
-  {
-    src: "/brand/img1.JPG",
-    alt: "Gymnastics equipment in the academy",
-    aspect: "aspect-[4/3]",
-    objectPosition: "center",
-  },
-  {
-    src: "/brand/img22.JPG",
-    alt: "Gymnasts posing together",
-    aspect: "aspect-[5/4]",
-    objectPosition: "center 28%",
-  },
-  {
-    src: "/brand/img14.webp",
-    alt: "Training session on apparatus",
-    aspect: "aspect-[4/5]",
-    objectPosition: "center",
-  },
-  {
-    src: "/brand/img4.JPG",
-    alt: "Gymnastics class in action",
-    aspect: "aspect-[4/5]",
-    objectPosition: "center 35%",
-  },
-  {
-    src: "/brand/img23.JPG",
-    alt: "Team members at the academy",
-    aspect: "aspect-[4/5]",
-    objectPosition: "center 25%",
-  },
-  {
-    src: "/brand/img8.JPG",
-    alt: "Gymnastics coaching moment",
-    aspect: "aspect-[16/11]",
-    objectPosition: "center",
-  },
-  {
-    src: "/brand/img5.JPG",
-    alt: "Gym activity during a class",
-    aspect: "aspect-[3/4]",
-    objectPosition: "center",
-  },
-  {
-    src: "/brand/img19.JPG",
-    alt: "Gym equipment and mats",
-    aspect: "aspect-[4/3]",
-    objectPosition: "center",
-  },
-  {
-    src: "/brand/img2.JPG",
-    alt: "Gymnastics space inside the academy",
-    aspect: "aspect-[16/10]",
-    objectPosition: "center",
-  },
-  {
-    src: "/brand/img16.JPG",
-    alt: "Gymnast performing during practice",
-    aspect: "aspect-[4/5]",
-    objectPosition: "center 22%",
-  },
-  {
-    src: "/brand/img21.JPG",
-    alt: "Classroom training environment",
-    aspect: "aspect-[4/3]",
-    objectPosition: "center",
-  },
-  {
-    src: "/brand/img9.JPG",
-    alt: "Gymnastics team practice",
-    aspect: "aspect-[4/5]",
-    objectPosition: "center 28%",
-  },
-  {
-    src: "/brand/img17.webp",
-    alt: "Training inside the Eagle Gymnastics Academy",
-    aspect: "aspect-[4/5]",
-    objectPosition: "center",
-  },
-  {
-    src: "/brand/img6.JPG",
-    alt: "Gymnastics session in progress",
-    aspect: "aspect-[16/11]",
-    objectPosition: "center",
-  },
-  {
-    src: "/brand/img12.JPG",
-    alt: "Gymnast moving through a routine",
-    aspect: "aspect-[4/5]",
-    objectPosition: "center 28%",
-  },
-];
+import Image from "next/image";
+import { useEffect, useMemo, useRef, useState } from "react";
+import type { GalleryCategory, GalleryImageItem } from "@/lib/sanity/gallery";
 
 const focusableSelector =
   'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
+
+const categoryLabels: Record<GalleryCategory | "all", string> = {
+  all: "All",
+  general: "General",
+  competitions: "Competitions",
+  events: "Events",
+  fundraising: "Fundraising",
+  awards: "Awards",
+};
 
 function GalleryTile({
   image,
@@ -168,7 +30,7 @@ function GalleryTile({
   reducedMotion,
   onOpen,
 }: {
-  image: GalleryImage;
+  image: GalleryImageItem;
   index: number;
   reducedMotion: boolean;
   onOpen: () => void;
@@ -217,8 +79,9 @@ function GalleryTile({
       className="group relative mb-3 block w-full break-inside-avoid overflow-hidden bg-[#ede6f7] text-left shadow-[0_16px_34px_-26px_rgba(22,14,38,0.55)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6c35c3]/45 focus-visible:ring-offset-2 focus-visible:ring-offset-[#faf7fb] sm:mb-4"
     >
       <motion.div
-        layoutId={`gallery-image-${image.src}`}
-        className={["relative w-full overflow-hidden", image.aspect].join(" ")}
+        layoutId={`gallery-image-${image.id}`}
+        className="relative w-full overflow-hidden"
+        style={{ aspectRatio: `${image.width} / ${image.height}` }}
       >
         <motion.div
           style={
@@ -238,7 +101,6 @@ function GalleryTile({
             fill
             sizes="(max-width: 767px) 50vw, (max-width: 1199px) 33vw, 25vw"
             className="object-cover transition-transform duration-300 ease-out group-hover:scale-[1.045] group-focus-visible:scale-[1.045]"
-            style={{ objectPosition: image.objectPosition ?? "center" }}
             priority={index < 5}
           />
         </motion.div>
@@ -248,26 +110,44 @@ function GalleryTile({
   );
 }
 
-export default function GalleryClient() {
+export default function GalleryClient({ images }: { images: GalleryImageItem[] }) {
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
+  const [activeCategory, setActiveCategory] = useState<GalleryCategory | "all">("all");
   const reducedMotion = useReducedMotion();
   const touchStartXRef = useRef<number | null>(null);
   const touchStartYRef = useRef<number | null>(null);
 
+  const availableCategories = useMemo(() => {
+    const categories = new Set<GalleryCategory>();
+    images.forEach((image) => categories.add(image.category));
+    return ["all", ...Array.from(categories)] as Array<GalleryCategory | "all">;
+  }, [images]);
+
+  const filteredImages = useMemo(() => {
+    if (activeCategory === "all") {
+      return images;
+    }
+    return images.filter((image) => image.category === activeCategory);
+  }, [activeCategory, images]);
+
+  useEffect(() => {
+    setActiveIndex(null);
+  }, [activeCategory]);
+
   const activeImage =
-    activeIndex === null ? null : galleryImages[activeIndex] ?? null;
+    activeIndex === null ? null : filteredImages[activeIndex] ?? null;
 
   const showPreviousImage = () => {
     setActiveIndex((current) =>
       current === null
         ? 0
-        : (current - 1 + galleryImages.length) % galleryImages.length,
+        : (current - 1 + filteredImages.length) % filteredImages.length,
     );
   };
 
   const showNextImage = () => {
     setActiveIndex((current) =>
-      current === null ? 0 : (current + 1) % galleryImages.length,
+      current === null ? 0 : (current + 1) % filteredImages.length,
     );
   };
 
@@ -328,7 +208,7 @@ export default function GalleryClient() {
       document.body.style.overflow = previousOverflow;
       document.removeEventListener("keydown", handleKeyDown);
     };
-  }, [activeIndex]);
+  }, [activeIndex, filteredImages.length]);
 
   const handleTouchStart = (event: React.TouchEvent<HTMLDivElement>) => {
     const touch = event.touches[0];
@@ -364,27 +244,65 @@ export default function GalleryClient() {
     <>
       <section className="w-full px-4 pb-14 pt-10 sm:px-6 sm:pb-16 sm:pt-12">
         <div className="mx-auto w-full max-w-[1500px]">
-          <div className="mb-8 flex flex-col gap-3 sm:mb-10">
-            <h1 className="max-w-3xl text-4xl font-extrabold tracking-tight text-[#143271] sm:text-5xl">
-              Gallery
-            </h1>
-            <p className="max-w-2xl text-base leading-7 text-[#2a203c]/76 sm:text-lg">
-              Moments from training, competition, and everyday life inside Eagle
-              Gymnastics Academy.
-            </p>
+          <div className="mb-8 flex flex-col gap-4 sm:mb-10">
+            <div className="space-y-3">
+              <h1 className="max-w-3xl text-4xl font-extrabold tracking-tight text-[#143271] sm:text-5xl">
+                Gallery
+              </h1>
+              <p className="max-w-2xl text-base leading-7 text-[#2a203c]/76 sm:text-lg">
+                Photos from classes, competitions, fundraisers, awards, and club events.
+              </p>
+            </div>
+
+            {availableCategories.length > 1 ? (
+              <div className="flex flex-wrap gap-2">
+                {availableCategories.map((category) => {
+                  const isActive = activeCategory === category;
+                  return (
+                    <button
+                      key={category}
+                      type="button"
+                      onClick={() => setActiveCategory(category)}
+                      className={[
+                        "rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] transition-colors",
+                        isActive
+                          ? "bg-[#6c35c3] text-white"
+                          : "bg-white text-[#6c35c3] hover:bg-[#f3ecfb]",
+                      ].join(" ")}
+                    >
+                      {categoryLabels[category]}
+                    </button>
+                  );
+                })}
+              </div>
+            ) : null}
           </div>
 
-          <div className="columns-2 gap-3 space-y-3 sm:columns-2 sm:gap-4 sm:space-y-4 lg:columns-3 xl:columns-4">
-            {galleryImages.map((image, index) => (
-              <GalleryTile
-                key={image.src}
-                image={image}
-                index={index}
-                reducedMotion={Boolean(reducedMotion)}
-                onOpen={() => setActiveIndex(index)}
-              />
-            ))}
-          </div>
+          {filteredImages.length === 0 ? (
+            <div className="rounded-3xl border border-[#ded4ef] bg-white px-6 py-12 text-center shadow-[0_18px_45px_-30px_rgba(15,23,42,0.25)]">
+              <p className="text-sm font-semibold uppercase tracking-[0.16em] text-[#6c35c3]">
+                Gallery
+              </p>
+              <h2 className="mt-3 text-2xl font-bold text-[#143271]">
+                No images yet
+              </h2>
+              <p className="mt-3 text-base text-[#2E2A33]/72">
+                Upload photos in Sanity Studio and they will appear here.
+              </p>
+            </div>
+          ) : (
+            <div className="columns-2 gap-3 space-y-3 sm:columns-2 sm:gap-4 sm:space-y-4 lg:columns-3 xl:columns-4">
+              {filteredImages.map((image, index) => (
+                <GalleryTile
+                  key={image.id}
+                  image={image}
+                  index={index}
+                  reducedMotion={Boolean(reducedMotion)}
+                  onOpen={() => setActiveIndex(index)}
+                />
+              ))}
+            </div>
+          )}
         </div>
       </section>
 
@@ -418,7 +336,7 @@ export default function GalleryClient() {
                   : { type: "spring", stiffness: 260, damping: 28, mass: 0.85 }
               }
               className="relative z-10 flex h-full w-full max-w-6xl items-center justify-center"
-              >
+            >
               <button
                 type="button"
                 onClick={showPreviousImage}
@@ -434,7 +352,7 @@ export default function GalleryClient() {
                 onTouchEnd={handleTouchEnd}
               >
                 <motion.div
-                  layoutId={`gallery-image-${activeImage.src}`}
+                  layoutId={`gallery-image-${activeImage.id}`}
                   className="relative overflow-hidden shadow-[0_40px_90px_-45px_rgba(0,0,0,0.9)]"
                 >
                   <img
@@ -442,6 +360,13 @@ export default function GalleryClient() {
                     alt={activeImage.alt}
                     className="block max-h-[90vh] max-w-full object-contain"
                   />
+                  {activeImage.alt ? (
+                    <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-[linear-gradient(180deg,rgba(18,10,34,0)_0%,rgba(18,10,34,0.82)_100%)] px-4 pb-4 pt-10 sm:px-5 sm:pb-5">
+                      <p className="max-w-2xl text-sm font-medium leading-6 text-white/92 sm:text-[15px]">
+                        {activeImage.alt}
+                      </p>
+                    </div>
+                  ) : null}
                 </motion.div>
               </div>
 

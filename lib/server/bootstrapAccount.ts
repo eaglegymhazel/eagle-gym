@@ -71,18 +71,19 @@ export const getBootstrapAccount = cache(
     return { status: 'unauthorized' }
   }
 
+  const devImpersonateEmail = process.env.DEV_IMPERSONATE_EMAIL?.trim() || null
   let email = data.user.email
 
   if (
-    process.env.NODE_ENV === 'development' &&
-    process.env.DEV_IMPERSONATE_EMAIL
+    process.env.NODE_ENV !== 'production' &&
+    devImpersonateEmail
   ) {
-    email = process.env.DEV_IMPERSONATE_EMAIL
+    email = devImpersonateEmail
   }
 
   if (
     process.env.NODE_ENV === 'production' &&
-    process.env.DEV_IMPERSONATE_EMAIL
+    devImpersonateEmail
   ) {
     throw new Error('DEV_IMPERSONATE_EMAIL must not be set in production')
   }
@@ -101,7 +102,7 @@ export const getBootstrapAccount = cache(
     .select(
       'id,email,accFirstName,accLastName,accTelNo,accEmergencyTelNo,accAddress'
     )
-    .eq('email', email)
+    .ilike('email', email ?? '')
     .maybeSingle()
 
   if (accountError) {

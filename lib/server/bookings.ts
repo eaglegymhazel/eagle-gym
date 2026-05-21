@@ -2,6 +2,7 @@ import 'server-only'
 
 import { createServerClient } from '@supabase/ssr'
 import { unstable_cache } from 'next/cache'
+import Stripe from 'stripe'
 
 export type BookingSummary = {
   childId: string
@@ -18,6 +19,8 @@ export type BookingSummary = {
 export type AccountBookingSummary = {
   bookingKind: 'class' | 'summer-camp' | 'birthday-party'
   childId: string | null
+  programme: 'recreational' | 'competition' | null
+  stripeSubscriptionId: string | null
   className: string | null
   weekday: string | null
   startTime: string | null
@@ -32,6 +35,182 @@ export type AccountBookingSummary = {
   birthdayChildLastName: string | null
   birthdayChildDateOfBirth: string | null
   slotDate: string | null
+}
+
+export type AccountBillingSummary = {
+  subscriptionId: string
+  programme: 'recreational' | 'competition'
+  subscriptionStatus: string | null
+  latestInvoiceDate: string | null
+  latestInvoicePaidAt: string | null
+  latestInvoiceAmountPence: number | null
+  nextInvoiceDate: string | null
+  nextInvoiceAmountPence: number | null
+  currency: string | null
+}
+
+const STRIPE_API_VERSION: Stripe.LatestApiVersion = '2026-01-28.clover'
+const SUBSCRIPTION_STATUS_PRIORITY: Record<string, number> = {
+  active: 5,
+  trialing: 4,
+  past_due: 3,
+  unpaid: 2,
+  incomplete: 1,
+  canceled: 0,
+  incomplete_expired: 0,
+  paused: 0,
+}
+
+function toIsoDateFromUnix(timestamp: number | null | undefined) {
+  if (typeof timestamp !== 'number' || !Number.isFinite(timestamp)) return null
+  return new Date(timestamp * 1000).toISOString()
+}
+
+function pickPreferredSubscription(
+  current: Stripe.Subscription | null,
+  candidate: Stripe.Subscription
+) {
+  if (!current) return candidate
+  const currentScore = SUBSCRIPTION_STATUS_PRIORITY[current.status] ?? -1
+  const candidateScore = SUBSCRIPTION_STATUS_PRIORITY[candidate.status] ?? -1
+  if (candidateScore !== currentScore) {
+    return candidateScore > currentScore ? candidate : current
+  }
+  return candidate.created > current.created ? candidate : current
+}
+
+async function getSubscriptionBillingSummary(
+  secretKey: string | null,
+  subscriptionId: string,
+  programme: 'recreational' | 'competition'
+): Promise<AccountBillingSummary | null> {
+  if (!secretKey || !subscriptionId) return null
+
+  const stripe = new Stripe(secretKey, { apiVersion: STRIPE_API_VERSION })
+  let chosenSubscription: Stripe.Subscription | null = null
+
+  try {
+    chosenSubscription = await stripe.subscriptions.retrieve(subscriptionId, {
+      expand: ['latest_invoice'],
+    })
+  } catch {
+    return null
+  }
+
+  const latestInvoice =
+    chosenSubscription.latest_invoice &&
+    typeof chosenSubscription.latest_invoice !== 'string'
+      ? chosenSubscription.latest_invoice
+      : null
+
+  let upcomingInvoice: Stripe.Invoice | null = null
+
+  try {
+    upcomingInvoice = await stripe.invoices.createPreview({
+      customer:
+        typeof chosenSubscription.customer === 'string'
+          ? chosenSubscription.customer
+          : chosenSubscription.customer?.id,
+      subscription: chosenSubscription.id,
+      preview_mode: 'next',
+    })
+  } catch {
+    upcomingInvoice = null
+  }
+
+  const subscriptionCurrentPeriodEnd =
+    typeof (chosenSubscription as { current_period_end?: unknown }).current_period_end === 'number'
+      ? ((chosenSubscription as unknown as { current_period_end: number }).current_period_end)
+      : null
+
+  return {
+    subscriptionId,
+    programme,
+    subscriptionStatus: chosenSubscription.status ?? null,
+    latestInvoiceDate: latestInvoice ? toIsoDateFromUnix(latestInvoice.created) : null,
+    latestInvoicePaidAt: latestInvoice?.status_transitions?.paid_at
+      ? toIsoDateFromUnix(latestInvoice.status_transitions.paid_at)
+      : null,
+    latestInvoiceAmountPence:
+      latestInvoice && typeof latestInvoice.amount_paid === 'number'
+        ? latestInvoice.amount_paid
+        : latestInvoice && typeof latestInvoice.total === 'number'
+          ? latestInvoice.total
+          : null,
+    nextInvoiceDate:
+      upcomingInvoice && 'period_end' in upcomingInvoice
+        ? toIsoDateFromUnix(
+            typeof upcomingInvoice.period_end === 'number'
+              ? upcomingInvoice.period_end
+              : subscriptionCurrentPeriodEnd
+          )
+        : toIsoDateFromUnix(subscriptionCurrentPeriodEnd),
+    nextInvoiceAmountPence:
+      upcomingInvoice && typeof upcomingInvoice.total === 'number'
+        ? upcomingInvoice.total
+        : null,
+    currency:
+      (upcomingInvoice?.currency ?? latestInvoice?.currency ?? chosenSubscription.currency ?? null) ??
+      null,
+  }
+}
+
+const getBillingSummariesForSubscriptionsCached = unstable_cache(
+  async (
+    subscriptionPairsKey: string
+  ): Promise<AccountBillingSummary[]> => {
+    if (!subscriptionPairsKey) return []
+
+    const recreationalSecret = process.env.LIVE_STRIPE_SECRET_KEY?.trim() || null
+    const competitionSecret = process.env.LIVE_COMP_STRIPE_SECRET_KEY?.trim() || null
+
+    const pairs = subscriptionPairsKey
+      .split('|')
+      .map((pair) => pair.trim())
+      .filter(Boolean)
+      .map((pair) => {
+        const [programme, subscriptionId] = pair.split(':')
+        return {
+          programme: programme === 'competition' ? 'competition' : 'recreational',
+          subscriptionId: subscriptionId?.trim() ?? '',
+        } as { programme: 'recreational' | 'competition'; subscriptionId: string }
+      })
+      .filter((item) => item.subscriptionId)
+
+    const results = await Promise.all(
+      pairs.map((item) =>
+        getSubscriptionBillingSummary(
+          item.programme === 'competition' ? competitionSecret : recreationalSecret,
+          item.subscriptionId,
+          item.programme
+        )
+      )
+    )
+
+    return results.filter((item): item is AccountBillingSummary => !!item)
+  },
+  ['billing-summaries-for-subscriptions'],
+  { revalidate: 60 }
+)
+
+export async function getBillingSummariesForSubscriptions(
+  items: Array<{ programme: 'recreational' | 'competition'; subscriptionId: string | null | undefined }>
+): Promise<AccountBillingSummary[]> {
+  const uniquePairs = Array.from(
+    new Set(
+      items
+        .map((item) => {
+          const subscriptionId = item.subscriptionId?.trim() ?? ''
+          if (!subscriptionId) return ''
+          return `${item.programme}:${subscriptionId}`
+        })
+        .filter(Boolean)
+        .sort()
+    )
+  )
+
+  if (uniquePairs.length === 0) return []
+  return getBillingSummariesForSubscriptionsCached(uniquePairs.join('|'))
 }
 
 const getActiveBookingsForChildrenCached = unstable_cache(
@@ -179,7 +358,7 @@ const getActiveBookingsForAccountCached = unstable_cache(
       const { data, error } = await serviceRole
         .from('Bookings')
         .select(
-          'childId,status,created_at,Classes(className,weekday,startTime,endTime,durationMinutes)'
+          'childId,status,created_at,bookingType,stripeSubscriptionId,Classes(className,weekday,startTime,endTime,durationMinutes,isCompetitionClass)'
         )
         .in('childId', childIds)
         .eq('status', 'active')
@@ -202,9 +381,15 @@ const getActiveBookingsForAccountCached = unstable_cache(
 
       ;(data ?? []).forEach((row) => {
         const cls = Array.isArray(row.Classes) ? row.Classes[0] : row.Classes
+        const programme =
+          row.bookingType === 'competition' || cls?.isCompetitionClass === true
+            ? 'competition'
+            : 'recreational'
         bookings.push({
           bookingKind: 'class',
           childId: row.childId,
+          programme,
+          stripeSubscriptionId: row.stripeSubscriptionId?.trim() ?? null,
           className: cls?.className ?? null,
           weekday: cls?.weekday ?? null,
           startTime: cls?.startTime ?? null,
@@ -232,6 +417,8 @@ const getActiveBookingsForAccountCached = unstable_cache(
         bookings.push({
           bookingKind: 'summer-camp',
           childId: row.childId,
+          programme: null,
+          stripeSubscriptionId: null,
           className: session?.title ?? 'Summer Camp 2026',
           weekday: null,
           startTime: session?.startTime ?? null,
@@ -266,6 +453,8 @@ const getActiveBookingsForAccountCached = unstable_cache(
       bookings.push({
         bookingKind: 'birthday-party',
         childId: null,
+        programme: null,
+        stripeSubscriptionId: null,
         className: 'Birthday Party',
         weekday: null,
         startTime: row.start_time ?? null,

@@ -73,18 +73,19 @@ export const getBookingContext = cache(
   }
 
   const authUserId = data.user.id;
+  const devImpersonateEmail = process.env.DEV_IMPERSONATE_EMAIL?.trim() || null;
+  const isDevImpersonating =
+    process.env.NODE_ENV !== "production" &&
+    !!devImpersonateEmail;
   let email = data.user.email;
 
-  if (
-    process.env.NODE_ENV === "development" &&
-    process.env.DEV_IMPERSONATE_EMAIL
-  ) {
-    email = process.env.DEV_IMPERSONATE_EMAIL;
+  if (isDevImpersonating) {
+    email = devImpersonateEmail;
   }
 
   if (
     process.env.NODE_ENV === "production" &&
-    process.env.DEV_IMPERSONATE_EMAIL
+    devImpersonateEmail
   ) {
     throw new Error("DEV_IMPERSONATE_EMAIL must not be set in production");
   }
@@ -133,11 +134,38 @@ export const getBookingContext = cache(
     };
   }
 
+  if (isDevImpersonating) {
+    const { data: legacyAccount, error: legacyError } = await serviceRole
+      .from("Accounts")
+      .select("id")
+      .ilike("email", email ?? "")
+      .maybeSingle();
+
+    if (legacyError) {
+      if (legacyError.code === "PGRST116") {
+        throw new Error("Multiple accounts found for this email.");
+      }
+      throw new Error(legacyError.message);
+    }
+
+    if (!legacyAccount?.id) {
+      return { status: "missing" };
+    }
+
+    const children = await getChildrenForAccount(legacyAccount.id);
+
+    return {
+      status: "existing",
+      accountId: legacyAccount.id,
+      children,
+    };
+  }
+
   if (!webAccount.account_id) {
     const { data: legacyAccount, error: legacyError } = await serviceRole
       .from("Accounts")
       .select("id")
-      .eq("email", email)
+      .ilike("email", email ?? "")
       .maybeSingle();
 
     if (legacyError) {

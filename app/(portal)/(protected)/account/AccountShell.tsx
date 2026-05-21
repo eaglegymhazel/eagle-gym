@@ -42,6 +42,8 @@ type MedicalInformationRow = {
 type BookingSummary = {
   bookingKind: "class" | "summer-camp" | "birthday-party"
   childId: string | null
+  programme: "recreational" | "competition" | null
+  stripeSubscriptionId: string | null
   className: string | null
   weekday: string | null
   startTime: string | null
@@ -56,6 +58,18 @@ type BookingSummary = {
   birthdayChildLastName: string | null
   birthdayChildDateOfBirth: string | null
   slotDate: string | null
+}
+
+type BillingSummary = {
+  subscriptionId: string
+  programme: "recreational" | "competition"
+  subscriptionStatus: string | null
+  latestInvoiceDate: string | null
+  latestInvoicePaidAt: string | null
+  latestInvoiceAmountPence: number | null
+  nextInvoiceDate: string | null
+  nextInvoiceAmountPence: number | null
+  currency: string | null
 }
 
 type ChildBadgeSkill = {
@@ -85,11 +99,13 @@ type BootstrapResponse =
       children: ChildSummary[]
       medicalByChildId: Record<string, MedicalInformationRow>
       accountBookings: BookingSummary[]
+      accountBillingSummaries: BillingSummary[]
       badgesByChildId: Record<string, ChildAssignedBadge[]>
       childDetailsIncluded: boolean
       accountExists: true
       profileComplete: boolean
       nextRoute: string
+      devImpersonatedEmail?: string | null
     }
   | {
       ok: true
@@ -98,15 +114,18 @@ type BootstrapResponse =
       children: []
       medicalByChildId: Record<string, MedicalInformationRow>
       accountBookings: BookingSummary[]
+      accountBillingSummaries: BillingSummary[]
       badgesByChildId: Record<string, ChildAssignedBadge[]>
       childDetailsIncluded: false
       accountExists: false
       profileComplete: false
       nextRoute: string
+      devImpersonatedEmail?: string | null
     }
   | { error: string }
 
 type TabKey = "details" | "children" | "bookings"
+type BookingsViewKey = "classes" | "billing" | "summer-camps" | "birthday-parties"
 type NavItem = {
   key: TabKey
   label: string
@@ -165,7 +184,9 @@ const normalizeEditableFields = (account: AccountDetails): EditableFields => ({
 
 const formatAccountDate = (value: string | null) => {
   if (!value) return "-"
-  const date = new Date(`${value}T12:00:00`)
+  const date = value.includes("T")
+    ? new Date(value)
+    : new Date(`${value}T12:00:00`)
   if (Number.isNaN(date.getTime())) return value
   return new Intl.DateTimeFormat("en-GB", {
     weekday: "long",
@@ -186,12 +207,17 @@ const formatDateOfBirth = (value: string | null) => {
   }).format(date)
 }
 
-const formatPaidAmount = (value: number | null) => {
+const formatPaidAmount = (value: number | null, currency = "GBP") => {
   if (typeof value !== "number") return null
   return new Intl.NumberFormat("en-GB", {
     style: "currency",
-    currency: "GBP",
+    currency: currency.toUpperCase(),
   }).format(value / 100)
+}
+
+const formatSubscriptionStatus = (value: string | null) => {
+  if (!value) return "-"
+  return value.replaceAll("_", " ")
 }
 
 const getBirthdayTurningAge = (dateOfBirth: string | null, slotDate: string | null) => {
@@ -227,6 +253,7 @@ export default function AccountShell() {
   const [bookMessage, setBookMessage] = useState<string | null>(null)
   const [isChildModalOpen, setIsChildModalOpen] = useState(false)
   const [loadingChildDetails, setLoadingChildDetails] = useState(false)
+  const [bookingsView, setBookingsView] = useState<BookingsViewKey>("classes")
   const [isEditingDetails, setIsEditingDetails] = useState(false)
   const [isSavingDetails, setIsSavingDetails] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
@@ -375,6 +402,28 @@ export default function AccountShell() {
     return grouped
   }, [data])
 
+  const billingSummaries = useMemo(() => {
+    if (!data || "error" in data || data.status !== "existing") return []
+    return [...data.accountBillingSummaries].sort((a, b) =>
+      a.programme.localeCompare(b.programme)
+    )
+  }, [data])
+
+  const availableBookingsViews = useMemo(() => {
+    const views: Array<{ key: BookingsViewKey; label: string }> = []
+    if (groupedBookings.classes.length > 0) views.push({ key: "classes", label: "Class bookings" })
+    if (billingSummaries.length > 0) views.push({ key: "billing", label: "Billing" })
+    if (groupedBookings.summerCamps.length > 0) views.push({ key: "summer-camps", label: "Summer camps" })
+    if (groupedBookings.birthdayParties.length > 0) views.push({ key: "birthday-parties", label: "Birthday parties" })
+    return views
+  }, [billingSummaries.length, groupedBookings.birthdayParties.length, groupedBookings.classes.length, groupedBookings.summerCamps.length])
+
+  useEffect(() => {
+    if (tab !== "bookings") return
+    if (availableBookingsViews.some((item) => item.key === bookingsView)) return
+    setBookingsView(availableBookingsViews[0]?.key ?? "classes")
+  }, [availableBookingsViews, bookingsView, tab])
+
   useEffect(() => {
     if (!data || "error" in data || data.status !== "existing" || !data.account) {
       return
@@ -506,13 +555,17 @@ export default function AccountShell() {
   const handleTab = (nextTab: TabKey) => {
     if (nextTab === "children" || nextTab === "bookings") {
       setChildrenResetKey((prev) => prev + 1)
-      const shouldLoadChildDetails =
+      const canLoadExtendedAccountData =
         !!data &&
         "error" in data === false &&
         data.status === "existing" &&
-        !data.childDetailsIncluded &&
         !loadingChildDetails
-      if (shouldLoadChildDetails) {
+      const shouldLoadChildDetails =
+        canLoadExtendedAccountData && !data.childDetailsIncluded
+      const shouldRefreshBookings =
+        canLoadExtendedAccountData && nextTab === "bookings"
+
+      if (shouldLoadChildDetails || shouldRefreshBookings) {
         setLoadingChildDetails(true)
         void loadBootstrap(true, () => true)
           .then((json) => {
@@ -566,6 +619,11 @@ export default function AccountShell() {
             <p className={styles.subheading}>
               Manage your details and family profiles
             </p>
+            {data && "error" in data === false && data.devImpersonatedEmail ? (
+              <p className={styles.devImpersonationBanner}>
+                Dev impersonation active: {data.devImpersonatedEmail}
+              </p>
+            ) : null}
           </div>
         </div>
       </header>
@@ -770,10 +828,29 @@ export default function AccountShell() {
                       </p>
                     ) : (
                       <>
-                        {groupedBookings.classes.length > 0 ? (
+                        {availableBookingsViews.length > 1 ? (
+                          <div className={styles.accountBookingsSwitcher} role="tablist" aria-label="Booking sections">
+                            {availableBookingsViews.map((item) => (
+                              <button
+                                key={item.key}
+                                type="button"
+                                role="tab"
+                                aria-selected={bookingsView === item.key}
+                                className={`${styles.accountBookingsSwitcherButton} ${
+                                  bookingsView === item.key ? styles.accountBookingsSwitcherButtonActive : ""
+                                }`}
+                                onClick={() => setBookingsView(item.key)}
+                              >
+                                {item.label}
+                              </button>
+                            ))}
+                          </div>
+                        ) : null}
+
+                        {groupedBookings.classes.length > 0 && bookingsView === "classes" ? (
                           <section className={styles.accountBookingsSection}>
                             <div className={styles.accountBookingsSectionHeader}>
-                              <h3>Classes</h3>
+                              <h3>Class bookings</h3>
                               <p>Active recreational and competition class bookings.</p>
                             </div>
                             <div className={styles.accountBookingsGrid}>
@@ -782,24 +859,20 @@ export default function AccountShell() {
                                   key={`class-${booking.childId ?? "unknown"}-${booking.className ?? "class"}-${index}`}
                                   className={styles.accountBookingCard}
                                 >
-                                  <div className={styles.accountBookingType}>Class booking</div>
+                                  <div className={styles.accountBookingType}>
+                                    {booking.programme === "competition"
+                                      ? "Competition booking"
+                                      : "Recreational booking"}
+                                  </div>
                                   <h3 className={styles.accountBookingTitle}>
-                                    {booking.className ?? "Class"}
+                                    {booking.childId ? childNameById.get(booking.childId) ?? "Child" : "Child"}
                                   </h3>
-                                  <div className={styles.accountBookingMeta}>
-                                    <span className={styles.accountBookingMetaLabel}>Booked for</span>
-                                    <span>{booking.childId ? childNameById.get(booking.childId) ?? "Child" : "Child"}</span>
+                                  <div className={styles.accountBookingPrimary}>
+                                    {[booking.weekday, booking.startTime && booking.endTime ? `${booking.startTime}-${booking.endTime}` : booking.startTime ?? booking.endTime]
+                                      .filter(Boolean)
+                                      .join(" | ") || "-"}
                                   </div>
-                                  <div className={styles.accountBookingMeta}>
-                                    <span className={styles.accountBookingMetaLabel}>Schedule</span>
-                                    <span>
-                                      {[booking.weekday, booking.startTime && booking.endTime ? `${booking.startTime}-${booking.endTime}` : booking.startTime ?? booking.endTime]
-                                        .filter(Boolean)
-                                        .join(" | ") || "-"}
-                                    </span>
-                                  </div>
-                                  <div className={styles.accountBookingMeta}>
-                                    <span className={styles.accountBookingMetaLabel}>Duration</span>
+                                  <div className={styles.accountBookingSecondary}>
                                     <span>
                                       {booking.durationMinutes != null
                                         ? `${booking.durationMinutes} minutes`
@@ -812,7 +885,59 @@ export default function AccountShell() {
                           </section>
                         ) : null}
 
-                        {groupedBookings.summerCamps.length > 0 ? (
+                        {billingSummaries.length > 0 && bookingsView === "billing" ? (
+                          <section className={styles.accountBookingsSection}>
+                            <div className={styles.accountBookingsSectionHeader}>
+                              <h3>Billing</h3>
+                              <p>Current subscription billing for your active class bookings.</p>
+                            </div>
+                            <div className={styles.accountBookingsGrid}>
+                              {billingSummaries.map((billing) => (
+                                <article
+                                  key={`${billing.programme}-${billing.subscriptionId}`}
+                                  className={styles.accountBookingCard}
+                                >
+                                  <div className={styles.accountBookingType}>
+                                    {billing.programme === "competition"
+                                      ? "Competition billing"
+                                      : "Recreational billing"}
+                                  </div>
+                                  <h3 className={styles.accountBookingTitle}>
+                                    {billing.programme === "competition"
+                                      ? "Competition subscription"
+                                      : "Recreational subscription"}
+                                  </h3>
+                                  <div className={styles.accountBookingMeta}>
+                                    <span className={styles.accountBookingMetaLabel}>Subscription status</span>
+                                    <span>{formatSubscriptionStatus(billing.subscriptionStatus)}</span>
+                                  </div>
+                                  <div className={styles.accountBookingMeta}>
+                                    <span className={styles.accountBookingMetaLabel}>Latest payment</span>
+                                    <span>{formatPaidAmount(billing.latestInvoiceAmountPence, billing.currency ?? "GBP") ?? "-"}</span>
+                                  </div>
+                                  <div className={styles.accountBookingMeta}>
+                                    <span className={styles.accountBookingMetaLabel}>Latest invoice</span>
+                                    <span>{formatAccountDate(billing.latestInvoiceDate)}</span>
+                                  </div>
+                                  <div className={styles.accountBookingMeta}>
+                                    <span className={styles.accountBookingMetaLabel}>Paid on</span>
+                                    <span>{formatAccountDate(billing.latestInvoicePaidAt)}</span>
+                                  </div>
+                                  <div className={styles.accountBookingMeta}>
+                                    <span className={styles.accountBookingMetaLabel}>Next payment</span>
+                                    <span>{formatPaidAmount(billing.nextInvoiceAmountPence, billing.currency ?? "GBP") ?? "-"}</span>
+                                  </div>
+                                  <div className={styles.accountBookingMeta}>
+                                    <span className={styles.accountBookingMetaLabel}>Next invoice date</span>
+                                    <span>{formatAccountDate(billing.nextInvoiceDate)}</span>
+                                  </div>
+                                </article>
+                              ))}
+                            </div>
+                          </section>
+                        ) : null}
+
+                        {groupedBookings.summerCamps.length > 0 && bookingsView === "summer-camps" ? (
                           <section className={styles.accountBookingsSection}>
                             <div className={styles.accountBookingsSectionHeader}>
                               <h3>Summer Camps</h3>
@@ -850,11 +975,10 @@ export default function AccountShell() {
                           </section>
                         ) : null}
 
-                        {groupedBookings.birthdayParties.length > 0 ? (
+                        {groupedBookings.birthdayParties.length > 0 && bookingsView === "birthday-parties" ? (
                           <section className={styles.accountBookingsSection}>
                             <div className={styles.accountBookingsSectionHeader}>
                               <h3>Birthday Parties</h3>
-                              <p>Party bookings made directly against this account.</p>
                             </div>
                             <div className={styles.accountBookingsGrid}>
                               {groupedBookings.birthdayParties.map((booking, index) => {
@@ -870,29 +994,21 @@ export default function AccountShell() {
                                   >
                                     <div className={styles.accountBookingType}>Birthday party</div>
                                     <h3 className={styles.accountBookingTitle}>{childName}</h3>
-                                    <div className={styles.accountBookingMeta}>
-                                      <span className={styles.accountBookingMetaLabel}>Party date</span>
-                                      <span>{formatAccountDate(booking.slotDate)}</span>
+                                    <div className={styles.accountBookingPrimary}>
+                                      {formatAccountDate(booking.slotDate)}
                                     </div>
-                                    <div className={styles.accountBookingMeta}>
-                                      <span className={styles.accountBookingMetaLabel}>Party time</span>
+                                    <div className={styles.accountBookingSecondary}>
                                       <span>
                                         {booking.startTime && booking.endTime
                                           ? `${booking.startTime}-${booking.endTime}`
                                           : booking.startTime ?? booking.endTime ?? "-"}
                                       </span>
+                                      <span>{turningAge == null ? "-" : `Turning ${turningAge}`}</span>
+                                      <span>{booking.partySize == null ? "-" : `${booking.partySize} children`}</span>
                                     </div>
                                     <div className={styles.accountBookingMeta}>
                                       <span className={styles.accountBookingMetaLabel}>Date of birth</span>
                                       <span>{formatDateOfBirth(booking.birthdayChildDateOfBirth)}</span>
-                                    </div>
-                                    <div className={styles.accountBookingMeta}>
-                                      <span className={styles.accountBookingMetaLabel}>Turning</span>
-                                      <span>{turningAge == null ? "-" : `${turningAge} years old`}</span>
-                                    </div>
-                                    <div className={styles.accountBookingMeta}>
-                                      <span className={styles.accountBookingMetaLabel}>Party size</span>
-                                      <span>{booking.partySize ?? "-"}</span>
                                     </div>
                                     <div className={styles.accountBookingMeta}>
                                       <span className={styles.accountBookingMetaLabel}>Amount paid</span>

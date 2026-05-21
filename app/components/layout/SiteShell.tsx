@@ -94,17 +94,20 @@ export default function SiteShell({
               Quick links
             </p>
             <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm font-semibold text-[#143271]">
-              <Link href="/about" className="hover:underline">
+              <Link href="/book" className="hover:underline">
+                Book
+              </Link>
+              <Link href="/team" className="hover:underline">
                 About
               </Link>
               <Link href="/timetable" className="hover:underline">
                 Timetable
               </Link>
               <Link href="/news" className="hover:underline">
-                Updates
+                News and Media
               </Link>
               <Link href="/contact" className="hover:underline">
-                Contact
+                Contact Us
               </Link>
               <FooterAuthLink />
             </div>

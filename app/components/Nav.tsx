@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { BookOpen, CalendarDays, ChevronDown, IdCard, Info, Mail, type LucideIcon } from "lucide-react";
+import { BookOpen, CalendarDays, ChevronDown, Info, Mail, type LucideIcon } from "lucide-react";
 import { useAuth } from "./auth/AuthProvider";
 
 type NavItem = {
@@ -14,9 +14,19 @@ type NavItem = {
   href: string;
   label: string;
   icon: LucideIcon;
-  type: "link" | "about" | "updates" | "book";
+  type: "link" | "updates" | "book" | "timetables";
   matchPrefix?: string;
 };
+
+const timetableItems = [
+  { key: "class-timetable", href: "/timetable", label: "Class Timetable" },
+  { key: "recreational-events", href: "/recreational-events-calendar", label: "Recreational Events" },
+  { key: "competition-events", href: "/competition-events-calendar", label: "Competition Events" },
+] as const satisfies ReadonlyArray<{
+  key: string;
+  href: string;
+  label: string;
+}>;
 
 const bookItems = [
   { key: "book-classes", href: "/book", label: "Book Classes" },
@@ -28,19 +38,8 @@ const bookItems = [
   label: string;
 }>;
 
-const aboutItems = [
-  { key: "about-club", href: "/about", label: "About the Club" },
-  { key: "coaches", href: "/team", label: "Coaches" },
-] as const satisfies ReadonlyArray<{
-  key: string;
-  href: string;
-  label: string;
-}>;
-
 const updateItems = [
   { key: "news", href: "/news", label: "News" },
-  { key: "recreational-events", href: "/recreational-events-calendar", label: "Recreational Events" },
-  { key: "competition-events", href: "/competition-events-calendar", label: "Competition Events" },
   { key: "gallery", href: "/gallery", label: "Gallery" },
 ] as const satisfies ReadonlyArray<{
   key: string;
@@ -49,12 +48,11 @@ const updateItems = [
 }>;
 
 const navItems: NavItem[] = [
-  { key: "classes", href: "/timetable", label: "Classes", icon: CalendarDays, type: "link" as const },
   { key: "book", href: "/book", label: "Book", icon: BookOpen, type: "book" as const, matchPrefix: "/book" },
-  { key: "members", href: "/members", label: "Members", icon: IdCard, type: "link" as const },
-  { key: "about", href: "/about", label: "About", icon: Info, type: "about" as const },
-  { key: "updates", href: "/news", label: "Updates", icon: Info, type: "updates" as const, matchPrefix: "/news" },
-  { key: "contact", href: "/contact", label: "Contact", icon: Mail, type: "link" as const },
+  { key: "timetables", href: "/timetable", label: "Timetables", icon: CalendarDays, type: "timetables" as const, matchPrefix: "/timetable" },
+  { key: "about", href: "/team", label: "About", icon: Info, type: "link" as const, matchPrefix: "/team" },
+  { key: "updates", href: "/news", label: "News and Media", icon: Info, type: "updates" as const, matchPrefix: "/news" },
+  { key: "contact", href: "/contact", label: "Contact Us", icon: Mail, type: "link" as const },
 ];
 
 type MobileRightLink = {
@@ -101,19 +99,19 @@ export default function Nav({
       pathname?.startsWith("/summer-camps/2026/book"),
     [pathname]
   );
-  const isAboutActive = useMemo(
-    () => aboutItems.some((item) => pathname?.startsWith(item.href)),
-    [pathname]
-  );
   const isUpdatesActive = useMemo(
     () => updateItems.some((item) => pathname?.startsWith(item.href)),
     [pathname]
   );
+  const isTimetablesActive = useMemo(
+    () => timetableItems.some((item) => pathname?.startsWith(item.href)),
+    [pathname]
+  );
   const [isOpen, setIsOpen] = useState(false);
   const [isMobileBookOpen, setIsMobileBookOpen] = useState(false);
-  const [isMobileAboutOpen, setIsMobileAboutOpen] = useState(false);
+  const [isMobileTimetablesOpen, setIsMobileTimetablesOpen] = useState(false);
   const [isMobileUpdatesOpen, setIsMobileUpdatesOpen] = useState(false);
-  const [desktopOpenDropdown, setDesktopOpenDropdown] = useState<"book" | "about" | "updates" | null>(null);
+  const [desktopOpenDropdown, setDesktopOpenDropdown] = useState<"book" | "updates" | "timetables" | null>(null);
   const navRef = useRef<HTMLElement | null>(null);
   const drawerRef = useRef<HTMLElement | null>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
@@ -123,7 +121,7 @@ export default function Nav({
   const closeMobileMenu = () => {
     setIsOpen(false);
     setIsMobileBookOpen(false);
-    setIsMobileAboutOpen(false);
+    setIsMobileTimetablesOpen(false);
     setIsMobileUpdatesOpen(false);
   };
 
@@ -217,26 +215,26 @@ export default function Nav({
           >
             {resolvedNavItems.map((item) => {
               const isActive =
-                item.type === "about"
-                  ? isAboutActive
-                  : item.type === "updates"
-                    ? isUpdatesActive
+                item.type === "updates"
+                  ? isUpdatesActive
+                  : item.type === "timetables"
+                    ? isTimetablesActive
                   : item.matchPrefix === "/"
                     ? pathname === "/"
                     : pathname?.startsWith(item.matchPrefix ?? item.href);
 
-              if (item.type === "book" || item.type === "about" || item.type === "updates") {
+              if (item.type === "book" || item.type === "updates" || item.type === "timetables") {
                 const dropdownItems =
                   item.type === "book"
                     ? resolvedBookItems
-                    : item.type === "about"
-                      ? aboutItems
+                    : item.type === "timetables"
+                      ? timetableItems
                       : updateItems;
                 const dropdownKey =
                   item.type === "book"
                     ? "book"
-                    : item.type === "about"
-                      ? "about"
+                    : item.type === "timetables"
+                      ? "timetables"
                       : "updates";
                 const isDesktopDropdownOpen = desktopOpenDropdown === dropdownKey;
                 return (
@@ -275,7 +273,7 @@ export default function Nav({
                     </button>
                     <div
                       className={[
-                        "absolute left-1/2 top-full z-50 min-w-[240px] -translate-x-1/2 pt-3 transition duration-150",
+                        "absolute left-1/2 top-full z-50 min-w-[240px] -translate-x-1/2 pt-3 transition duration-150 before:absolute before:inset-x-0 before:bottom-full before:h-4 before:content-['']",
                         isDesktopDropdownOpen
                           ? "pointer-events-auto opacity-100"
                           : "pointer-events-none opacity-0",
@@ -358,7 +356,7 @@ export default function Nav({
             aria-label="Toggle navigation"
             aria-expanded={isOpen}
             onClick={() => {
-              setIsMobileAboutOpen(false);
+              setIsMobileTimetablesOpen(false);
               setIsMobileUpdatesOpen(false);
               setIsOpen((prev) => !prev);
             }}
@@ -448,40 +446,40 @@ export default function Nav({
                     <div className="flex flex-col gap-3">
               {resolvedNavItems.map((item) => {
                         const isActive =
-                          item.type === "about"
-                            ? isAboutActive
-                            : item.type === "updates"
+                          item.type === "updates"
                               ? isUpdatesActive
-                            : item.matchPrefix === "/"
+                              : item.type === "timetables"
+                                ? isTimetablesActive
+                              : item.matchPrefix === "/"
                               ? pathname === "/"
                               : pathname?.startsWith(item.matchPrefix);
                         const Icon = item.icon;
 
-                        if (item.type === "book" || item.type === "about" || item.type === "updates") {
+                        if (item.type === "book" || item.type === "updates" || item.type === "timetables") {
                           const isOpen =
                             item.type === "book"
                               ? isMobileBookOpen
-                              : item.type === "about"
-                                ? isMobileAboutOpen
+                              : item.type === "timetables"
+                                ? isMobileTimetablesOpen
                                 : isMobileUpdatesOpen;
                           const setOpen =
                             item.type === "book"
                               ? setIsMobileBookOpen
-                              : item.type === "about"
-                                ? setIsMobileAboutOpen
+                              : item.type === "timetables"
+                                ? setIsMobileTimetablesOpen
                                 : setIsMobileUpdatesOpen;
                           const dropdownItems =
                             item.type === "book"
                               ? resolvedBookItems
-                              : item.type === "about"
-                                ? aboutItems
+                              : item.type === "timetables"
+                                ? timetableItems
                                 : updateItems;
                           const submenuId =
                             item.type === "book"
                               ? "mobile-book-submenu"
-                              : item.type === "about"
-                              ? "mobile-about-submenu"
-                              : "mobile-updates-submenu";
+                              : item.type === "timetables"
+                                ? "mobile-timetables-submenu"
+                                : "mobile-updates-submenu";
                           return (
                             <div key={item.key} className="overflow-hidden rounded-[13px] bg-white">
                               <button
@@ -490,7 +488,7 @@ export default function Nav({
                                 className={[
                                   "group relative flex min-h-12 w-full items-center justify-between gap-3 rounded-[13px] px-3.5 py-2.5 text-[15px] transition-colors duration-200",
                                   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6e2ac0] focus-visible:ring-offset-2",
-                                  (item.type === "book" ? isBookActive : item.type === "about" ? isAboutActive : isUpdatesActive)
+                                  (item.type === "book" ? isBookActive : item.type === "timetables" ? isTimetablesActive : isUpdatesActive)
                                     ? "bg-[rgba(110,42,192,0.08)] font-semibold text-[#6e2ac0]"
                                     : "font-medium text-black/80 hover:bg-black/[0.04] active:bg-black/[0.08]",
                                 ].join(" ")}
@@ -502,7 +500,7 @@ export default function Nav({
                                     aria-hidden
                                     className={[
                                       "absolute left-1 top-1 bottom-1 w-1 rounded-full transition-opacity",
-                                      (item.type === "book" ? isBookActive : item.type === "about" ? isAboutActive : isUpdatesActive)
+                                      (item.type === "book" ? isBookActive : item.type === "timetables" ? isTimetablesActive : isUpdatesActive)
                                         ? "bg-[#6e2ac0] opacity-100"
                                         : "bg-[#6e2ac0] opacity-0",
                                     ].join(" ")}
@@ -510,7 +508,7 @@ export default function Nav({
                                   <Icon
                                     className={[
                                       "h-5 w-5 shrink-0 transition-colors duration-200",
-                                      (item.type === "book" ? isBookActive : item.type === "about" ? isAboutActive : isUpdatesActive)
+                                      (item.type === "book" ? isBookActive : item.type === "timetables" ? isTimetablesActive : isUpdatesActive)
                                         ? "text-[#6e2ac0]"
                                         : "text-black/65",
                                     ].join(" ")}
