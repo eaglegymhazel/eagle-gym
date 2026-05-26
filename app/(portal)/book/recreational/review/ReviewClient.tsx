@@ -167,7 +167,7 @@ export default function ReviewClient({
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ classIds: selectedClassIds }),
+        body: JSON.stringify({ childId, classIds: selectedClassIds }),
       });
 
       const data = await response.json().catch(() => null);

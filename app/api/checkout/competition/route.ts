@@ -10,8 +10,11 @@ import {
 export const runtime = "nodejs";
 
 const stripeSecretKey = process.env.COMP_STRIPE_SECRET_KEY;
+const HOLD_MINUTES = 15;
 
 export async function POST(req: Request) {
+  let bookingGroupId = "";
+
   try {
     if (!stripeSecretKey) {
       return NextResponse.json(
@@ -62,6 +65,13 @@ export async function POST(req: Request) {
       !bookingContext.children.some((child) => child.id === draftRecord?.childId)
     ) {
       return NextResponse.json({ error: "Child not found" }, { status: 404 });
+    }
+
+    if (!draftRecord?.childId) {
+      return NextResponse.json(
+        { error: "Competition checkout requires a saved booking draft" },
+        { status: 400 }
+      );
     }
 
     const normalizedClassIds = selections
@@ -131,7 +141,6 @@ export async function POST(req: Request) {
     }
 
     const totalHours = Number((totalMinutes / 60).toFixed(2));
-
     const priceId = process.env.COMP_PRICE_ID?.trim() || null;
 
     if (!priceId) {
@@ -141,22 +150,78 @@ export async function POST(req: Request) {
       );
     }
 
+    const { data: holdRows, error: holdError } = await supabaseAdmin.rpc(
+      "create_competition_class_booking_hold",
+      {
+        p_account_id: bookingContext.accountId,
+        p_child_id: draftRecord.childId,
+        p_selections: selections,
+        p_hold_minutes: HOLD_MINUTES,
+      }
+    );
+
+    if (holdError) {
+      return NextResponse.json(
+        { error: holdError.message },
+        { status: 409 }
+      );
+    }
+
+    const hold = Array.isArray(holdRows) ? holdRows[0] : null;
+    bookingGroupId =
+      hold && typeof hold.booking_group_id === "string"
+        ? hold.booking_group_id
+        : "";
+
+    if (!bookingGroupId) {
+      return NextResponse.json({ error: "Unable to create booking hold" }, { status: 500 });
+    }
+
     const stripe = new Stripe(stripeSecretKey, { apiVersion: "2026-01-28.clover" });
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
       line_items: [{ price: priceId, quantity: 1 }],
-      success_url: `${process.env.APP_URL}/booking/success`,
+      success_url: `${process.env.APP_URL}/booking/success?type=competition&bookingGroupId=${encodeURIComponent(bookingGroupId)}`,
       cancel_url: `${process.env.APP_URL}/booking/cancel`,
       metadata: {
         bookingType: "competition",
+        bookingGroupId,
+        childId: draftRecord.childId,
+        accountId: bookingContext.accountId,
         classCount: String(selections.length),
         totalHours: String(totalHours),
         draftId: draftId || "",
       },
     });
 
+    const { error: updateGroupError } = await supabaseAdmin
+      .from("ClassBookingGroups")
+      .update({
+        stripeCheckoutSessionId: session.id,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", bookingGroupId);
+
+    if (updateGroupError) {
+      return NextResponse.json({ error: updateGroupError.message }, { status: 500 });
+    }
+
     return NextResponse.json({ url: session.url });
   } catch (error) {
+    if (bookingGroupId) {
+      await supabaseAdmin
+        .from("ClassBookingGroupItems")
+        .update({ status: "cancelled", updated_at: new Date().toISOString() })
+        .eq("bookingGroupId", bookingGroupId)
+        .eq("status", "pending");
+
+      await supabaseAdmin
+        .from("ClassBookingGroups")
+        .update({ status: "failed", updated_at: new Date().toISOString() })
+        .eq("id", bookingGroupId)
+        .eq("status", "pending");
+    }
+
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Checkout failed" },
       { status: 500 }

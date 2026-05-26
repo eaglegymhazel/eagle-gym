@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { AlertCircle, ArrowLeft, CreditCard } from "lucide-react";
+import { parseBirthdayPartySize } from "@/lib/birthdayPartyBookingValidation";
 import type { BirthdayPartyAccountSummary, BirthdayPartyPriceBreakdown } from "@/lib/server/birthdayPartyBookings";
 import { loadBirthdayPartyDraft, type BirthdayPartyDraft } from "../draft";
 
@@ -53,7 +54,11 @@ export default function BirthdayPartyReviewClient({
   }, []);
 
   const resolvedDraft = useMemo(() => {
-    if (!draft || draft.slotId !== slotId || Math.max(1, Math.trunc(draft.partySize)) !== partySize) {
+    if (
+      !draft ||
+      draft.slotId !== slotId ||
+      parseBirthdayPartySize(draft.partySize) !== partySize
+    ) {
       return {
         birthdayChildFirstName: "",
         birthdayChildLastName: "",

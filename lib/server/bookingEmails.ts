@@ -11,6 +11,27 @@ type BirthdayPartyConfirmationEmailInput = {
   totalAmountPence: number;
 };
 
+export type RecreationalClassEmailItem = {
+  name: string;
+  weekday: string;
+  startTime: string | null;
+  endTime: string | null;
+  durationMinutes: number | null;
+  monthlyPrice: number | null;
+};
+
+type RecreationalClassBookingConfirmationEmailInput = {
+  toEmail: string;
+  accountName: string;
+  childName: string;
+  classes: RecreationalClassEmailItem[];
+  monthlyTotal: number | null;
+};
+
+type ClassBookingConfirmationEmailInput = RecreationalClassBookingConfirmationEmailInput & {
+  programmeLabel: "Recreational" | "Competition";
+};
+
 function escapeHtml(value: string) {
   return value
     .replace(/&/g, "&amp;")
@@ -62,6 +83,18 @@ function formatTime(timeValue: string): string {
     .replace(":00", "")
     .replace(" ", "")
     .toLowerCase();
+}
+
+function formatOptionalTime(timeValue: string | null): string {
+  if (!timeValue) return "";
+  return formatTime(timeValue);
+}
+
+function formatTimeRange(startTime: string | null, endTime: string | null): string {
+  const start = formatOptionalTime(startTime);
+  const end = formatOptionalTime(endTime);
+  if (start && end) return `${start}-${end}`;
+  return start || "Time TBC";
 }
 
 export async function sendBirthdayPartyConfirmationEmail(
@@ -152,4 +185,142 @@ export async function sendBirthdayPartyConfirmationEmail(
   }
 
   return { ok: true };
+}
+
+async function sendClassBookingConfirmationEmail(
+  input: ClassBookingConfirmationEmailInput
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const resendApiKey = process.env.RESEND_API_KEY?.trim();
+  const from = process.env.BOOKING_FROM_EMAIL?.trim() || process.env.CONTACT_FROM_EMAIL?.trim();
+
+  if (!resendApiKey || !from) {
+    return { ok: false, error: "Booking email is not configured." };
+  }
+
+  const childName = input.childName.trim() || "Selected child";
+  const programmeName = `${input.programmeLabel} class`;
+  const subject = `${programmeName} booking confirmed for ${childName}`;
+  const formattedTotal =
+    input.monthlyTotal == null ? "Confirmed by Stripe" : `${formatCurrency(input.monthlyTotal * 100)} per month`;
+  const classLines = input.classes.map((item) => {
+    const price =
+      item.monthlyPrice == null
+        ? input.programmeLabel === "Competition"
+          ? "Included in monthly total"
+          : "Price confirmed by Stripe"
+        : `${formatCurrency(item.monthlyPrice * 100)} per month`;
+    const duration = item.durationMinutes ? `, ${item.durationMinutes} mins` : "";
+    return `${item.name} - ${item.weekday}, ${formatTimeRange(item.startTime, item.endTime)}${duration} - ${price}`;
+  });
+
+  const text = [
+    `Hello ${input.accountName || "there"},`,
+    "",
+    `Your ${programmeName.toLowerCase()} booking has been confirmed.`,
+    "",
+    `Child: ${childName}`,
+    `Monthly total: ${formattedTotal}`,
+    "",
+    "Classes:",
+    ...classLines.map((line) => `- ${line}`),
+    "",
+    "You can view your bookings from your account area. If you need to make changes, please contact Eagle Gymnastics Academy through the website contact page.",
+  ].join("\n");
+
+  const classRows = input.classes
+    .map((item) => {
+      const price =
+        item.monthlyPrice == null
+          ? input.programmeLabel === "Competition"
+            ? "Included in monthly total"
+            : "Price confirmed by Stripe"
+          : `${formatCurrency(item.monthlyPrice * 100)} per month`;
+      const duration = item.durationMinutes ? `${item.durationMinutes} mins` : "Duration TBC";
+      return `
+        <tr>
+          <td style="padding: 10px 0; border-top: 1px solid #ece3f4;">
+            <strong>${escapeHtml(item.name)}</strong><br />
+            <span style="color: #5f5268;">${escapeHtml(item.weekday)} · ${escapeHtml(formatTimeRange(item.startTime, item.endTime))} · ${escapeHtml(duration)}</span>
+          </td>
+          <td style="padding: 10px 0; border-top: 1px solid #ece3f4; text-align: right;">${escapeHtml(price)}</td>
+        </tr>
+      `;
+    })
+    .join("");
+
+  const html = `
+    <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #1f1a25;">
+      <div style="border-radius: 20px; overflow: hidden; border: 1px solid #e6dcf0;">
+        <div style="background: linear-gradient(135deg, #6f3bc9, #6c35c3 48%, #5f2eb6); color: #ffffff; padding: 24px;">
+          <p style="margin: 0 0 8px; font-size: 12px; font-weight: bold; letter-spacing: 0.14em; text-transform: uppercase;">Eagle Gymnastics Academy</p>
+          <h1 style="margin: 0; font-size: 24px;">${escapeHtml(programmeName)} booking confirmed</h1>
+        </div>
+        <div style="padding: 24px;">
+          <p style="margin: 0 0 16px;">Hello ${escapeHtml(input.accountName || "there")},</p>
+          <p style="margin: 0 0 20px;">Your ${escapeHtml(programmeName.toLowerCase())} booking has been confirmed. Here are your booking details:</p>
+          <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+            <tr>
+              <td style="padding: 8px 0; font-weight: bold;">Child</td>
+              <td style="padding: 8px 0; text-align: right;">${escapeHtml(childName)}</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px 0; font-weight: bold;">Monthly total</td>
+              <td style="padding: 8px 0; text-align: right;">${escapeHtml(formattedTotal)}</td>
+            </tr>
+          </table>
+          <h2 style="margin: 0 0 8px; font-size: 18px; color: #6c35c3;">Classes booked</h2>
+          <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
+            ${classRows}
+          </table>
+          <p style="margin: 0;">You can view your bookings from your account area. If you need to make changes, please contact Eagle Gymnastics Academy through the website contact page.</p>
+        </div>
+      </div>
+    </div>
+  `;
+
+  const resendResponse = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${resendApiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      from,
+      to: [input.toEmail],
+      subject,
+      text,
+      html,
+    }),
+  });
+
+  if (!resendResponse.ok) {
+    const payload = (await resendResponse.json().catch(() => null)) as
+      | { message?: string; error?: { message?: string } }
+      | null;
+    const errorMessage =
+      payload?.message ||
+      payload?.error?.message ||
+      "Unable to send booking confirmation email.";
+    return { ok: false, error: errorMessage };
+  }
+
+  return { ok: true };
+}
+
+export async function sendRecreationalClassBookingConfirmationEmail(
+  input: RecreationalClassBookingConfirmationEmailInput
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  return sendClassBookingConfirmationEmail({
+    ...input,
+    programmeLabel: "Recreational",
+  });
+}
+
+export async function sendCompetitionClassBookingConfirmationEmail(
+  input: RecreationalClassBookingConfirmationEmailInput
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  return sendClassBookingConfirmationEmail({
+    ...input,
+    programmeLabel: "Competition",
+  });
 }

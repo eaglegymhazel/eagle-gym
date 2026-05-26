@@ -52,6 +52,23 @@ export default function BookingChildPicker({
   const otherChildren = children.filter((child) => child.id !== childId);
   const hasOtherChildren = otherChildren.length > 0;
 
+  if (!hasOtherChildren) {
+    return (
+      <div className="relative inline-block">
+        <div className="inline-flex min-w-[270px] items-center justify-between gap-4 rounded-2xl border border-[#ddd2ee] bg-white px-4 py-3 text-left shadow-[0_12px_28px_-18px_rgba(31,26,37,0.22)]">
+          <span className="flex min-w-0 flex-col">
+            <span className="text-[11px] font-black uppercase tracking-[0.16em] text-[#6c35c3]">
+              Booking for
+            </span>
+            <span className="truncate text-base font-bold text-[#2a203c]">
+              {activeName || "selected child"}
+            </span>
+          </span>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="relative inline-block" ref={containerRef}>
       <button

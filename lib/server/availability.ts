@@ -41,6 +41,23 @@ const getActiveBookingCountsCached = unstable_cache(
       counts[row.classId] = (counts[row.classId] ?? 0) + 1;
     });
 
+    const { data: holdData, error: holdError } = await serviceRole
+      .from("ClassBookingGroupItems")
+      .select('"classId",ClassBookingGroups!inner(status,"holdExpiresAt")')
+      .in("classId", classIds)
+      .eq("status", "pending")
+      .eq("ClassBookingGroups.status", "pending")
+      .gt("ClassBookingGroups.holdExpiresAt", new Date().toISOString());
+
+    if (holdError) {
+      throw new Error(holdError.message);
+    }
+
+    (holdData ?? []).forEach((row: { classId: string | null }) => {
+      if (!row.classId) return;
+      counts[row.classId] = (counts[row.classId] ?? 0) + 1;
+    });
+
     return counts;
   },
   ["active-booking-counts-by-class"],

@@ -52,6 +52,16 @@ export const teamMembers: TeamMember[] = [
     bio: "I started gymnastics when I was younger because I was a very active child and loved doing cartwheels around the house. Since then, gymnastics has always been a huge passion of mine. I love the feeling of learning new skills and working hard. I have grown up training at Eagle Gymnastics Academy and it has become my second home, spending multiple days each week in the gym surrounded by friends and coaches. Everyone in the gym is so welcoming and it really feels like one big family. As my passion for the sport grew, I wanted to help other gymnasts in the same way my coaches helped me, so I decided to start coaching. Ever since then, I have loved working with gymnasts and seeing them progress.",
   },
   {
+    id: "rebecca",
+    name: "Rebecca",
+    roleTitle: "Coach",
+    qualifications: [],
+    photoUrl: "/coaches/Rebecca.png",
+    imageWidth: 1100,
+    imageHeight: 1099,
+    bio: "I was a high-level Scottish gymnast for 12 years and had the amazing opportunity to compete at the British Championships twice during my career, and competed all over the UK and America. Gymnastics has always been a huge part of my life since I was 4, and I love sharing that passion with every gymnast I coach. I've now been coaching for 5 years and have been at Eagle for nearly 2. I enjoy helping gymnasts grow in confidence, develop new skills, and most importantly, have fun in the gym. I believe gymnastics should be an exciting, positive, and engaging environment where everyone feels encouraged to do their best and enjoy the sport. My favourite apparatus is floor because I love the artistic side of gymnastics and love helping gymnasts bring their routines to life. I also still dance outside of gymnastics, which I love to show off round the gym!",
+  },
+  {
     id: "jane",
     name: "Jane",
     roleTitle: "Coach",

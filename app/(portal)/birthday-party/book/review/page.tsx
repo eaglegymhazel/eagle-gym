@@ -1,6 +1,7 @@
 import Link from "next/link";
 import BirthdayPartyReviewClient from "./BirthdayPartyReviewClient";
 import { getBookingContext } from "@/lib/server/bookingContext";
+import { parseBirthdayPartySize } from "@/lib/birthdayPartyBookingValidation";
 import {
   parseBirthdayPartySlotId,
   calculateBirthdayPartyPrice,
@@ -57,11 +58,12 @@ export default async function BirthdayPartyReviewPage({
 
   const resolvedSearchParams = await searchParams;
   const slotId = resolvedSearchParams?.slotId?.trim() ?? "";
-  const parsedPartySize = Number.parseInt(resolvedSearchParams?.partySize?.trim() ?? "", 10);
-  const partySize = Number.isFinite(parsedPartySize) && parsedPartySize > 0 ? parsedPartySize : 0;
+  const partySize = parseBirthdayPartySize(
+    resolvedSearchParams?.partySize?.trim() ?? ""
+  );
   const parsedSlot = parseBirthdayPartySlotId(slotId);
 
-  if (!slotId || !parsedSlot || partySize < 1) {
+  if (!slotId || !parsedSlot || partySize === null) {
     return (
       <ErrorState
         title="Unable to build booking review"

@@ -47,7 +47,7 @@ export default function SiteShell({
             <div className="absolute right-16 top-1/2 -translate-y-1/2 lg:hidden">
               <LoginBadge />
             </div>
-            <div className="hidden lg:absolute lg:right-0 lg:top-1/2 lg:block lg:-translate-y-1/2">
+            <div className="hidden lg:absolute lg:-right-2 lg:top-1/2 lg:block lg:-translate-y-1/2">
               <LoginBadge />
             </div>
           </div>

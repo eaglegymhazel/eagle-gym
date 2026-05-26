@@ -17,6 +17,7 @@ import {
 export async function POST(request: NextRequest) {
   try {
     let includeChildDetails = true;
+    let forceFresh = false;
     try {
       const parsed = await request.json();
       if (
@@ -26,6 +27,15 @@ export async function POST(request: NextRequest) {
       ) {
         includeChildDetails = Boolean(
           (parsed as { includeChildDetails?: unknown }).includeChildDetails
+        );
+      }
+      if (
+        parsed &&
+        typeof parsed === "object" &&
+        "forceFresh" in parsed
+      ) {
+        forceFresh = Boolean(
+          (parsed as { forceFresh?: unknown }).forceFresh
         );
       }
     } catch {
@@ -332,7 +342,7 @@ export async function POST(request: NextRequest) {
       if (includeChildDetails && childIds.length > 0) {
         const [medicalResult, bookingsResult, badgesResult] = await Promise.allSettled([
           getMedicalInfoForChildren(childIds),
-          getActiveBookingsForAccount(account.id, childIds),
+          getActiveBookingsForAccount(account.id, childIds, { forceFresh }),
           getAssignedBadgesForChildren(childIds),
         ]);
 
@@ -360,7 +370,7 @@ export async function POST(request: NextRequest) {
         }
       } else if (includeChildDetails) {
         const bookingsResult = await Promise.allSettled([
-          getActiveBookingsForAccount(account.id, childIds),
+          getActiveBookingsForAccount(account.id, childIds, { forceFresh }),
         ]);
         if (bookingsResult[0].status === "fulfilled") {
           accountBookings = bookingsResult[0].value;

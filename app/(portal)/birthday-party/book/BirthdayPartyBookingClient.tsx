@@ -5,6 +5,13 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { AlertCircle, ArrowLeft, ArrowRight, CalendarDays, PoundSterling } from "lucide-react";
 import type { BirthdayPartyPriceBreakdown } from "@/lib/server/birthdayPartyBookings";
+import {
+  BIRTHDAY_PARTY_MAX_CHILDREN,
+  BIRTHDAY_PARTY_MIN_CHILDREN,
+  parseBirthdayPartySize,
+  getBirthdayChildMaxDate,
+  isBirthdayChildOldEnough,
+} from "@/lib/birthdayPartyBookingValidation";
 import { loadBirthdayPartyDraft, saveBirthdayPartyDraft } from "./draft";
 
 export type BirthdayPartyBookingSlotOption = {
@@ -25,6 +32,15 @@ type BirthdayPartyBookingClientProps = {
   slots: BirthdayPartyBookingSlotOption[];
   calendarSlots: BirthdayPartyBookingCalendarSlot[];
   initialPricePreview: BirthdayPartyPriceBreakdown;
+};
+
+type FieldErrors = {
+  partySizeInput?: string;
+  birthdayChildFirstName?: string;
+  birthdayChildLastName?: string;
+  birthdayChildDateOfBirth?: string;
+  healthNotes?: string;
+  specialRequirements?: string;
 };
 
 const WEEKDAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -62,7 +78,7 @@ export default function BirthdayPartyBookingClient({
 }: BirthdayPartyBookingClientProps) {
   const router = useRouter();
   const [slotId, setSlotId] = useState<string>(slots[0]?.id ?? "");
-  const [partySize, setPartySize] = useState<number>(initialPricePreview.partySize);
+  const [partySizeInput, setPartySizeInput] = useState("");
   const [birthdayChildFirstName, setBirthdayChildFirstName] = useState("");
   const [birthdayChildLastName, setBirthdayChildLastName] = useState("");
   const [birthdayChildDateOfBirth, setBirthdayChildDateOfBirth] = useState("");
@@ -70,6 +86,7 @@ export default function BirthdayPartyBookingClient({
   const [specialRequirements, setSpecialRequirements] = useState("");
   const [additionalNotes, setAdditionalNotes] = useState("");
   const [validationError, setValidationError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
 
   useEffect(() => {
     const savedDraft = loadBirthdayPartyDraft();
@@ -78,8 +95,9 @@ export default function BirthdayPartyBookingClient({
     if (savedDraft.slotId && slots.some((slot) => slot.id === savedDraft.slotId)) {
       setSlotId(savedDraft.slotId);
     }
-    if (Number.isFinite(savedDraft.partySize) && savedDraft.partySize > 0) {
-      setPartySize(Math.max(1, Math.trunc(savedDraft.partySize)));
+    const savedPartySize = parseBirthdayPartySize(savedDraft.partySize);
+    if (savedPartySize !== null) {
+      setPartySizeInput(String(savedPartySize));
     }
     setBirthdayChildFirstName(savedDraft.birthdayChildFirstName ?? "");
     setBirthdayChildLastName(savedDraft.birthdayChildLastName ?? "");
@@ -167,10 +185,18 @@ export default function BirthdayPartyBookingClient({
   }, [calendarMonths, selectedSlot]);
 
   const activeMonth = calendarMonths[activeMonthIndex] ?? null;
+  const parsedPartySize = useMemo(
+    () => parseBirthdayPartySize(partySizeInput),
+    [partySizeInput]
+  );
+  const birthdayChildMaxDate = useMemo(() => getBirthdayChildMaxDate(), []);
 
   const pricing = useMemo(
-    () => calculatePreview(partySize || initialPricePreview.partySize),
-    [initialPricePreview.partySize, partySize]
+    () =>
+      calculatePreview(
+        parsedPartySize ?? initialPricePreview.partySize
+      ),
+    [initialPricePreview.partySize, parsedPartySize]
   );
 
   const handleContinue = () => {
@@ -179,24 +205,52 @@ export default function BirthdayPartyBookingClient({
       return;
     }
 
-    if (!Number.isFinite(partySize) || partySize < 1) {
-      setValidationError("Please enter how many children will be attending.");
-      return;
+    const nextFieldErrors: FieldErrors = {};
+
+    if (!partySizeInput.trim()) {
+      nextFieldErrors.partySizeInput = "Please populate.";
+    } else {
+      const numericPartySize = Number.parseInt(partySizeInput, 10);
+      if (numericPartySize > BIRTHDAY_PARTY_MAX_CHILDREN) {
+        nextFieldErrors.partySizeInput = `Maximum party size is ${BIRTHDAY_PARTY_MAX_CHILDREN}.`;
+      } else if (numericPartySize < BIRTHDAY_PARTY_MIN_CHILDREN) {
+        nextFieldErrors.partySizeInput = `Minimum party size is ${BIRTHDAY_PARTY_MIN_CHILDREN}.`;
+      }
     }
 
-    if (!birthdayChildFirstName.trim() || !birthdayChildLastName.trim()) {
-      setValidationError("Please enter the birthday child's first and last name.");
-      return;
+    if (!birthdayChildFirstName.trim()) {
+      nextFieldErrors.birthdayChildFirstName = "Please populate.";
+    }
+
+    if (!birthdayChildLastName.trim()) {
+      nextFieldErrors.birthdayChildLastName = "Please populate.";
     }
 
     if (!birthdayChildDateOfBirth.trim()) {
-      setValidationError("Please enter the birthday child's date of birth.");
+      nextFieldErrors.birthdayChildDateOfBirth = "Please populate.";
+    } else if (!isBirthdayChildOldEnough(birthdayChildDateOfBirth.trim())) {
+      nextFieldErrors.birthdayChildDateOfBirth = "Minimum booking age, 4 years old.";
+    }
+
+    if (!healthNotes.trim()) {
+      nextFieldErrors.healthNotes = "Please populate.";
+    }
+
+    if (!specialRequirements.trim()) {
+      nextFieldErrors.specialRequirements = "Please populate.";
+    }
+
+    if (Object.keys(nextFieldErrors).length > 0 || parsedPartySize === null) {
+      setFieldErrors(nextFieldErrors);
+      setValidationError(null);
       return;
     }
 
+    setFieldErrors({});
+
     saveBirthdayPartyDraft({
       slotId,
-      partySize: Math.max(1, Math.trunc(partySize)),
+      partySize: parsedPartySize,
       birthdayChildFirstName: birthdayChildFirstName.trim(),
       birthdayChildLastName: birthdayChildLastName.trim(),
       birthdayChildDateOfBirth: birthdayChildDateOfBirth.trim(),
@@ -207,7 +261,7 @@ export default function BirthdayPartyBookingClient({
 
     setValidationError(null);
     router.push(
-      `/birthday-party/book/review?slotId=${encodeURIComponent(slotId)}&partySize=${encodeURIComponent(String(Math.max(1, Math.trunc(partySize))))}`
+      `/birthday-party/book/review?slotId=${encodeURIComponent(slotId)}&partySize=${encodeURIComponent(String(parsedPartySize))}`
     );
   };
 
@@ -357,12 +411,21 @@ export default function BirthdayPartyBookingClient({
                 <label className="space-y-2">
                   <span className="text-sm font-semibold text-[#2E2A33]">Number of children attending</span>
                   <input
-                    type="number"
-                    min={1}
-                    value={partySize}
-                    onChange={(event) => setPartySize(Number(event.target.value))}
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    maxLength={2}
+                    value={partySizeInput}
+                    onChange={(event) => {
+                      const digitsOnly = event.target.value.replace(/\D/g, "");
+                      setPartySizeInput(digitsOnly);
+                      setFieldErrors((current) => ({ ...current, partySizeInput: undefined }));
+                    }}
                     className="h-11 w-full rounded-xl border border-[#d7c7ef] bg-white px-3 text-sm text-[#2a203c] outline-none ring-[#6e2ac0]/25 transition focus:ring-2"
                   />
+                  {fieldErrors.partySizeInput ? (
+                    <p className="text-sm font-semibold text-[#b42348]">{fieldErrors.partySizeInput}</p>
+                  ) : null}
                 </label>
 
                 <label className="space-y-2">
@@ -370,9 +433,20 @@ export default function BirthdayPartyBookingClient({
                   <input
                     type="text"
                     value={birthdayChildFirstName}
-                    onChange={(event) => setBirthdayChildFirstName(event.target.value)}
+                    onChange={(event) => {
+                      setBirthdayChildFirstName(event.target.value);
+                      setFieldErrors((current) => ({
+                        ...current,
+                        birthdayChildFirstName: undefined,
+                      }));
+                    }}
                     className="h-11 w-full rounded-xl border border-[#d7c7ef] bg-white px-3 text-sm text-[#2a203c] outline-none ring-[#6e2ac0]/25 transition focus:ring-2"
                   />
+                  {fieldErrors.birthdayChildFirstName ? (
+                    <p className="text-sm font-semibold text-[#b42348]">
+                      {fieldErrors.birthdayChildFirstName}
+                    </p>
+                  ) : null}
                 </label>
 
                 <label className="space-y-2">
@@ -380,9 +454,20 @@ export default function BirthdayPartyBookingClient({
                   <input
                     type="text"
                     value={birthdayChildLastName}
-                    onChange={(event) => setBirthdayChildLastName(event.target.value)}
+                    onChange={(event) => {
+                      setBirthdayChildLastName(event.target.value);
+                      setFieldErrors((current) => ({
+                        ...current,
+                        birthdayChildLastName: undefined,
+                      }));
+                    }}
                     className="h-11 w-full rounded-xl border border-[#d7c7ef] bg-white px-3 text-sm text-[#2a203c] outline-none ring-[#6e2ac0]/25 transition focus:ring-2"
                   />
+                  {fieldErrors.birthdayChildLastName ? (
+                    <p className="text-sm font-semibold text-[#b42348]">
+                      {fieldErrors.birthdayChildLastName}
+                    </p>
+                  ) : null}
                 </label>
 
                 <label className="space-y-2">
@@ -390,31 +475,65 @@ export default function BirthdayPartyBookingClient({
                   <input
                     type="date"
                     value={birthdayChildDateOfBirth}
-                    onChange={(event) => setBirthdayChildDateOfBirth(event.target.value)}
+                    onChange={(event) => {
+                      setBirthdayChildDateOfBirth(event.target.value);
+                      setFieldErrors((current) => ({
+                        ...current,
+                        birthdayChildDateOfBirth: undefined,
+                      }));
+                    }}
+                    max={birthdayChildMaxDate}
                     className="h-11 w-full rounded-xl border border-[#d7c7ef] bg-white px-3 text-sm text-[#2a203c] outline-none ring-[#6e2ac0]/25 transition focus:ring-2"
                   />
+                  {fieldErrors.birthdayChildDateOfBirth ? (
+                    <p className="text-sm font-semibold text-[#b42348]">
+                      {fieldErrors.birthdayChildDateOfBirth}
+                    </p>
+                  ) : null}
                 </label>
 
                 <label className="space-y-2">
                   <span className="text-sm font-semibold text-[#2E2A33]">Health or medical concerns</span>
                   <textarea
                     value={healthNotes}
-                    onChange={(event) => setHealthNotes(event.target.value)}
+                    onChange={(event) => {
+                      setHealthNotes(event.target.value);
+                      setFieldErrors((current) => ({
+                        ...current,
+                        healthNotes: undefined,
+                      }));
+                    }}
                     rows={4}
                     className="w-full rounded-xl border border-[#d7c7ef] bg-white px-3 py-3 text-sm text-[#2a203c] outline-none ring-[#6e2ac0]/25 transition focus:ring-2"
                     placeholder="Let us know about any allergies, medical conditions, or health concerns."
                   />
+                  {fieldErrors.healthNotes ? (
+                    <p className="text-sm font-semibold text-[#b42348]">
+                      {fieldErrors.healthNotes}
+                    </p>
+                  ) : null}
                 </label>
 
                 <label className="space-y-2">
                   <span className="text-sm font-semibold text-[#2E2A33]">Special requirements</span>
                   <textarea
                     value={specialRequirements}
-                    onChange={(event) => setSpecialRequirements(event.target.value)}
+                    onChange={(event) => {
+                      setSpecialRequirements(event.target.value);
+                      setFieldErrors((current) => ({
+                        ...current,
+                        specialRequirements: undefined,
+                      }));
+                    }}
                     rows={4}
                     className="w-full rounded-xl border border-[#d7c7ef] bg-white px-3 py-3 text-sm text-[#2a203c] outline-none ring-[#6e2ac0]/25 transition focus:ring-2"
                     placeholder="Accessibility requirements, support needs, or anything else we should prepare for."
                   />
+                  {fieldErrors.specialRequirements ? (
+                    <p className="text-sm font-semibold text-[#b42348]">
+                      {fieldErrors.specialRequirements}
+                    </p>
+                  ) : null}
                 </label>
 
                 <label className="space-y-2">
@@ -444,7 +563,9 @@ export default function BirthdayPartyBookingClient({
               {formatCurrency(pricing.totalAmountPence)}
             </p>
             <p className="text-[11px] text-[#6a5a86]">
-              {pricing.partySize} child{pricing.partySize === 1 ? "" : "ren"}
+              {parsedPartySize === null
+                ? "Enter the number of children attending"
+                : `${pricing.partySize} child${pricing.partySize === 1 ? "" : "ren"}`}
             </p>
           </div>
 

@@ -326,172 +326,178 @@ export async function getActiveBookingsForChildren(
   return getActiveBookingsForChildrenCached(key)
 }
 
-const getActiveBookingsForAccountCached = unstable_cache(
-  async (
-    accountId: string,
-    childIdsKey: string
-  ): Promise<AccountBookingSummary[]> => {
-    if (!accountId) {
-      return []
-    }
+async function getActiveBookingsForAccountFresh(
+  accountId: string,
+  childIdsKey: string
+): Promise<AccountBookingSummary[]> {
+  if (!accountId) {
+    return []
+  }
 
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-    const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
-    const serviceRole = createServerClient(
-      supabaseUrl!,
-      supabaseServiceRoleKey!,
-      {
-        cookies: {
-          getAll() {
-            return []
-          },
-          setAll() {},
+  const serviceRole = createServerClient(
+    supabaseUrl!,
+    supabaseServiceRoleKey!,
+    {
+      cookies: {
+        getAll() {
+          return []
         },
-      }
-    )
-
-    const childIds = childIdsKey ? childIdsKey.split(',') : []
-    const bookings: AccountBookingSummary[] = []
-
-    if (childIds.length > 0) {
-      const { data, error } = await serviceRole
-        .from('Bookings')
-        .select(
-          'childId,status,created_at,bookingType,stripeSubscriptionId,Classes(className,weekday,startTime,endTime,durationMinutes,isCompetitionClass)'
-        )
-        .in('childId', childIds)
-        .eq('status', 'active')
-
-      if (error) {
-        throw new Error(error.message)
-      }
-
-      const { data: summerCampData, error: summerCampError } = await serviceRole
-        .from('SummerCampBookings')
-        .select(
-          'childId:"childId",campDate:"campDate",status,created_at,slug,SummerCampSessions!inner(title,startTime:"startTime",endTime:"endTime")'
-        )
-        .in('childId', childIds)
-        .eq('status', 'active')
-
-      if (summerCampError) {
-        throw new Error(summerCampError.message)
-      }
-
-      ;(data ?? []).forEach((row) => {
-        const cls = Array.isArray(row.Classes) ? row.Classes[0] : row.Classes
-        const programme =
-          row.bookingType === 'competition' || cls?.isCompetitionClass === true
-            ? 'competition'
-            : 'recreational'
-        bookings.push({
-          bookingKind: 'class',
-          childId: row.childId,
-          programme,
-          stripeSubscriptionId: row.stripeSubscriptionId?.trim() ?? null,
-          className: cls?.className ?? null,
-          weekday: cls?.weekday ?? null,
-          startTime: cls?.startTime ?? null,
-          endTime: cls?.endTime ?? null,
-          durationMinutes:
-            typeof cls?.durationMinutes === 'number'
-              ? cls.durationMinutes
-              : cls?.durationMinutes ?? null,
-          campDate: null,
-          createdAt: row.created_at ?? null,
-          status: row.status ?? null,
-          partySize: null,
-          totalAmountPence: null,
-          birthdayChildFirstName: null,
-          birthdayChildLastName: null,
-          birthdayChildDateOfBirth: null,
-          slotDate: null,
-        })
-      })
-
-      ;(summerCampData ?? []).forEach((row) => {
-        const session = Array.isArray(row.SummerCampSessions)
-          ? row.SummerCampSessions[0]
-          : row.SummerCampSessions
-        bookings.push({
-          bookingKind: 'summer-camp',
-          childId: row.childId,
-          programme: null,
-          stripeSubscriptionId: null,
-          className: session?.title ?? 'Summer Camp 2026',
-          weekday: null,
-          startTime: session?.startTime ?? null,
-          endTime: session?.endTime ?? null,
-          durationMinutes: null,
-          campDate: row.campDate ?? null,
-          createdAt: row.created_at ?? null,
-          status: row.status ?? null,
-          partySize: null,
-          totalAmountPence: null,
-          birthdayChildFirstName: null,
-          birthdayChildLastName: null,
-          birthdayChildDateOfBirth: null,
-          slotDate: null,
-        })
-      })
+        setAll() {},
+      },
     }
+  )
 
-    const { data: birthdayPartyData, error: birthdayPartyError } = await serviceRole
-      .from('BirthdayPartyBookings')
+  const childIds = childIdsKey ? childIdsKey.split(',') : []
+  const bookings: AccountBookingSummary[] = []
+
+  if (childIds.length > 0) {
+    const { data, error } = await serviceRole
+      .from('Bookings')
       .select(
-        'status,created_at,slot_date,start_time,end_time,partySize,totalAmountPence,birthdayChildFirstName,birthdayChildLastName,birthdayChildDateOfBirth'
+        'childId,status,created_at,bookingType,stripeSubscriptionId,Classes(className,weekday,startTime,endTime,durationMinutes,isCompetitionClass)'
       )
-      .eq('accountId', accountId)
-      .in('status', ['pending', 'paid', 'confirmed'])
+      .in('childId', childIds)
+      .eq('status', 'active')
 
-    if (birthdayPartyError) {
-      throw new Error(birthdayPartyError.message)
+    if (error) {
+      throw new Error(error.message)
     }
 
-    ;(birthdayPartyData ?? []).forEach((row) => {
+    const { data: summerCampData, error: summerCampError } = await serviceRole
+      .from('SummerCampBookings')
+      .select(
+        'childId:"childId",campDate:"campDate",status,created_at,slug,SummerCampSessions!inner(title,startTime:"startTime",endTime:"endTime")'
+      )
+      .in('childId', childIds)
+      .eq('status', 'active')
+
+    if (summerCampError) {
+      throw new Error(summerCampError.message)
+    }
+
+    ;(data ?? []).forEach((row) => {
+      const cls = Array.isArray(row.Classes) ? row.Classes[0] : row.Classes
+      const programme =
+        row.bookingType === 'competition' || cls?.isCompetitionClass === true
+          ? 'competition'
+          : 'recreational'
       bookings.push({
-        bookingKind: 'birthday-party',
-        childId: null,
-        programme: null,
-        stripeSubscriptionId: null,
-        className: 'Birthday Party',
-        weekday: null,
-        startTime: row.start_time ?? null,
-        endTime: row.end_time ?? null,
-        durationMinutes: null,
+        bookingKind: 'class',
+        childId: row.childId,
+        programme,
+        stripeSubscriptionId: row.stripeSubscriptionId?.trim() ?? null,
+        className: cls?.className ?? null,
+        weekday: cls?.weekday ?? null,
+        startTime: cls?.startTime ?? null,
+        endTime: cls?.endTime ?? null,
+        durationMinutes:
+          typeof cls?.durationMinutes === 'number'
+            ? cls.durationMinutes
+            : cls?.durationMinutes ?? null,
         campDate: null,
         createdAt: row.created_at ?? null,
         status: row.status ?? null,
-        partySize:
-          typeof row.partySize === 'number' ? row.partySize : row.partySize ?? null,
-        totalAmountPence:
-          typeof row.totalAmountPence === 'number'
-            ? row.totalAmountPence
-            : row.totalAmountPence ?? null,
-        birthdayChildFirstName: row.birthdayChildFirstName ?? null,
-        birthdayChildLastName: row.birthdayChildLastName ?? null,
-        birthdayChildDateOfBirth: row.birthdayChildDateOfBirth ?? null,
-        slotDate: row.slot_date ?? null,
+        partySize: null,
+        totalAmountPence: null,
+        birthdayChildFirstName: null,
+        birthdayChildLastName: null,
+        birthdayChildDateOfBirth: null,
+        slotDate: null,
       })
     })
 
-    bookings.sort((a, b) => {
-      const aDate = a.slotDate ?? a.campDate ?? a.createdAt ?? ''
-      const bDate = b.slotDate ?? b.campDate ?? b.createdAt ?? ''
-      return aDate.localeCompare(bDate)
+    ;(summerCampData ?? []).forEach((row) => {
+      const session = Array.isArray(row.SummerCampSessions)
+        ? row.SummerCampSessions[0]
+        : row.SummerCampSessions
+      bookings.push({
+        bookingKind: 'summer-camp',
+        childId: row.childId,
+        programme: null,
+        stripeSubscriptionId: null,
+        className: session?.title ?? 'Summer Camp 2026',
+        weekday: null,
+        startTime: session?.startTime ?? null,
+        endTime: session?.endTime ?? null,
+        durationMinutes: null,
+        campDate: row.campDate ?? null,
+        createdAt: row.created_at ?? null,
+        status: row.status ?? null,
+        partySize: null,
+        totalAmountPence: null,
+        birthdayChildFirstName: null,
+        birthdayChildLastName: null,
+        birthdayChildDateOfBirth: null,
+        slotDate: null,
+      })
     })
+  }
 
-    return bookings
-  },
+  const { data: birthdayPartyData, error: birthdayPartyError } = await serviceRole
+    .from('BirthdayPartyBookings')
+    .select(
+      'status,created_at,slot_date,start_time,end_time,partySize,totalAmountPence,birthdayChildFirstName,birthdayChildLastName,birthdayChildDateOfBirth'
+    )
+    .eq('accountId', accountId)
+    .in('status', ['pending', 'paid', 'confirmed'])
+
+  if (birthdayPartyError) {
+    throw new Error(birthdayPartyError.message)
+  }
+
+  ;(birthdayPartyData ?? []).forEach((row) => {
+    bookings.push({
+      bookingKind: 'birthday-party',
+      childId: null,
+      programme: null,
+      stripeSubscriptionId: null,
+      className: 'Birthday Party',
+      weekday: null,
+      startTime: row.start_time ?? null,
+      endTime: row.end_time ?? null,
+      durationMinutes: null,
+      campDate: null,
+      createdAt: row.created_at ?? null,
+      status: row.status ?? null,
+      partySize:
+        typeof row.partySize === 'number' ? row.partySize : row.partySize ?? null,
+      totalAmountPence:
+        typeof row.totalAmountPence === 'number'
+          ? row.totalAmountPence
+          : row.totalAmountPence ?? null,
+      birthdayChildFirstName: row.birthdayChildFirstName ?? null,
+      birthdayChildLastName: row.birthdayChildLastName ?? null,
+      birthdayChildDateOfBirth: row.birthdayChildDateOfBirth ?? null,
+      slotDate: row.slot_date ?? null,
+    })
+  })
+
+  bookings.sort((a, b) => {
+    const aDate = a.slotDate ?? a.campDate ?? a.createdAt ?? ''
+    const bDate = b.slotDate ?? b.campDate ?? b.createdAt ?? ''
+    return aDate.localeCompare(bDate)
+  })
+
+  return bookings
+}
+
+const getActiveBookingsForAccountCached = unstable_cache(
+  getActiveBookingsForAccountFresh,
   ['active-bookings-for-account'],
   { revalidate: 30 }
 )
 
 export async function getActiveBookingsForAccount(
   accountId: string,
-  childIds: string[]
+  childIds: string[],
+  options: { forceFresh?: boolean } = {}
 ): Promise<AccountBookingSummary[]> {
   const childIdsKey = childIds.slice().sort().join(',')
+  if (options.forceFresh) {
+    return getActiveBookingsForAccountFresh(accountId, childIdsKey)
+  }
   return getActiveBookingsForAccountCached(accountId, childIdsKey)
 }

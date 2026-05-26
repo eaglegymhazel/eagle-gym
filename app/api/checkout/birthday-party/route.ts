@@ -3,6 +3,10 @@ import { NextResponse } from "next/server";
 import { getBookingContext } from "@/lib/server/bookingContext";
 import { supabaseAdmin } from "@/lib/admin";
 import {
+  parseBirthdayPartySize,
+  isBirthdayChildOldEnough,
+} from "@/lib/birthdayPartyBookingValidation";
+import {
   parseBirthdayPartySlotId,
   calculateBirthdayPartyPrice,
   getBirthdayPartyAccountSummary,
@@ -73,13 +77,7 @@ export async function POST(req: Request) {
 
     const body = (await req.json()) as CheckoutBody;
     const slotId = normalizeText(body.slotId);
-    const partySizeRaw =
-      typeof body.partySize === "number"
-        ? body.partySize
-        : typeof body.partySize === "string"
-          ? Number.parseInt(body.partySize, 10)
-          : NaN;
-    const partySize = Number.isFinite(partySizeRaw) ? Math.max(1, Math.trunc(partySizeRaw)) : 0;
+    const partySize = parseBirthdayPartySize(body.partySize);
     const parsedSlot = parseBirthdayPartySlotId(slotId);
     const birthdayChildFirstName = normalizeText(body.birthdayChildFirstName);
     const birthdayChildLastName = normalizeText(body.birthdayChildLastName);
@@ -88,7 +86,7 @@ export async function POST(req: Request) {
     const specialRequirements = normalizeText(body.specialRequirements);
     const additionalNotes = normalizeText(body.additionalNotes);
 
-    if (!slotId || !parsedSlot || partySize < 1) {
+    if (!slotId || !parsedSlot || partySize === null) {
       return NextResponse.json({ error: "Invalid birthday party details" }, { status: 400 });
     }
 
@@ -101,6 +99,15 @@ export async function POST(req: Request) {
 
     if (Number.isNaN(Date.parse(`${birthdayChildDateOfBirth}T12:00:00Z`))) {
       return NextResponse.json({ error: "Invalid date of birth" }, { status: 400 });
+    }
+
+    if (!isBirthdayChildOldEnough(birthdayChildDateOfBirth)) {
+      return NextResponse.json(
+        {
+          error: "The birthday child must be at least 4 years old on the booking date.",
+        },
+        { status: 400 }
+      );
     }
 
     const [slot, accountSummary] = await Promise.all([

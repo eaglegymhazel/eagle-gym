@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useState } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import styles from "./account.module.css"
 import ChildrenClientPanel from "./_panels/ChildrenClientPanel"
 import ChildSelectModal from "./_components/ChildSelectModal"
@@ -242,6 +242,7 @@ function PanelSkeleton() {
 
 export default function AccountShell() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [isMobileViewport, setIsMobileViewport] = useState(false)
   const [tab, setTab] = useState<TabKey>("details")
   const [loading, setLoading] = useState(true)
@@ -269,13 +270,14 @@ export default function AccountShell() {
 
   const loadBootstrap = useCallback(async (
     includeChildDetails: boolean,
-    isActive: () => boolean
+    isActive: () => boolean,
+    forceFresh = false
   ) => {
     const res = await fetch("/api/account/bootstrap", {
       method: "POST",
       credentials: "include",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ includeChildDetails }),
+      body: JSON.stringify({ includeChildDetails, forceFresh }),
     })
 
     if (res.status === 401) {
@@ -297,6 +299,17 @@ export default function AccountShell() {
   }, [router])
 
   useEffect(() => {
+    const requestedTab = searchParams.get("tab")
+    if (
+      requestedTab === "details" ||
+      requestedTab === "children" ||
+      requestedTab === "bookings"
+    ) {
+      setTab(requestedTab)
+    }
+  }, [searchParams])
+
+  useEffect(() => {
     const media = window.matchMedia("(max-width: 900px)")
     const syncViewport = () => setIsMobileViewport(media.matches)
     syncViewport()
@@ -310,7 +323,9 @@ export default function AccountShell() {
       setLoading(true)
       setError(null)
       try {
-        const json = await loadBootstrap(false, () => isActive)
+        const forceFresh = searchParams.get("refresh") === "bookings"
+        const includeChildDetails = forceFresh || searchParams.get("tab") === "bookings"
+        const json = await loadBootstrap(includeChildDetails, () => isActive, forceFresh)
         if (json) {
           setData(json)
         }
@@ -325,7 +340,7 @@ export default function AccountShell() {
     return () => {
       isActive = false
     }
-  }, [loadBootstrap])
+  }, [loadBootstrap, searchParams])
 
   const rows = useMemo<DetailRow[]>(() => {
     if (!data || "error" in data || data.status !== "existing" || !data.account) {
