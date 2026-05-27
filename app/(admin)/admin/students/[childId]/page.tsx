@@ -39,6 +39,7 @@ type ActiveBookingRow = {
   classId: string | null;
   bookingType: string | null;
   created_at: string | null;
+  stripeCustomerId: string | null;
   Classes:
     | {
         className: string | null;
@@ -139,6 +140,10 @@ function displayText(value: string | null | undefined): string {
   return value?.trim() ? value : "Not provided";
 }
 
+function getStripeCustomerUrl(customerId: string): string {
+  return `https://dashboard.stripe.com/customers/${encodeURIComponent(customerId)}`;
+}
+
 function normalizeMedicalValue(value: string | null | undefined): string | null {
   const normalized = value?.trim();
   if (!normalized) return null;
@@ -195,7 +200,7 @@ export default async function StudentProfilePage({ params }: StudentProfilePageP
     supabaseAdmin
       .from("Bookings")
       .select(
-        "id,childId,classId,bookingType,created_at,Classes(className,weekday,startTime,endTime,durationMinutes,ageMin,ageMax,capacity)"
+        'id,childId,classId,bookingType,created_at,"stripeCustomerId",Classes(className,weekday,startTime,endTime,durationMinutes,ageMin,ageMax,capacity)'
       )
       .eq("childId", child.id)
       .eq("status", "active"),
@@ -219,6 +224,7 @@ export default async function StudentProfilePage({ params }: StudentProfilePageP
       classId: booking.classId,
       bookingType: booking.bookingType,
       createdAt: booking.created_at ?? null,
+      stripeCustomerId: booking.stripeCustomerId?.trim() || null,
       className: cls?.className ?? null,
       weekday: cls?.weekday ?? null,
       startTime: cls?.startTime ?? null,
@@ -231,6 +237,8 @@ export default async function StudentProfilePage({ params }: StudentProfilePageP
     };
   });
   const account = (accountResult.data as AccountRow | null) ?? null;
+  const stripeCustomerId =
+    bookings.find((booking) => booking.stripeCustomerId)?.stripeCustomerId ?? null;
   const studentName = `${displayText(child.firstName)} ${displayText(child.lastName)}`.trim();
   const recreationalMoveClassIds = recreationalClasses.map((item) => item.id);
   const recreationalBookingCounts = await getActiveBookingCountsForClassIds(recreationalMoveClassIds);
@@ -408,6 +416,20 @@ export default async function StudentProfilePage({ params }: StudentProfilePageP
                 <dd className="mt-1 text-sm font-medium text-[#221833] break-all">
                   {displayText(account?.email)}
                 </dd>
+              </div>
+              <div className="sm:col-span-2 pt-2">
+                {stripeCustomerId ? (
+                  <a
+                    href={getStripeCustomerUrl(stripeCustomerId)}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex min-h-10 items-center justify-center rounded-lg border border-[#d9ccef] bg-[#faf7ff] px-4 text-sm font-semibold text-[#5b2ca7] transition hover:border-[#cbb6ea] hover:bg-[#f4eeff] hover:text-[#49228c]"
+                  >
+                    View Stripe customer
+                  </a>
+                ) : (
+                  <p className="text-sm text-[#6c607d]">Stripe customer not available.</p>
+                )}
               </div>
             </dl>
           </section>

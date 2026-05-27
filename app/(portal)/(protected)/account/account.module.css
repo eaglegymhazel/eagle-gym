@@ -357,16 +357,30 @@
 .accountBookingsGrid {
   display: grid;
   gap: 12px;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  grid-template-columns: 1fr;
 }
 
 .accountBookingCard {
   display: grid;
-  gap: 10px;
+  gap: 14px;
   padding: 16px 18px;
   border: 1px solid rgba(108, 53, 195, 0.14);
   border-radius: 14px;
   background: #ffffff;
+  width: 100%;
+}
+
+.accountBookingIntro {
+  display: grid;
+  gap: 6px;
+  align-content: start;
+}
+
+.accountBookingDetails {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  align-content: start;
 }
 
 .accountBookingType {
@@ -382,6 +396,18 @@
   font-size: 18px;
   font-weight: 700;
   color: #1f1a25;
+}
+
+.accountBookingChildName {
+  color: #143271;
+  font-weight: 900;
+  letter-spacing: -0.01em;
+  display: inline-block;
+}
+
+.accountBookingTitle .accountBookingChildName {
+  font-size: 20px;
+  line-height: 1.1;
 }
 
 .accountBookingPrimary {
@@ -407,7 +433,21 @@
 
 .accountBookingMeta {
   display: grid;
-  gap: 2px;
+  gap: 4px;
+}
+
+.accountBookingMeta span:last-child {
+  color: #1f1a25;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+.accountBookingMeta span.accountBookingChildName {
+  color: #143271;
+  font-size: 17px;
+  font-weight: 800;
 }
 
 .accountBookingMetaLabel {
@@ -416,6 +456,14 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.08em;
+}
+
+@media (min-width: 901px) {
+  .accountBookingCard {
+    grid-template-columns: minmax(230px, 300px) minmax(0, 1fr);
+    gap: 12px 24px;
+    align-items: start;
+  }
 }
 
 .detailRow {
@@ -1534,6 +1582,14 @@
   }
   .accountBookingsGrid {
     grid-template-columns: 1fr;
+  }
+  .accountBookingCard {
+    gap: 12px;
+    padding: 14px 16px;
+  }
+  .accountBookingDetails {
+    grid-template-columns: 1fr;
+    gap: 10px;
   }
   .childButton {
     padding: 14px 14px 13px 16px;

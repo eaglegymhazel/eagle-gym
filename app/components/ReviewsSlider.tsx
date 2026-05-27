@@ -37,7 +37,7 @@ export default function ReviewsSlider() {
           <p className="text-sm font-bold uppercase tracking-[0.08em] text-[#6c35c3]">
             Testimonials
           </p>
-          <h2 className="mt-3 text-[clamp(32px,3.4vw,48px)] font-extrabold leading-tight tracking-[-0.02em] text-[#2E2A33]">
+          <h2 className="mt-3 text-[clamp(32px,3.4vw,48px)] font-extrabold leading-tight tracking-[-0.02em] text-[#143271]">
             Families who train with us
           </h2>
         </div>

@@ -136,8 +136,19 @@ export default function SummerCampBookingClient({
               Back to account
             </Link>
           </div>
-          <div className="pt-1">
-            <div className="h-[0.5px] w-full bg-black/20" />
+          <div className="pl-4 pt-3 sm:pt-5">
+            <div className="max-w-4xl border-b border-[#d9cdef] pb-4">
+              <p className="text-sm leading-7 text-[#2E2A33]/76 sm:text-[15px]">
+                Our Summer Camps run from 6th July to 31st July, from 10am-3pm
+                each day, and are open to children aged 4 and up. Camps are
+                designed to keep children active, engaged, and having fun
+                throughout the summer in a safe and supportive environment.
+                Each day includes gymnastics, games, skill-based activities,
+                and plenty of opportunities to build confidence, coordination,
+                fitness, and friendships. Children should bring a packed lunch
+                each day.
+              </p>
+            </div>
           </div>
         </header>
 
@@ -158,55 +169,58 @@ export default function SummerCampBookingClient({
         ) : null}
 
         <div className="space-y-4">
-            <section className="rounded-2xl border border-[#e7e1f1] bg-white p-5 shadow-[0_10px_24px_-20px_rgba(34,24,56,0.36)] sm:p-6">
-              <div className="grid gap-3 sm:grid-cols-3">
-                <div className="rounded-2xl border border-[#e5d8f4] bg-[#fcf9ff] p-4">
-                  <div className="flex items-start gap-3">
-                    <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#f3ebff] text-[#6c35c3]">
-                      <CalendarDays className="h-4 w-4" aria-hidden="true" />
-                    </span>
-                    <div className="space-y-1">
-                      <p className="text-xs font-black uppercase tracking-[0.12em] text-[#6c35c3]">
-                        Age Group
-                      </p>
-                      <p className="text-sm font-semibold text-[#2E2A33]">
-                        Ages 4 and up.
-                      </p>
-                    </div>
+            <section className="rounded-[1.75rem] border border-[#e7e1f1] bg-white px-4 py-3 shadow-[0_16px_34px_-30px_rgba(34,24,56,0.2)] sm:px-5 sm:py-4">
+              <div className="grid divide-y divide-[#ece3f4] sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+                <article className="flex items-center gap-4 px-2 py-4 sm:px-4 sm:py-3">
+                  <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-[#e5d8f4] bg-[#faf7ff] text-[#6c35c3]">
+                    <CalendarDays className="h-4 w-4" aria-hidden="true" />
+                  </span>
+                  <div className="min-w-0">
+                    <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#6c35c3]">
+                      Age Group
+                    </p>
+                    <p className="mt-1 text-base font-black tracking-tight text-[#1f1a25]">
+                      Ages 4 and up
+                    </p>
+                    <p className="mt-1 text-sm leading-6 text-[#2E2A33]/68">
+                      Suitable for children aged four and above.
+                    </p>
                   </div>
-                </div>
+                </article>
 
-                <div className="rounded-2xl border border-[#e5d8f4] bg-[#fcf9ff] p-4">
-                  <div className="flex items-start gap-3">
-                    <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#fff0f3] text-[#b42348]">
-                      <UtensilsCrossed className="h-4 w-4" aria-hidden="true" />
-                    </span>
-                    <div className="space-y-1">
-                      <p className="text-xs font-black uppercase tracking-[0.12em] text-[#b42348]">
-                        Packed Lunch
-                      </p>
-                      <p className="text-sm font-semibold text-[#2E2A33]">
-                        Children must bring a packed lunch each day.
-                      </p>
-                    </div>
+                <article className="flex items-center gap-4 px-2 py-4 sm:px-4 sm:py-3">
+                  <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-[#f1d7df] bg-[#fff8fa] text-[#b42348]">
+                    <UtensilsCrossed className="h-4 w-4" aria-hidden="true" />
+                  </span>
+                  <div className="min-w-0">
+                    <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#b42348]">
+                      Packed Lunch
+                    </p>
+                    <p className="mt-1 text-base font-black tracking-tight text-[#1f1a25]">
+                      Bring lunch each day
+                    </p>
+                    <p className="mt-1 text-sm leading-6 text-[#2E2A33]/68">
+                      Children should arrive with a packed lunch and drinks.
+                    </p>
                   </div>
-                </div>
+                </article>
 
-                <div className="rounded-2xl border border-[#e5d8f4] bg-[#fcf9ff] p-4">
-                  <div className="flex items-start gap-3">
-                    <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#eef6ff] text-[#2459a6]">
-                      <Clock3 className="h-4 w-4" aria-hidden="true" />
-                    </span>
-                    <div className="space-y-1">
-                      <p className="text-xs font-black uppercase tracking-[0.12em] text-[#2459a6]">
-                        Camp Hours
-                      </p>
-                      <p className="text-sm font-semibold text-[#2E2A33]">
-                        Each camp day runs from 10am to 3pm.
-                      </p>
-                    </div>
+                <article className="flex items-center gap-4 px-2 py-4 sm:px-4 sm:py-3">
+                  <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-[#dce8f8] bg-[#f7fbff] text-[#2459a6]">
+                    <Clock3 className="h-4 w-4" aria-hidden="true" />
+                  </span>
+                  <div className="min-w-0">
+                    <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#2459a6]">
+                      Camp Hours
+                    </p>
+                    <p className="mt-1 text-base font-black tracking-tight text-[#1f1a25]">
+                      10am to 3pm
+                    </p>
+                    <p className="mt-1 text-sm leading-6 text-[#2E2A33]/68">
+                      Each camp day runs from 10am until 3pm.
+                    </p>
                   </div>
-                </div>
+                </article>
               </div>
             </section>
 

@@ -159,6 +159,16 @@ const WEEKDAY_ORDER = new Map([
   ["Sunday", 7],
 ])
 
+const JS_DAY_TO_WEEKDAY = [
+  "Sunday",
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+] as const
+
 const sanitizeEditableValue = (field: keyof EditableFields, value: string) => {
   if (field === "accFirstName" || field === "accLastName") {
     return value.replace(/[^A-Za-z]/g, "")
@@ -207,12 +217,46 @@ const formatDateOfBirth = (value: string | null) => {
   }).format(date)
 }
 
+const parseTimeToMinutes = (value: string | null) => {
+  if (!value) return Number.MAX_SAFE_INTEGER
+  const [hoursRaw, minutesRaw] = value.split(":")
+  const hours = Number.parseInt(hoursRaw ?? "", 10)
+  const minutes = Number.parseInt(minutesRaw ?? "", 10)
+  if (Number.isNaN(hours) || Number.isNaN(minutes)) return Number.MAX_SAFE_INTEGER
+  return hours * 60 + minutes
+}
+
+const getNextClassOccurrenceSortValue = (booking: BookingSummary) => {
+  const weekday = booking.weekday?.trim() ?? ""
+  const targetWeekday = WEEKDAY_ORDER.get(weekday)
+  if (!targetWeekday) return Number.MAX_SAFE_INTEGER
+
+  const now = new Date()
+  const todayWeekday = WEEKDAY_ORDER.get(JS_DAY_TO_WEEKDAY[now.getDay()]) ?? 1
+  const nowMinutes = now.getHours() * 60 + now.getMinutes()
+  const classMinutes = parseTimeToMinutes(booking.startTime)
+  let dayOffset = targetWeekday - todayWeekday
+
+  if (dayOffset < 0) {
+    dayOffset += 7
+  } else if (dayOffset === 0 && classMinutes <= nowMinutes) {
+    dayOffset = 7
+  }
+
+  return dayOffset * 1440 + classMinutes
+}
+
 const formatPaidAmount = (value: number | null, currency = "GBP") => {
   if (typeof value !== "number") return null
   return new Intl.NumberFormat("en-GB", {
     style: "currency",
     currency: currency.toUpperCase(),
   }).format(value / 100)
+}
+
+const formatTimeRange = (startTime: string | null, endTime: string | null) => {
+  if (startTime && endTime) return `${startTime}-${endTime}`
+  return startTime ?? endTime ?? "-"
 }
 
 const formatSubscriptionStatus = (value: string | null) => {
@@ -394,11 +438,11 @@ export default function AccountShell() {
     })
 
     grouped.classes.sort((a, b) => {
-      const aOrder = WEEKDAY_ORDER.get(a.weekday ?? "") ?? 99
-      const bOrder = WEEKDAY_ORDER.get(b.weekday ?? "") ?? 99
+      const aOrder = getNextClassOccurrenceSortValue(a)
+      const bOrder = getNextClassOccurrenceSortValue(b)
       if (aOrder !== bOrder) return aOrder - bOrder
-      return `${a.startTime ?? ""}${a.className ?? ""}`.localeCompare(
-        `${b.startTime ?? ""}${b.className ?? ""}`
+      return `${a.weekday ?? ""}${a.startTime ?? ""}${a.className ?? ""}`.localeCompare(
+        `${b.weekday ?? ""}${b.startTime ?? ""}${b.className ?? ""}`
       )
     })
 
@@ -874,25 +918,38 @@ export default function AccountShell() {
                                   key={`class-${booking.childId ?? "unknown"}-${booking.className ?? "class"}-${index}`}
                                   className={styles.accountBookingCard}
                                 >
-                                  <div className={styles.accountBookingType}>
-                                    {booking.programme === "competition"
-                                      ? "Competition booking"
-                                      : "Recreational booking"}
+                                  <div className={styles.accountBookingIntro}>
+                                    <div className={styles.accountBookingType}>
+                                      {booking.programme === "competition"
+                                        ? "Competition booking"
+                                        : "Recreational booking"}
+                                    </div>
+                                    <h3 className={styles.accountBookingTitle}>
+                                      <span className={styles.accountBookingChildName}>
+                                        {booking.childId ? childNameById.get(booking.childId) ?? "Child" : "Child"}
+                                      </span>
+                                    </h3>
+                                    <div className={styles.accountBookingPrimary}>
+                                      {booking.className ?? "Class booking"}
+                                    </div>
                                   </div>
-                                  <h3 className={styles.accountBookingTitle}>
-                                    {booking.childId ? childNameById.get(booking.childId) ?? "Child" : "Child"}
-                                  </h3>
-                                  <div className={styles.accountBookingPrimary}>
-                                    {[booking.weekday, booking.startTime && booking.endTime ? `${booking.startTime}-${booking.endTime}` : booking.startTime ?? booking.endTime]
-                                      .filter(Boolean)
-                                      .join(" | ") || "-"}
-                                  </div>
-                                  <div className={styles.accountBookingSecondary}>
-                                    <span>
-                                      {booking.durationMinutes != null
-                                        ? `${booking.durationMinutes} minutes`
-                                        : "-"}
-                                    </span>
+                                  <div className={styles.accountBookingDetails}>
+                                    <div className={styles.accountBookingMeta}>
+                                      <span className={styles.accountBookingMetaLabel}>Day</span>
+                                      <span>{booking.weekday ?? "-"}</span>
+                                    </div>
+                                    <div className={styles.accountBookingMeta}>
+                                      <span className={styles.accountBookingMetaLabel}>Time</span>
+                                      <span>{formatTimeRange(booking.startTime, booking.endTime)}</span>
+                                    </div>
+                                    <div className={styles.accountBookingMeta}>
+                                      <span className={styles.accountBookingMetaLabel}>Duration</span>
+                                      <span>
+                                        {booking.durationMinutes != null
+                                          ? `${booking.durationMinutes} minutes`
+                                          : "-"}
+                                      </span>
+                                    </div>
                                   </div>
                                 </article>
                               ))}
@@ -912,39 +969,43 @@ export default function AccountShell() {
                                   key={`${billing.programme}-${billing.subscriptionId}`}
                                   className={styles.accountBookingCard}
                                 >
-                                  <div className={styles.accountBookingType}>
-                                    {billing.programme === "competition"
-                                      ? "Competition billing"
-                                      : "Recreational billing"}
+                                  <div className={styles.accountBookingIntro}>
+                                    <div className={styles.accountBookingType}>
+                                      {billing.programme === "competition"
+                                        ? "Competition billing"
+                                        : "Recreational billing"}
+                                    </div>
+                                    <h3 className={styles.accountBookingTitle}>
+                                      {billing.programme === "competition"
+                                        ? "Competition subscription"
+                                        : "Recreational subscription"}
+                                    </h3>
                                   </div>
-                                  <h3 className={styles.accountBookingTitle}>
-                                    {billing.programme === "competition"
-                                      ? "Competition subscription"
-                                      : "Recreational subscription"}
-                                  </h3>
-                                  <div className={styles.accountBookingMeta}>
-                                    <span className={styles.accountBookingMetaLabel}>Subscription status</span>
-                                    <span>{formatSubscriptionStatus(billing.subscriptionStatus)}</span>
-                                  </div>
-                                  <div className={styles.accountBookingMeta}>
-                                    <span className={styles.accountBookingMetaLabel}>Latest payment</span>
-                                    <span>{formatPaidAmount(billing.latestInvoiceAmountPence, billing.currency ?? "GBP") ?? "-"}</span>
-                                  </div>
-                                  <div className={styles.accountBookingMeta}>
-                                    <span className={styles.accountBookingMetaLabel}>Latest invoice</span>
-                                    <span>{formatAccountDate(billing.latestInvoiceDate)}</span>
-                                  </div>
-                                  <div className={styles.accountBookingMeta}>
-                                    <span className={styles.accountBookingMetaLabel}>Paid on</span>
-                                    <span>{formatAccountDate(billing.latestInvoicePaidAt)}</span>
-                                  </div>
-                                  <div className={styles.accountBookingMeta}>
-                                    <span className={styles.accountBookingMetaLabel}>Next payment</span>
-                                    <span>{formatPaidAmount(billing.nextInvoiceAmountPence, billing.currency ?? "GBP") ?? "-"}</span>
-                                  </div>
-                                  <div className={styles.accountBookingMeta}>
-                                    <span className={styles.accountBookingMetaLabel}>Next invoice date</span>
-                                    <span>{formatAccountDate(billing.nextInvoiceDate)}</span>
+                                  <div className={styles.accountBookingDetails}>
+                                    <div className={styles.accountBookingMeta}>
+                                      <span className={styles.accountBookingMetaLabel}>Subscription status</span>
+                                      <span>{formatSubscriptionStatus(billing.subscriptionStatus)}</span>
+                                    </div>
+                                    <div className={styles.accountBookingMeta}>
+                                      <span className={styles.accountBookingMetaLabel}>Latest payment</span>
+                                      <span>{formatPaidAmount(billing.latestInvoiceAmountPence, billing.currency ?? "GBP") ?? "-"}</span>
+                                    </div>
+                                    <div className={styles.accountBookingMeta}>
+                                      <span className={styles.accountBookingMetaLabel}>Latest invoice</span>
+                                      <span>{formatAccountDate(billing.latestInvoiceDate)}</span>
+                                    </div>
+                                    <div className={styles.accountBookingMeta}>
+                                      <span className={styles.accountBookingMetaLabel}>Paid on</span>
+                                      <span>{formatAccountDate(billing.latestInvoicePaidAt)}</span>
+                                    </div>
+                                    <div className={styles.accountBookingMeta}>
+                                      <span className={styles.accountBookingMetaLabel}>Next payment</span>
+                                      <span>{formatPaidAmount(billing.nextInvoiceAmountPence, billing.currency ?? "GBP") ?? "-"}</span>
+                                    </div>
+                                    <div className={styles.accountBookingMeta}>
+                                      <span className={styles.accountBookingMetaLabel}>Next invoice date</span>
+                                      <span>{formatAccountDate(billing.nextInvoiceDate)}</span>
+                                    </div>
                                   </div>
                                 </article>
                               ))}
@@ -964,25 +1025,27 @@ export default function AccountShell() {
                                   key={`camp-${booking.childId ?? "unknown"}-${booking.campDate ?? "camp"}-${index}`}
                                   className={styles.accountBookingCard}
                                 >
-                                  <div className={styles.accountBookingType}>Summer camp</div>
-                                  <h3 className={styles.accountBookingTitle}>
-                                    {booking.className ?? "Summer Camp"}
-                                  </h3>
-                                  <div className={styles.accountBookingMeta}>
-                                    <span className={styles.accountBookingMetaLabel}>Booked for</span>
-                                    <span>{booking.childId ? childNameById.get(booking.childId) ?? "Child" : "Child"}</span>
+                                  <div className={styles.accountBookingIntro}>
+                                    <div className={styles.accountBookingType}>Summer camp</div>
+                                    <h3 className={styles.accountBookingTitle}>
+                                      {booking.className ?? "Summer Camp"}
+                                    </h3>
                                   </div>
-                                  <div className={styles.accountBookingMeta}>
-                                    <span className={styles.accountBookingMetaLabel}>Date</span>
-                                    <span>{formatAccountDate(booking.campDate)}</span>
-                                  </div>
-                                  <div className={styles.accountBookingMeta}>
-                                    <span className={styles.accountBookingMetaLabel}>Time</span>
-                                    <span>
-                                      {booking.startTime && booking.endTime
-                                        ? `${booking.startTime}-${booking.endTime}`
-                                        : booking.startTime ?? booking.endTime ?? "-"}
-                                    </span>
+                                  <div className={styles.accountBookingDetails}>
+                                    <div className={styles.accountBookingMeta}>
+                                      <span className={styles.accountBookingMetaLabel}>Booked for</span>
+                                      <span className={styles.accountBookingChildName}>
+                                        {booking.childId ? childNameById.get(booking.childId) ?? "Child" : "Child"}
+                                      </span>
+                                    </div>
+                                    <div className={styles.accountBookingMeta}>
+                                      <span className={styles.accountBookingMetaLabel}>Date</span>
+                                      <span>{formatAccountDate(booking.campDate)}</span>
+                                    </div>
+                                    <div className={styles.accountBookingMeta}>
+                                      <span className={styles.accountBookingMetaLabel}>Time</span>
+                                      <span>{formatTimeRange(booking.startTime, booking.endTime)}</span>
+                                    </div>
                                   </div>
                                 </article>
                               ))}
@@ -1007,27 +1070,34 @@ export default function AccountShell() {
                                     key={`birthday-${booking.slotDate ?? "party"}-${index}`}
                                     className={styles.accountBookingCard}
                                   >
-                                    <div className={styles.accountBookingType}>Birthday party</div>
-                                    <h3 className={styles.accountBookingTitle}>{childName}</h3>
-                                    <div className={styles.accountBookingPrimary}>
-                                      {formatAccountDate(booking.slotDate)}
+                                    <div className={styles.accountBookingIntro}>
+                                      <div className={styles.accountBookingType}>Birthday party</div>
+                                      <h3 className={styles.accountBookingTitle}>{childName}</h3>
+                                      <div className={styles.accountBookingPrimary}>
+                                        {formatAccountDate(booking.slotDate)}
+                                      </div>
                                     </div>
-                                    <div className={styles.accountBookingSecondary}>
-                                      <span>
-                                        {booking.startTime && booking.endTime
-                                          ? `${booking.startTime}-${booking.endTime}`
-                                          : booking.startTime ?? booking.endTime ?? "-"}
-                                      </span>
-                                      <span>{turningAge == null ? "-" : `Turning ${turningAge}`}</span>
-                                      <span>{booking.partySize == null ? "-" : `${booking.partySize} children`}</span>
-                                    </div>
-                                    <div className={styles.accountBookingMeta}>
-                                      <span className={styles.accountBookingMetaLabel}>Date of birth</span>
-                                      <span>{formatDateOfBirth(booking.birthdayChildDateOfBirth)}</span>
-                                    </div>
-                                    <div className={styles.accountBookingMeta}>
-                                      <span className={styles.accountBookingMetaLabel}>Amount paid</span>
-                                      <span>{formatPaidAmount(booking.totalAmountPence) ?? "-"}</span>
+                                    <div className={styles.accountBookingDetails}>
+                                      <div className={styles.accountBookingMeta}>
+                                        <span className={styles.accountBookingMetaLabel}>Time</span>
+                                        <span>{formatTimeRange(booking.startTime, booking.endTime)}</span>
+                                      </div>
+                                      <div className={styles.accountBookingMeta}>
+                                        <span className={styles.accountBookingMetaLabel}>Age on the day</span>
+                                        <span>{turningAge == null ? "-" : `Turning ${turningAge}`}</span>
+                                      </div>
+                                      <div className={styles.accountBookingMeta}>
+                                        <span className={styles.accountBookingMetaLabel}>Party size</span>
+                                        <span>{booking.partySize == null ? "-" : `${booking.partySize} children`}</span>
+                                      </div>
+                                      <div className={styles.accountBookingMeta}>
+                                        <span className={styles.accountBookingMetaLabel}>Date of birth</span>
+                                        <span>{formatDateOfBirth(booking.birthdayChildDateOfBirth)}</span>
+                                      </div>
+                                      <div className={styles.accountBookingMeta}>
+                                        <span className={styles.accountBookingMetaLabel}>Amount paid</span>
+                                        <span>{formatPaidAmount(booking.totalAmountPence) ?? "-"}</span>
+                                      </div>
                                     </div>
                                   </article>
                                 )

@@ -24,8 +24,7 @@ export default function ContactPage() {
             Send a Message
           </h2>
           <p className="mt-3 text-sm leading-7 text-[#2E2A33]/78">
-            Share your child&apos;s age and experience level and we&apos;ll point you
-            to the most suitable class options.
+            If you have any questions about classes, bookings, memberships, or the club in general, please use the form below and a member of our team will get back to you as soon as possible. Whether you&apos;re looking to join, arrange a trial, or simply need more information, we&apos;re happy to help.
           </p>
           <div className="mt-5">
             <ContactForm />

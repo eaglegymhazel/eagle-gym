@@ -255,8 +255,14 @@ export default function RecreationalClassesClient({
               Back to account
             </Link>
           </div>
-          <div className="pt-1">
-            <div className="h-[0.5px] w-full bg-black/20" />
+          <div className="pl-4 pt-3 sm:pt-5">
+            <div className="max-w-4xl border-b border-[#d9cdef] pb-4">
+              <p className="text-sm leading-7 text-[#2E2A33]/76 sm:text-[15px]">
+                Select recreational classes below to book, multiple classes can
+                be selected at the same time. Price is calculated based on
+                total sessions selected.
+              </p>
+            </div>
           </div>
           {waitlistMessage ? (
             <p className="pl-4 text-sm font-semibold text-[#2a203c]">{waitlistMessage}</p>

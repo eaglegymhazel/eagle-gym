@@ -65,35 +65,27 @@ export default function SiteShell({
         <div className="h-px w-full bg-[#6c35c3]/20" />
       </div>
 
-      <main className="mt-0 w-full px-0 pt-0 pb-4">{children}</main>
+      <main className="mt-0 w-full px-0 pt-0 pb-0">{children}</main>
 
       <footer className="border-t border-black/10 bg-[#f7f2fb]">
-        <div className="mx-auto grid w-full max-w-6xl gap-5 px-4 py-5 sm:px-6 lg:grid-cols-[1fr_1fr_auto] lg:items-start lg:gap-8">
-          <div className="space-y-2">
+        <div className="flex w-full flex-col gap-4 px-4 py-5 sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:gap-6 lg:px-10 lg:py-4">
+          <div className="flex flex-col gap-1 text-sm text-[#2E2A33]/85 lg:min-w-[300px]">
             <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[#5f5177]">
               Contact
             </p>
-            <div className="space-y-1 text-sm text-[#2E2A33]/85">
-              <p>
-                Phone:{" "}
-                <a href="tel:01418401454" className="font-semibold hover:underline">
-                  0141 840 1454
-                </a>
-              </p>
-              <p>
-                Email:{" "}
-                <a href="mailto:Eaglegym1@gmail.com" className="font-semibold hover:underline">
-                  Eaglegym1@gmail.com
-                </a>
-              </p>
-            </div>
+            <p>
+              <a href="tel:01418401454" className="font-semibold hover:underline">
+                0141 840 1454
+              </a>
+              <span className="mx-2 text-[#2E2A33]/35">|</span>
+              <a href="mailto:Eaglegym1@gmail.com" className="font-semibold hover:underline">
+                Eaglegym1@gmail.com
+              </a>
+            </p>
           </div>
 
-          <div className="space-y-3">
-            <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[#5f5177]">
-              Quick links
-            </p>
-            <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm font-semibold text-[#143271]">
+          <div className="flex flex-col gap-3 lg:flex-1 lg:flex-row lg:items-center lg:justify-center lg:gap-5">
+            <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm font-semibold text-[#143271] lg:justify-center">
               <Link href="/book" className="hover:underline">
                 Book
               </Link>
@@ -111,7 +103,7 @@ export default function SiteShell({
               </Link>
               <FooterAuthLink />
             </div>
-            <div className="flex items-center gap-3 pt-1">
+            <div className="flex items-center gap-3 lg:shrink-0">
               <a
                 href="https://www.facebook.com/eaglegymnasticsacademy/"
                 target="_blank"
@@ -145,8 +137,8 @@ export default function SiteShell({
             </div>
           </div>
 
-          <div className="space-y-2 lg:justify-self-end">
-            <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[#5f5177] lg:text-right">
+          <div className="flex flex-col gap-2 lg:min-w-[280px] lg:items-end">
+            <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[#5f5177]">
               Affiliated with NGA and IGA
             </p>
             <div className="flex items-center gap-3 lg:justify-end">
@@ -171,7 +163,7 @@ export default function SiteShell({
         </div>
 
         <div className="border-t border-black/10">
-          <div className="mx-auto flex w-full max-w-6xl flex-col gap-1 px-4 py-3 text-xs text-[#2E2A33]/75 sm:px-6 md:flex-row md:items-center md:justify-between">
+          <div className="flex w-full flex-col gap-1 px-4 py-2 text-xs text-[#2E2A33]/75 sm:px-6 md:flex-row md:items-center md:justify-between lg:px-10">
             <p>© {currentYear} Eagle Gymnastics Academy. All rights reserved.</p>
             <p>Registered coaching and class operations in Paisley.</p>
           </div>

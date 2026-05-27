@@ -30,7 +30,6 @@ const timetableItems = [
 
 const bookItems = [
   { key: "book-classes", href: "/book", label: "Book Classes" },
-  { key: "summer-camp", href: "/summer-camps/2026/book", label: "Summer Camp" },
   { key: "birthday-parties", href: "/birthday-party", label: "Birthday Parties" },
 ] as const satisfies ReadonlyArray<{
   key: string;
@@ -74,11 +73,6 @@ export default function Nav({
   const resolvedBookItems = useMemo(
     () => [
       { key: "book-classes", href: isLoggedIn ? "/book" : "/login?redirect=/book", label: "Book Classes" },
-      {
-        key: "summer-camp",
-        href: isLoggedIn ? "/book" : "/login?redirect=/book",
-        label: "Summer Camp",
-      },
       { key: "birthday-parties", href: "/birthday-party", label: "Birthday Parties" },
     ],
     [isLoggedIn]

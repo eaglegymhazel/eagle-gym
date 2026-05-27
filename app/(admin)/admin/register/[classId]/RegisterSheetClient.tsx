@@ -24,6 +24,8 @@ type PaymentFollowUpStudent = {
   latestInvoiceCreated: string | null;
   nextPaymentAttempt: string | null;
   totalAmountDue: number | null;
+  subscriptionId: string | null;
+  customerId: string | null;
 };
 
 type BirthdayStudent = {
@@ -120,14 +122,6 @@ export default function RegisterSheetClient({
     setLastSavedSignature(buildRegisterSignature(students, initialStatuses, initialCollected));
   }, [classId, sessionDate, initialStatuses, initialCollected, students]);
 
-  const formatMoney = (amountMinor: number | null) => {
-    if (typeof amountMinor !== "number") return "Unknown";
-    return new Intl.NumberFormat("en-GB", {
-      style: "currency",
-      currency: "GBP",
-    }).format(amountMinor / 100);
-  };
-
   const formatDateTime = (value: string | null) => {
     if (!value) return "Unknown";
     const parsed = new Date(value);
@@ -168,6 +162,8 @@ export default function RegisterSheetClient({
 
   const totalStudents = students.length;
   const isComplete = markedCount === totalStudents && totalStudents > 0;
+  const getStripeCustomerUrl = (customerId: string) =>
+    `https://dashboard.stripe.com/customers/${encodeURIComponent(customerId)}`;
   const progressPercent =
     totalStudents > 0 ? Math.round((markedCount / totalStudents) * 100) : 0;
   const progressHue = Math.round((progressPercent / 100) * 130);
@@ -605,14 +601,16 @@ export default function RegisterSheetClient({
                 {paymentFollowUps.map((student) => (
                   <article
                     key={student.id}
-                    className="grid gap-3 bg-white px-3 py-3 md:grid-cols-[minmax(0,1fr)_220px_220px_180px]"
+                    className="grid gap-3 bg-white px-3 py-3 md:grid-cols-[minmax(0,0.85fr)_minmax(0,1fr)_180px_180px_180px]"
                   >
                     <div className="min-w-0">
                       <p className="text-[11px] uppercase tracking-[0.06em] text-[#807393]">
                         Student
                       </p>
                       <p className="mt-1 text-[15px] font-semibold text-[#201734]">{student.fullName}</p>
-                      <p className="mt-3 text-[11px] uppercase tracking-[0.06em] text-[#807393]">
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-[11px] uppercase tracking-[0.06em] text-[#807393]">
                         Parent or guardian
                       </p>
                       <p className="mt-1 text-sm font-medium text-[#2b1f3c]">
@@ -632,16 +630,28 @@ export default function RegisterSheetClient({
                       </p>
                     </div>
                     <div>
-                      <p className="text-[11px] uppercase tracking-[0.06em] text-[#807393]">Amount due</p>
-                      <p className="mt-1 text-sm font-semibold text-[#9e2242]">
-                        {formatMoney(student.totalAmountDue)}
-                      </p>
-                    </div>
-                    <div>
                       <p className="text-[11px] uppercase tracking-[0.06em] text-[#807393]">Latest invoice</p>
                       <p className="mt-1 text-sm font-medium text-[#2b1f3c]">
                         {formatDateTime(student.latestInvoiceCreated)}
                       </p>
+                    </div>
+                    <div>
+                      <p className="text-[11px] uppercase tracking-[0.06em] text-[#807393]">Stripe</p>
+                      <div className="mt-1 flex flex-col items-start gap-1.5">
+                        {student.customerId ? (
+                          <a
+                            href={getStripeCustomerUrl(student.customerId)}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex min-h-9 items-center rounded-lg border border-[#d9ccef] bg-[#faf7ff] px-3 text-xs font-semibold text-[#5b2ca7] transition hover:border-[#cbb6ea] hover:bg-[#f4eeff] hover:text-[#49228c]"
+                          >
+                            View customer
+                          </a>
+                        ) : null}
+                        {!student.customerId ? (
+                          <p className="text-sm text-[#5e536f]">Stripe links unavailable</p>
+                        ) : null}
+                      </div>
                     </div>
                   </article>
                 ))}

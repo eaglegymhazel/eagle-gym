@@ -30,6 +30,10 @@ export type DelinquentAccountFlag = {
   latestInvoiceCreated: string | null;
   nextPaymentAttempt: string | null;
   totalAmountDue: number | null;
+  recreationalSubscriptionId: string | null;
+  recreationalCustomerId: string | null;
+  competitionSubscriptionId: string | null;
+  competitionCustomerId: string | null;
 };
 
 type ProgrammeConfig = {
@@ -243,6 +247,22 @@ export async function getDelinquentAccountFlags(): Promise<Map<string, Delinquen
         .filter((value): value is string => Boolean(value))
         .sort((a, b) => Date.parse(a) - Date.parse(b))[0] ?? null;
     const totalAmountDue = matches.reduce((sum, row) => sum + (row.amountDue ?? 0), 0);
+    const recreationalMatch =
+      matches
+        .filter((row) => row.programme === "Recreational")
+        .sort((a, b) => {
+          const aTime = a.invoiceCreated ? Date.parse(a.invoiceCreated) : 0;
+          const bTime = b.invoiceCreated ? Date.parse(b.invoiceCreated) : 0;
+          return bTime - aTime;
+        })[0] ?? null;
+    const competitionMatch =
+      matches
+        .filter((row) => row.programme === "Competition")
+        .sort((a, b) => {
+          const aTime = a.invoiceCreated ? Date.parse(a.invoiceCreated) : 0;
+          const bTime = b.invoiceCreated ? Date.parse(b.invoiceCreated) : 0;
+          return bTime - aTime;
+        })[0] ?? null;
 
     flags.set(String(account.id), {
       accountId: String(account.id),
@@ -254,6 +274,10 @@ export async function getDelinquentAccountFlags(): Promise<Map<string, Delinquen
       latestInvoiceCreated,
       nextPaymentAttempt,
       totalAmountDue,
+      recreationalSubscriptionId: recreationalMatch?.subscriptionId ?? null,
+      recreationalCustomerId: recreationalMatch?.customerId ?? null,
+      competitionSubscriptionId: competitionMatch?.subscriptionId ?? null,
+      competitionCustomerId: competitionMatch?.customerId ?? null,
     });
   }
 

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, CalendarDays, CreditCard, Gift, Mail, NotebookPen, Phone, Users } from "lucide-react";
 import { getAdminBirthdayPartyBookingById } from "@/lib/server/adminBirthdayPartyBookings";
+import DeleteBirthdayPartyBookingButton from "./DeleteBirthdayPartyBookingButton";
 
 type BirthdayPartyAdminDetailPageProps = {
   params: Promise<{ bookingId: string }>;
@@ -268,18 +269,26 @@ export default async function BirthdayPartyAdminDetailPage({
               <dd className="mt-1 text-sm font-medium text-[#221833]">{formatDateTime(booking.paidAt)}</dd>
             </div>
           </dl>
-          {booking.stripePaymentIntentId ? (
-            <div className="mt-4 flex flex-wrap gap-3">
-              <a
-                href={getStripePaymentUrl(booking.stripePaymentIntentId)}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex min-h-10 items-center justify-center rounded-lg border border-[#d9ccef] bg-[#faf7ff] px-4 text-sm font-semibold text-[#5b2ca7] transition hover:border-[#cbb6ea] hover:bg-[#f4eeff] hover:text-[#49228c]"
-              >
-                View payment in Stripe
-              </a>
+          <div className="mt-6 flex flex-col gap-3 border-t border-[#eee6f6] pt-5 lg:flex-row lg:items-end lg:justify-between">
+            <div className="w-full lg:w-auto">
+              {booking.stripePaymentIntentId ? (
+                <a
+                  href={getStripePaymentUrl(booking.stripePaymentIntentId)}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex min-h-12 w-full items-center justify-center rounded-lg border border-[#d9ccef] bg-[#faf7ff] px-5 text-base font-semibold text-[#5b2ca7] transition hover:border-[#cbb6ea] hover:bg-[#f4eeff] hover:text-[#49228c] lg:w-auto"
+                >
+                  View payment in Stripe
+                </a>
+              ) : null}
             </div>
-          ) : null}
+            <DeleteBirthdayPartyBookingButton
+              bookingId={booking.id}
+              childName={booking.birthdayChildFullName}
+              slotDateLabel={formatDate(booking.slotDate)}
+              className="w-full lg:w-auto lg:min-w-[192px]"
+            />
+          </div>
         </section>
 
         <section className="px-5 py-5 md:px-6">

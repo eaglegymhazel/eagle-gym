@@ -45,6 +45,8 @@ type PaymentFollowUpStudent = {
   latestInvoiceCreated: string | null;
   nextPaymentAttempt: string | null;
   totalAmountDue: number | null;
+  subscriptionId: string | null;
+  customerId: string | null;
 };
 
 type BirthdayStudent = {
@@ -304,6 +306,14 @@ export default async function RegisterDetailPage({
         latestInvoiceCreated: flag.latestInvoiceCreated,
         nextPaymentAttempt: flag.nextPaymentAttempt,
         totalAmountDue: flag.totalAmountDue,
+        subscriptionId:
+          programme === "Competition"
+            ? flag.competitionSubscriptionId
+            : flag.recreationalSubscriptionId,
+        customerId:
+          programme === "Competition"
+            ? flag.competitionCustomerId
+            : flag.recreationalCustomerId,
       } satisfies PaymentFollowUpStudent;
     })
     .filter((row): row is PaymentFollowUpStudent => row !== null)

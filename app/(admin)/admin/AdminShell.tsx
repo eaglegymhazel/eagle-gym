@@ -120,9 +120,7 @@ export default function AdminShell({
   const [missedPaymentsStatusFilter, setMissedPaymentsStatusFilter] = useState<
     "all" | "past_due" | "unpaid"
   >("all");
-  const [missedPaymentsSort, setMissedPaymentsSort] = useState<
-    "newest" | "oldest" | "amount-desc" | "amount-asc"
-  >("newest");
+  const [missedPaymentsSort, setMissedPaymentsSort] = useState<"newest" | "oldest">("newest");
   const [waitlistActionError, setWaitlistActionError] = useState<string | null>(null);
   const [waitlistActionMessage, setWaitlistActionMessage] = useState<string | null>(null);
   const [waitlistRemovingKey, setWaitlistRemovingKey] = useState<string | null>(null);
@@ -176,27 +174,6 @@ export default function AdminShell({
     tab === "waiting";
 
   const formatWaitlistDate = (value: string) => {
-    if (!value) return "Unknown";
-    const parsed = new Date(value);
-    if (Number.isNaN(parsed.getTime())) return value;
-    return new Intl.DateTimeFormat("en-GB", {
-      year: "numeric",
-      month: "short",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-    }).format(parsed);
-  };
-
-  const formatMoney = (amountMinor: number | null, currency: string) => {
-    if (typeof amountMinor !== "number") return "Unknown";
-    return new Intl.NumberFormat("en-GB", {
-      style: "currency",
-      currency: currency || "GBP",
-    }).format(amountMinor / 100);
-  };
-
-  const formatDateTime = (value: string | null) => {
     if (!value) return "Unknown";
     const parsed = new Date(value);
     if (Number.isNaN(parsed.getTime())) return value;
@@ -284,13 +261,6 @@ export default function AdminShell({
     });
 
     rows.sort((a, b) => {
-      if (missedPaymentsSort === "amount-desc") {
-        return (b.amountDue ?? -1) - (a.amountDue ?? -1);
-      }
-      if (missedPaymentsSort === "amount-asc") {
-        return (a.amountDue ?? Number.MAX_SAFE_INTEGER) - (b.amountDue ?? Number.MAX_SAFE_INTEGER);
-      }
-
       const aTime = a.invoiceCreated ? Date.parse(a.invoiceCreated) : 0;
       const bTime = b.invoiceCreated ? Date.parse(b.invoiceCreated) : 0;
       return missedPaymentsSort === "oldest" ? aTime - bTime : bTime - aTime;
@@ -339,7 +309,6 @@ export default function AdminShell({
   const missedPaymentsSummary = useMemo(() => {
     const summary = {
       totalRows: filteredMissedPaymentsRows.length,
-      totalAmountDue: 0,
       recreationalCount: 0,
       competitionCount: 0,
       pastDueCount: 0,
@@ -348,9 +317,6 @@ export default function AdminShell({
     };
 
     filteredMissedPaymentsRows.forEach((row) => {
-      if (typeof row.amountDue === "number") {
-        summary.totalAmountDue += row.amountDue;
-      }
       if (row.programme === "Recreational") summary.recreationalCount += 1;
       if (row.programme === "Competition") summary.competitionCount += 1;
       if (row.status === "past_due") summary.pastDueCount += 1;
@@ -778,21 +744,13 @@ export default function AdminShell({
                         account/email level rather than child level.
                       </div>
 
-                      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+                      <div className="grid gap-3 md:grid-cols-1 xl:grid-cols-4">
                         <div className="rounded-xl border border-[#e6e0ee] bg-white p-4">
                           <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#6c35c3]">
                             Affected accounts
                           </p>
                           <p className="mt-2 text-2xl font-black tracking-tight text-[#24193a]">
                             {missedPaymentsSummary.affectedAccountCount}
-                          </p>
-                        </div>
-                        <div className="rounded-xl border border-[#e6e0ee] bg-white p-4">
-                          <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#6c35c3]">
-                            Total amount due
-                          </p>
-                          <p className="mt-2 text-2xl font-black tracking-tight text-[#24193a]">
-                            {formatMoney(missedPaymentsSummary.totalAmountDue, "GBP")}
                           </p>
                         </div>
                       </div>
@@ -838,16 +796,12 @@ export default function AdminShell({
                           <select
                             value={missedPaymentsSort}
                             onChange={(event) =>
-                              setMissedPaymentsSort(
-                                event.target.value as "newest" | "oldest" | "amount-desc" | "amount-asc"
-                              )
+                              setMissedPaymentsSort(event.target.value as "newest" | "oldest")
                             }
                             className="h-10 rounded-lg border border-[#d7c7ef] bg-white px-3 text-sm text-[#2a203c] outline-none ring-[#6e2ac0]/25 transition focus:ring-2"
                           >
                             <option value="newest">Newest invoice first</option>
                             <option value="oldest">Oldest invoice first</option>
-                            <option value="amount-desc">Highest amount due</option>
-                            <option value="amount-asc">Lowest amount due</option>
                           </select>
                         </div>
 
@@ -864,7 +818,6 @@ export default function AdminShell({
                               <th className="px-3 py-2 font-semibold">Account</th>
                               <th className="px-3 py-2 font-semibold">Payment status</th>
                               <th className="px-3 py-2 font-semibold">Subscription</th>
-                              <th className="px-3 py-2 font-semibold">Amount due</th>
                               <th className="px-3 py-2 font-semibold">Latest invoice</th>
                               <th className="px-3 py-2 font-semibold">Next attempt</th>
                               <th className="px-3 py-2 font-semibold">Stripe</th>
@@ -884,9 +837,6 @@ export default function AdminShell({
                                 <td className="px-3 py-3 uppercase">{row.status.replaceAll("_", " ")}</td>
                                 <td className="px-3 py-3 uppercase">
                                   {row.subscriptionState.replaceAll("_", " ")}
-                                </td>
-                                <td className="px-3 py-3">
-                                  {formatMoney(row.amountDue, row.currency)}
                                 </td>
                                 <td className="px-3 py-3">{formatDate(row.invoiceCreated)}</td>
                                 <td className="px-3 py-3">
@@ -930,7 +880,6 @@ export default function AdminShell({
                               <p className="uppercase">
                                 Subscription: {row.subscriptionState.replaceAll("_", " ")}
                               </p>
-                              <p>{formatMoney(row.amountDue, row.currency)}</p>
                               <p>Invoice: {formatDate(row.invoiceCreated)}</p>
                               <p>Next attempt: {formatDate(row.nextPaymentAttempt)}</p>
                               <div className="grid grid-cols-1 gap-2 pt-2 sm:grid-cols-2">
@@ -1282,6 +1231,7 @@ export default function AdminShell({
           </Dialog.Content>
         </Dialog.Portal>
       </Dialog.Root>
+
     </div>
   );
 }
