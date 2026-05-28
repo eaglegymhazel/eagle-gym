@@ -19,40 +19,20 @@ export function isAdminRole(role: string | null | undefined): boolean {
 
 export async function getWebAccountRoleForUser(params: {
   authUserId: string;
-  email: string | null;
 }): Promise<string | null> {
-  const { authUserId, email } = params;
+  const { authUserId } = params;
 
   const { data: byAuthUser, error: byAuthUserError } = await supabaseAdmin
     .from("web_accounts")
     .select("role")
     .eq("auth_user_id", authUserId)
-    .limit(1);
+    .maybeSingle();
 
   if (byAuthUserError) {
     throw new Error(byAuthUserError.message);
   }
 
-  const authUserRole = normalizeRole((byAuthUser as WebAccountRoleRow[] | null)?.[0]?.role);
-  if (authUserRole) {
-    return authUserRole;
-  }
-
-  if (!email) {
-    return null;
-  }
-
-  const { data: byEmail, error: byEmailError } = await supabaseAdmin
-    .from("web_accounts")
-    .select("role")
-    .eq("email", email)
-    .limit(1);
-
-  if (byEmailError) {
-    throw new Error(byEmailError.message);
-  }
-
-  return normalizeRole((byEmail as WebAccountRoleRow[] | null)?.[0]?.role);
+  return normalizeRole((byAuthUser as WebAccountRoleRow | null)?.role);
 }
 
 export async function getCurrentUserWebAccountRole(): Promise<{
@@ -98,7 +78,6 @@ export async function getCurrentUserWebAccountRole(): Promise<{
 
   const role = await getWebAccountRoleForUser({
     authUserId: data.user.id,
-    email: data.user.email ?? null,
   });
 
   return {

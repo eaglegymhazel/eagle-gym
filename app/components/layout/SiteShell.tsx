@@ -67,105 +67,116 @@ export default function SiteShell({
 
       <main className="mt-0 w-full px-0 pt-0 pb-0">{children}</main>
 
-      <footer className="border-t border-black/10 bg-[#f7f2fb]">
-        <div className="flex w-full flex-col gap-4 px-4 py-5 sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:gap-6 lg:px-10 lg:py-4">
-          <div className="flex flex-col gap-1 text-sm text-[#2E2A33]/85 lg:min-w-[300px]">
-            <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[#5f5177]">
-              Contact
-            </p>
-            <p>
-              <a href="tel:01418401454" className="font-semibold hover:underline">
-                0141 840 1454
-              </a>
-              <span className="mx-2 text-[#2E2A33]/35">|</span>
-              <a href="mailto:Eaglegym1@gmail.com" className="font-semibold hover:underline">
-                Eaglegym1@gmail.com
-              </a>
-            </p>
-          </div>
-
-          <div className="flex flex-col gap-3 lg:flex-1 lg:flex-row lg:items-center lg:justify-center lg:gap-5">
-            <div className="flex flex-wrap gap-x-4 gap-y-2 text-sm font-semibold text-[#143271] lg:justify-center">
-              <Link href="/book" className="hover:underline">
-                Book
-              </Link>
-              <Link href="/team" className="hover:underline">
-                About
-              </Link>
-              <Link href="/timetable" className="hover:underline">
-                Timetable
-              </Link>
-              <Link href="/news" className="hover:underline">
-                News and Media
-              </Link>
-              <Link href="/contact" className="hover:underline">
-                Contact Us
-              </Link>
-              <FooterAuthLink />
+      <footer className="border-t border-[#dacfe8] bg-[#f6f0f9]">
+        <div className="w-full px-4 py-8 sm:px-6 lg:px-10 lg:py-9">
+          <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)_minmax(0,0.95fr)] lg:items-start">
+            <div className="min-w-0">
+              <p className="text-[11px] font-black uppercase tracking-[0.16em] text-[#6c35c3]">
+                Eagle Gymnastics Academy
+              </p>
+              <p className="mt-3 max-w-md text-sm leading-7 text-[#2E2A33]/78">
+                Recreational classes, competition training, summer camps, and birthday parties in a safe, energetic gymnastics environment in Paisley.
+              </p>
+              <div className="mt-5 flex flex-col gap-2 text-sm font-semibold text-[#143271] sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-4 sm:gap-y-2">
+                <a href="tel:01418401454" className="hover:text-[#6c35c3] hover:underline">
+                  0141 840 1454
+                </a>
+                <a href="mailto:Eaglegym1@gmail.com" className="hover:text-[#6c35c3] hover:underline">
+                  Eaglegym1@gmail.com
+                </a>
+              </div>
             </div>
-            <div className="flex items-center gap-3 lg:shrink-0">
-              <a
-                href="https://www.facebook.com/eaglegymnasticsacademy/"
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label="Facebook"
-                className="inline-flex h-9 w-9 items-center justify-center border border-[#d9cde7] bg-white transition hover:opacity-80"
-              >
-                <Image
-                  src="/brand/socialmedia/facebook.png"
-                  alt="Facebook"
-                  width={20}
-                  height={20}
-                  className="h-5 w-5"
-                />
-              </a>
-              <a
-                href="https://www.instagram.com/eaglegymnasticsacademy/"
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label="Instagram"
-                className="inline-flex h-9 w-9 items-center justify-center border border-[#d9cde7] bg-white transition hover:opacity-80"
-              >
-                <Image
-                  src="/brand/socialmedia/instagram.png"
-                  alt="Instagram"
-                  width={20}
-                  height={20}
-                  className="h-5 w-5"
-                />
-              </a>
-            </div>
-          </div>
 
-          <div className="flex flex-col gap-2 lg:min-w-[280px] lg:items-end">
-            <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[#5f5177]">
-              Affiliated with NGA and IGA
-            </p>
-            <div className="flex items-center gap-3 lg:justify-end">
-              <Image
-                src="/brand/NGA_logo.jpg"
-                alt="National Gymnastics Association"
-                width={708}
-                height={679}
-                unoptimized
-                className="h-9 w-auto object-contain"
-              />
-              <Image
-                src="/brand/IGA_logo.jpg"
-                alt="Independent Gymnastics Association"
-                width={733}
-                height={89}
-                unoptimized
-                className="h-6 w-auto object-contain"
-              />
+            <div className="min-w-0">
+              <p className="text-[11px] font-black uppercase tracking-[0.16em] text-[#6c35c3]">
+                Quick Links
+              </p>
+              <div className="mt-4 flex flex-wrap gap-x-5 gap-y-3 text-sm font-semibold text-[#143271]">
+                <Link href="/book" className="transition hover:text-[#6c35c3]">
+                  Book
+                </Link>
+                <Link href="/team" className="transition hover:text-[#6c35c3]">
+                  About
+                </Link>
+                <Link href="/timetable" className="transition hover:text-[#6c35c3]">
+                  Timetable
+                </Link>
+                <Link href="/news" className="transition hover:text-[#6c35c3]">
+                  News and Media
+                </Link>
+                <Link href="/contact" className="transition hover:text-[#6c35c3]">
+                  Contact Us
+                </Link>
+                <FooterAuthLink />
+              </div>
+
+              <div className="mt-5 flex items-center gap-3">
+                <a
+                  href="https://www.facebook.com/eaglegymnasticsacademy/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="Facebook"
+                  className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[#d8cde6] bg-white shadow-[0_10px_22px_-18px_rgba(34,21,54,0.45)] transition hover:-translate-y-0.5 hover:border-[#c7b5e2] hover:bg-[#fbf8ff]"
+                >
+                  <Image
+                    src="/brand/socialmedia/facebook.png"
+                    alt="Facebook"
+                    width={20}
+                    height={20}
+                    className="h-5 w-5"
+                  />
+                </a>
+                <a
+                  href="https://www.instagram.com/eaglegymnasticsacademy/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="Instagram"
+                  className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-[#d8cde6] bg-white shadow-[0_10px_22px_-18px_rgba(34,21,54,0.45)] transition hover:-translate-y-0.5 hover:border-[#c7b5e2] hover:bg-[#fbf8ff]"
+                >
+                  <Image
+                    src="/brand/socialmedia/instagram.png"
+                    alt="Instagram"
+                    width={20}
+                    height={20}
+                    className="h-5 w-5"
+                  />
+                </a>
+              </div>
+            </div>
+
+            <div className="min-w-0 lg:text-right">
+              <p className="text-[11px] font-black uppercase tracking-[0.16em] text-[#6c35c3]">
+                Affiliated With
+              </p>
+              <div className="mt-4 flex flex-wrap items-center gap-3 lg:justify-end">
+                <Image
+                  src="/brand/NGA_logo.jpg"
+                  alt="National Gymnastics Association"
+                  width={708}
+                  height={679}
+                  unoptimized
+                  className="h-10 w-auto object-contain"
+                />
+                <Image
+                  src="/brand/IGA_logo.jpg"
+                  alt="Independent Gymnastics Association"
+                  width={733}
+                  height={89}
+                  unoptimized
+                  className="h-6 w-auto object-contain"
+                />
+              </div>
+              <p className="mt-4 max-w-sm text-sm leading-7 text-[#2E2A33]/72 lg:ml-auto">
+                Registered coaching and class operations in Paisley, with pathways for both recreational and competition gymnastics.
+              </p>
             </div>
           </div>
         </div>
 
-        <div className="border-t border-black/10">
-          <div className="flex w-full flex-col gap-1 px-4 py-2 text-xs text-[#2E2A33]/75 sm:px-6 md:flex-row md:items-center md:justify-between lg:px-10">
+        <div className="border-t border-[#dacfe8] bg-white/35">
+          <div className="flex w-full flex-col gap-2 px-4 py-3 text-xs text-[#2E2A33]/72 sm:px-6 md:flex-row md:items-center md:justify-between lg:px-10">
             <p>© {currentYear} Eagle Gymnastics Academy. All rights reserved.</p>
-            <p>Registered coaching and class operations in Paisley.</p>
+            <p>Affiliated with NGA and IGA.</p>
           </div>
         </div>
       </footer>

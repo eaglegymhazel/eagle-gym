@@ -44,7 +44,6 @@ export async function GET(request: NextRequest) {
 
   const role = await getWebAccountRoleForUser({
     authUserId: data.user.id,
-    email: data.user.email ?? null,
   });
 
   return applyCookies(

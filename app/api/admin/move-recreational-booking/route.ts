@@ -53,7 +53,6 @@ export async function POST(request: NextRequest) {
 
     const role = await getWebAccountRoleForUser({
       authUserId: authData.user.id,
-      email: authData.user.email ?? null,
     });
     if (!isAdminRole(role)) {
       return authContext.applyCookies(jsonError("Forbidden", 403));

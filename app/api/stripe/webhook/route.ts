@@ -676,29 +676,10 @@ export async function POST(req: Request) {
         }
       }
     } else {
-      const subscriptionId =
-        typeof session.subscription === "string"
-          ? session.subscription
-          : session.subscription?.id;
-
-      console.log("[stripe-webhook] Non-summer-camp checkout completed", {
-        subscriptionId,
+      console.warn("[stripe-webhook] Unsupported checkout.session.completed bookingType", {
         sessionId: session.id,
+        bookingType,
       });
-
-      const { error: insertTestError } = await supabaseAdmin.from("StripeTestSubs").insert([
-        {
-          subscriptionId,
-          checkoutSessionId: session.id,
-        },
-      ]);
-
-      if (insertTestError) {
-        console.error("[stripe-webhook] Failed to insert StripeTestSubs row", {
-          error: insertTestError.message,
-        });
-        return NextResponse.json({ error: insertTestError.message }, { status: 500 });
-      }
     }
   }
 

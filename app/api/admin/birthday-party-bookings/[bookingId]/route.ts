@@ -55,7 +55,6 @@ async function ensureAdmin(
 
   const role = await getWebAccountRoleForUser({
     authUserId: authData.user.id,
-    email: authData.user.email ?? null,
   });
 
   if (!isAdminRole(role)) {

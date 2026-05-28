@@ -22,6 +22,7 @@ export type BookingContextResult =
   | {
       status: "existing";
       accountId: string;
+      email: string | null;
       children: ChildSummary[];
     };
 
@@ -77,7 +78,7 @@ export const getBookingContext = cache(
   const isDevImpersonating =
     process.env.NODE_ENV !== "production" &&
     !!devImpersonateEmail;
-  let email = data.user.email;
+  let email: string | null = data.user.email ?? null;
 
   if (isDevImpersonating) {
     email = devImpersonateEmail;
@@ -157,6 +158,7 @@ export const getBookingContext = cache(
     return {
       status: "existing",
       accountId: legacyAccount.id,
+      email,
       children,
     };
   }
@@ -203,6 +205,7 @@ export const getBookingContext = cache(
   return {
     status: "existing",
     accountId: webAccount.account_id,
+    email,
     children,
   };
   }

@@ -113,7 +113,6 @@ export async function GET(request: NextRequest) {
     }
     const role = await getWebAccountRoleForUser({
       authUserId: authData.user.id,
-      email: authData.user.email ?? null,
     });
     if (!isAdminRole(role)) {
       return applyCookies(NextResponse.json({ error: "Forbidden" }, { status: 403 }));

@@ -109,7 +109,6 @@ export async function POST(request: NextRequest) {
 
     const role = await getWebAccountRoleForUser({
       authUserId: authData.user.id,
-      email: authData.user.email ?? null,
     });
     if (!isAdminRole(role)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });

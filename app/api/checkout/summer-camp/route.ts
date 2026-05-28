@@ -190,6 +190,7 @@ export async function POST(req: Request) {
       ],
       success_url: `${process.env.APP_URL}/summer-camps/2026/success`,
       cancel_url: `${process.env.APP_URL}/summer-camps/2026/summary?childId=${encodeURIComponent(childId)}&days=${encodeURIComponent(selectedDayIds.join(","))}`,
+      customer_email: bookingContext.email || undefined,
       metadata: {
         bookingType: "summer-camp",
         bookingGroupId: bookingGroup.id,

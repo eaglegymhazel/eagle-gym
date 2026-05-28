@@ -32,36 +32,30 @@ export async function POST(request: NextRequest) {
     },
   });
 
-  const { data: account, error: accountError } = await supabase
-    .from("Accounts")
-    .select("id")
-    .eq("email", normalizedEmail)
-    .maybeSingle();
+  const perPage = 1000;
+  let page = 1;
+  let authUserExists = false;
 
-  if (accountError) {
-    return NextResponse.json(
-      { error: accountError.message },
-      { status: 500 }
+  while (true) {
+    const { data: authUserData, error: authError } =
+      await supabase.auth.admin.listUsers({ page, perPage });
+
+    if (authError) {
+      return NextResponse.json({ error: authError.message }, { status: 500 });
+    }
+
+    const users = authUserData.users ?? [];
+
+    authUserExists = users.some(
+      (user) => user.email?.toLowerCase() === normalizedEmail
     );
+
+    if (authUserExists || users.length < perPage) {
+      break;
+    }
+
+    page += 1;
   }
-
-  if (account?.id) {
-    return NextResponse.json(
-      { error: "An account with this email already exists." },
-      { status: 409 }
-    );
-  }
-
-  const { data: authUserData, error: authError } =
-    await supabase.auth.admin.listUsers({ page: 1, perPage: 1000 });
-
-  if (authError) {
-    return NextResponse.json({ error: authError.message }, { status: 500 });
-  }
-
-  const authUserExists = authUserData.users.some(
-    (user) => user.email?.toLowerCase() === normalizedEmail
-  );
 
   if (authUserExists) {
     return NextResponse.json(

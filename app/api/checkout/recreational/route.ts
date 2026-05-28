@@ -112,6 +112,7 @@ export async function POST(req: Request) {
       line_items: [{ price: process.env.REC_PRICE_ID!, quantity }],
       success_url: `${process.env.APP_URL}/booking/success?type=recreational&bookingGroupId=${encodeURIComponent(bookingGroupId)}`,
       cancel_url: `${process.env.APP_URL}/booking/cancel`,
+      customer_email: bookingContext.email || undefined,
       metadata: {
         bookingType: "recreational",
         bookingGroupId,

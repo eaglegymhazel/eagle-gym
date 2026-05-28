@@ -7,7 +7,7 @@ const MAP_QUERY = encodeURIComponent(ADDRESS);
 
 export default function ContactPage() {
   return (
-    <main className="w-full bg-[#faf7fb]">
+    <main className="w-full overflow-x-hidden bg-[#faf7fb]">
       <section className="mx-auto w-full max-w-5xl px-4 py-10 sm:px-6">
         <h1 className="text-4xl font-extrabold leading-tight text-[#143271] sm:text-5xl">
           Speak to Eagle Gymnastics Academy
@@ -18,8 +18,8 @@ export default function ContactPage() {
         </p>
       </section>
 
-      <section className="mx-auto grid w-full max-w-5xl gap-6 px-4 pb-10 sm:px-6 lg:grid-cols-[1.05fr_0.95fr]">
-        <div className="border border-[#d9cde7] bg-white p-5 sm:p-6">
+      <section className="mx-auto grid w-full max-w-5xl gap-6 overflow-x-hidden px-4 pb-10 sm:px-6 lg:grid-cols-[1.05fr_0.95fr]">
+        <div className="min-w-0 border border-[#d9cde7] bg-white p-5 sm:p-6">
           <h2 className="text-2xl font-extrabold leading-tight text-[#143271]">
             Send a Message
           </h2>
@@ -31,8 +31,8 @@ export default function ContactPage() {
           </div>
         </div>
 
-        <div className="space-y-6">
-          <div className="border border-[#d9cde7] bg-white px-5 py-5 sm:px-6">
+        <div className="min-w-0 space-y-6">
+          <div className="min-w-0 border border-[#d9cde7] bg-white px-5 py-5 sm:px-6">
             <p className="text-xs font-bold uppercase tracking-[0.14em] text-[#143271]">
               Phone
             </p>
@@ -58,7 +58,7 @@ export default function ContactPage() {
             </a>
           </div>
 
-          <div className="overflow-hidden border border-[#d9cde7] bg-white">
+          <div className="min-w-0 overflow-hidden border border-[#d9cde7] bg-white">
             <div className="aspect-[16/10] w-full min-h-[260px]">
               <iframe
                 title="Map: Eagle Gymnastics Academy"

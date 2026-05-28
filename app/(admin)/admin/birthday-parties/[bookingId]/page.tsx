@@ -81,8 +81,8 @@ export default async function BirthdayPartyAdminDetailPage({
   }
 
   return (
-    <main className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:py-8">
-      <section className="border border-[#ddd3ea] bg-white">
+    <main className="mx-auto w-full max-w-7xl select-text px-4 py-6 sm:px-6 lg:py-8">
+      <section className="border border-[#ddd3ea] bg-white select-text">
         <header className="relative overflow-hidden border-b border-[#e8e0f2] px-5 py-5 md:px-6">
           <div
             aria-hidden="true"

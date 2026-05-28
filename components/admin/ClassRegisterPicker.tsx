@@ -307,7 +307,6 @@ export default function ClassRegisterPicker({
   }, [historicalDate]);
 
   const handleSelect = (session: Session) => {
-    console.log(session);
     onSelect(session);
   };
 

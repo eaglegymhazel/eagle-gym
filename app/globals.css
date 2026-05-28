@@ -24,9 +24,9 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans), "Comic Sans MS", "Comic Neue", cursive, sans-serif;
-  -webkit-user-select: none;
-  user-select: none;
-  -webkit-touch-callout: none;
+  -webkit-user-select: text;
+  user-select: text;
+  -webkit-touch-callout: default;
 }
 
 input,

@@ -106,7 +106,7 @@ export default function BirthdayPartyPage() {
         </div>
 
         <PhotoBlock
-          src="/brand/bday1.png"
+          src="/birthdays/birthday1.png"
           alt="Children enjoying a birthday party at the gym"
           className="min-h-[300px] sm:min-h-[340px] md:mt-3 md:min-h-[360px]"
         />
@@ -114,7 +114,7 @@ export default function BirthdayPartyPage() {
 
       <section className="mx-auto grid w-full max-w-6xl gap-6 px-4 pb-10 sm:px-6 md:grid-cols-[0.95fr_1.05fr] md:items-start">
         <PhotoBlock
-          src="/brand/bday2.png"
+          src="/birthdays/birthday2.png"
           alt="Birthday party activities in the gymnastics gym"
           className="min-h-[280px] sm:min-h-[320px] md:order-1 md:mt-3 md:min-h-[340px]"
         />

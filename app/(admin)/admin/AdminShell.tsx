@@ -22,6 +22,7 @@ import type { BirthdayPartyCalendarSlotSummary } from "@/lib/server/birthdayPart
 type AdminTabKey =
   | "students"
   | "register"
+  | "class-cancellations"
   | "summer-camp-register"
   | "waiting"
   | "missed-payments"
@@ -43,14 +44,88 @@ type WaitingRow = {
   requestedOn: string;
 };
 
+type ClassBookingStudentRow = {
+  bookingId: string;
+  childId: string;
+  classId: string;
+  bookingType: string | null;
+  stripeCustomerId: string | null;
+  stripeSubscriptionId: string | null;
+  createdAt: string | null;
+  childFirstName: string | null;
+  childLastName: string | null;
+  accountId: string | null;
+  accountFirstName: string | null;
+  accountLastName: string | null;
+  accountEmail: string | null;
+  accountTelNo: string | null;
+};
+
 const navItems: NavItem[] = [
   { key: "students", label: "Student Management", icon: Users },
   { key: "register", label: "Class Register", icon: ClipboardList },
+  { key: "class-cancellations", label: "Class Cancellations", icon: ClipboardList },
   { key: "summer-camp-register", label: "Summer Camp Register", icon: ClipboardList },
   { key: "waiting", label: "Waiting List", icon: Clock3 },
   { key: "missed-payments", label: "Missed Payments", icon: Clock3 },
   { key: "birthday-parties", label: "Birthday Parties", icon: Gift },
 ];
+
+const WEEKDAY_ORDER = [
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+  "Sunday",
+] as const;
+
+function normalizeWeekdayLabel(value: string | number | null) {
+  if (typeof value === "string") return value.trim();
+  if (typeof value === "number") return String(value);
+  return "";
+}
+
+function getWeekdaySortValue(value: string | number | null) {
+  const normalized = normalizeWeekdayLabel(value);
+  const index = WEEKDAY_ORDER.findIndex((weekday) => weekday === normalized);
+  return index === -1 ? WEEKDAY_ORDER.length : index;
+}
+
+function formatClassTime(value: string | null) {
+  if (!value) return "";
+  const [hourRaw, minuteRaw] = value.split(":");
+  const hour = Number.parseInt(hourRaw ?? "", 10);
+  const minute = Number.parseInt(minuteRaw ?? "", 10);
+  if (Number.isNaN(hour) || Number.isNaN(minute)) return value;
+  const date = new Date(Date.UTC(1970, 0, 1, hour, minute, 0, 0));
+  return new Intl.DateTimeFormat("en-GB", {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+    timeZone: "UTC",
+  })
+    .format(date)
+    .replace(":00", "")
+    .replace(" ", "")
+    .toLowerCase();
+}
+
+function formatClassTimeRange(startTime: string | null, endTime: string | null) {
+  const formattedStart = formatClassTime(startTime);
+  const formattedEnd = formatClassTime(endTime);
+  if (formattedStart && formattedEnd) return `${formattedStart}-${formattedEnd}`;
+  if (formattedStart) return formattedStart;
+  if (formattedEnd) return formattedEnd;
+  return "Time not set";
+}
+
+function formatClassCancellationLabel(row: RegisterClassTemplate) {
+  const weekday = normalizeWeekdayLabel(row.weekday) || "Weekday not set";
+  const startTime = formatClassTime(row.startTime);
+  return startTime ? `${weekday} ${startTime}` : weekday;
+}
 
 export default function AdminShell({
   referenceNowIso,
@@ -97,6 +172,7 @@ export default function AdminShell({
     if (
       tabParam === "students" ||
       tabParam === "register" ||
+      tabParam === "class-cancellations" ||
       tabParam === "summer-camp-register" ||
       tabParam === "waiting" ||
       tabParam === "missed-payments" ||
@@ -125,9 +201,25 @@ export default function AdminShell({
   const [waitlistActionMessage, setWaitlistActionMessage] = useState<string | null>(null);
   const [waitlistRemovingKey, setWaitlistRemovingKey] = useState<string | null>(null);
   const [waitlistDeleteCandidate, setWaitlistDeleteCandidate] = useState<WaitingRow | null>(null);
+  const [classCancellationClasses, setClassCancellationClasses] =
+    useState<RegisterClassTemplate[]>(initialRegisterClasses);
+  const [classCancellationProgrammeFilter, setClassCancellationProgrammeFilter] = useState<
+    "all" | "Recreational" | "Competition"
+  >("all");
+  const [classCancellationWeekdayFilter, setClassCancellationWeekdayFilter] = useState("all");
+  const [selectedCancellationClassId, setSelectedCancellationClassId] = useState<string | null>(null);
+  const [classCancellationStudents, setClassCancellationStudents] = useState<ClassBookingStudentRow[]>([]);
+  const [classCancellationLoading, setClassCancellationLoading] = useState(false);
+  const [classCancellationError, setClassCancellationError] = useState<string | null>(null);
+  const [classCancellationMessage, setClassCancellationMessage] = useState<string | null>(null);
+  const [classCancellationCandidate, setClassCancellationCandidate] =
+    useState<ClassBookingStudentRow | null>(null);
+  const [classCancellationConfirmedStripeUpdate, setClassCancellationConfirmedStripeUpdate] =
+    useState(false);
+  const [classCancellationSubmitting, setClassCancellationSubmitting] = useState(false);
   const childrenData = initialChildrenData;
   const childrenLoadError = initialChildrenLoadError;
-  const registerClasses = initialRegisterClasses;
+  const registerClasses = classCancellationClasses;
   const registerClassesError = initialRegisterClassesError;
   const summerCampRegisterSessions = initialSummerCampRegisterSessions;
   const summerCampRegisterSessionsError = initialSummerCampRegisterSessionsError;
@@ -155,6 +247,7 @@ export default function AdminShell({
   const cardTitle = useMemo(() => {
     if (tab === "students") return "Student Management";
     if (tab === "register") return "Class Register";
+    if (tab === "class-cancellations") return "Class Cancellations";
     if (tab === "summer-camp-register") return "Summer Camp Register";
     if (tab === "missed-payments") return "Missed Payments";
     if (tab === "birthday-parties") return "Birthday Parties";
@@ -162,12 +255,14 @@ export default function AdminShell({
   }, [tab]);
   const isStudentTab = tab === "students";
   const isRegisterTab = tab === "register";
+  const isClassCancellationsTab = tab === "class-cancellations";
   const isSummerCampRegisterTab = tab === "summer-camp-register";
   const isMissedPaymentsTab = tab === "missed-payments";
   const isBirthdayPartiesTab = tab === "birthday-parties";
   const isFlatContentTab =
     isStudentTab ||
     isRegisterTab ||
+    isClassCancellationsTab ||
     isSummerCampRegisterTab ||
     isMissedPaymentsTab ||
     isBirthdayPartiesTab ||
@@ -330,6 +425,61 @@ export default function AdminShell({
     };
   }, [filteredMissedPaymentsRows]);
 
+  const classCancellationWeekdayOptions = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          classCancellationClasses
+            .map((row) => normalizeWeekdayLabel(row.weekday))
+            .filter(Boolean)
+        )
+      )
+        .sort((a, b) => getWeekdaySortValue(a) - getWeekdaySortValue(b)),
+    [classCancellationClasses]
+  );
+
+  const filteredClassCancellationClasses = useMemo(() => {
+    return classCancellationClasses
+      .filter((row) => {
+        if (
+          classCancellationProgrammeFilter !== "all" &&
+          row.programme !== classCancellationProgrammeFilter
+        ) {
+          return false;
+        }
+        if (
+          classCancellationWeekdayFilter !== "all" &&
+          normalizeWeekdayLabel(row.weekday) !== classCancellationWeekdayFilter
+        ) {
+          return false;
+        }
+        return row.programme === "Recreational" || row.programme === "Competition";
+      })
+      .sort((a, b) => {
+        const weekdayCompare = getWeekdaySortValue(a.weekday) - getWeekdaySortValue(b.weekday);
+        if (weekdayCompare !== 0) return weekdayCompare;
+        const startCompare = (a.startTime ?? "").localeCompare(b.startTime ?? "");
+        if (startCompare !== 0) return startCompare;
+        return formatClassCancellationLabel(a).localeCompare(
+          formatClassCancellationLabel(b),
+          undefined,
+          { sensitivity: "base" }
+        );
+      });
+  }, [
+    classCancellationClasses,
+    classCancellationProgrammeFilter,
+    classCancellationWeekdayFilter,
+  ]);
+
+  const selectedCancellationClass = useMemo(
+    () =>
+      selectedCancellationClassId
+        ? classCancellationClasses.find((row) => row.id === selectedCancellationClassId) ?? null
+        : null,
+    [classCancellationClasses, selectedCancellationClassId]
+  );
+
   const waitlistClassOptions = useMemo(
     () =>
       Array.from(new Set(waitlistRowsState.map((row) => row.className)))
@@ -398,6 +548,83 @@ export default function AdminShell({
     }
   };
 
+  const loadClassCancellationStudents = async (classId: string) => {
+    setSelectedCancellationClassId(classId);
+    setClassCancellationLoading(true);
+    setClassCancellationError(null);
+    setClassCancellationMessage(null);
+    setClassCancellationStudents([]);
+
+    try {
+      const response = await fetch(
+        `/api/admin/class-bookings?classId=${encodeURIComponent(classId)}`,
+        {
+          method: "GET",
+          cache: "no-store",
+        }
+      );
+      const payload = (await response.json().catch(() => null)) as
+        | { error?: string; students?: ClassBookingStudentRow[] }
+        | null;
+
+      if (!response.ok) {
+        throw new Error(payload?.error ?? "Could not load class bookings.");
+      }
+
+      setClassCancellationStudents(payload?.students ?? []);
+    } catch (error) {
+      setClassCancellationError(
+        error instanceof Error ? error.message : "Could not load class bookings."
+      );
+    } finally {
+      setClassCancellationLoading(false);
+    }
+  };
+
+  const cancelClassBooking = async (candidate: ClassBookingStudentRow) => {
+    setClassCancellationSubmitting(true);
+    setClassCancellationError(null);
+    setClassCancellationMessage(null);
+
+    try {
+      const response = await fetch("/api/admin/class-bookings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          bookingId: candidate.bookingId,
+          confirmedStripeUpdate: true,
+        }),
+      });
+      const payload = (await response.json().catch(() => null)) as { error?: string } | null;
+      if (!response.ok) {
+        throw new Error(payload?.error ?? "Could not cancel class booking.");
+      }
+
+      const childName = `${candidate.childFirstName ?? ""} ${candidate.childLastName ?? ""}`.trim();
+      setClassCancellationStudents((prev) =>
+        prev.filter((row) => row.bookingId !== candidate.bookingId)
+      );
+      setClassCancellationClasses((prev) =>
+        prev.map((row) =>
+          row.id === candidate.classId
+            ? { ...row, enrolledCount: Math.max(0, row.enrolledCount - 1) }
+            : row
+        )
+      );
+      setClassCancellationCandidate(null);
+      setClassCancellationConfirmedStripeUpdate(false);
+      setClassCancellationMessage(
+        `${childName || "Student"} removed from the active class booking list.`
+      );
+    } catch (error) {
+      setClassCancellationError(
+        error instanceof Error ? error.message : "Could not cancel class booking."
+      );
+    } finally {
+      setClassCancellationSubmitting(false);
+    }
+  };
+
   useEffect(() => {
     if (!isMobileNavOpen) return;
     const triggerToRestore = mobileTriggerRef.current;
@@ -450,7 +677,7 @@ export default function AdminShell({
   }, [isMobileNavOpen]);
 
   return (
-    <div className={styles.page}>
+    <div className={`${styles.page} select-text`}>
       <header className={styles.pageHeader}>
         <div className={styles.accent} aria-hidden="true" />
         <div className={`${styles.pageTitleRow} relative`}>
@@ -555,6 +782,278 @@ export default function AdminShell({
                   />
                 ) : null}
               </>
+            ) : null}
+
+            {tab === "class-cancellations" ? (
+              <div className="space-y-4">
+                {registerClassesError ? (
+                  <div className={styles.errorBanner} role="alert">
+                    <span>{registerClassesError}</span>
+                  </div>
+                ) : null}
+                {classCancellationError ? (
+                  <div className={styles.errorBanner} role="alert">
+                    <span>{classCancellationError}</span>
+                  </div>
+                ) : null}
+                {classCancellationMessage ? (
+                  <div className="rounded-lg border border-[#d7c7ef] bg-[#f6f1ff] px-3 py-2 text-sm text-[#2a203c]">
+                    {classCancellationMessage}
+                  </div>
+                ) : null}
+                {!registerClassesError ? (
+                  selectedCancellationClass ? (
+                    <div className="space-y-4">
+                      <div className="flex flex-col gap-3 rounded-xl border border-[#e6e0ee] bg-white p-4">
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                          <div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedCancellationClassId(null);
+                                setClassCancellationStudents([]);
+                                setClassCancellationError(null);
+                                setClassCancellationMessage(null);
+                              }}
+                              className="inline-flex min-h-10 items-center justify-center rounded-lg border border-[#d9ccef] bg-[#faf7ff] px-3 text-sm font-semibold text-[#5b2ca7] transition hover:border-[#cbb6ea] hover:bg-[#f4eeff] hover:text-[#49228c]"
+                            >
+                              Back to class list
+                            </button>
+                            <h3 className="mt-3 text-lg font-black tracking-tight text-[#24193a]">
+                              {formatClassCancellationLabel(selectedCancellationClass)}
+                            </h3>
+                            <p className="mt-1 text-sm text-[#5b526a]">
+                              {selectedCancellationClass.programme} •{" "}
+                              {normalizeWeekdayLabel(selectedCancellationClass.weekday) || "Weekday not set"} •{" "}
+                              {formatClassTimeRange(
+                                selectedCancellationClass.startTime,
+                                selectedCancellationClass.endTime
+                              )}
+                            </p>
+                          </div>
+                          <div className="rounded-xl border border-[#e6e0ee] bg-[#faf7ff] px-4 py-3 text-sm text-[#2a203c]">
+                            <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#6c35c3]">
+                              Active bookings
+                            </p>
+                            <p className="mt-1 text-2xl font-black tracking-tight text-[#24193a]">
+                              {selectedCancellationClass.enrolledCount}
+                            </p>
+                          </div>
+                        </div>
+                        <p className="text-sm text-[#5b526a]">
+                          Cancelled bookings are retained for history. Refunds and subscription changes must still be handled in Stripe.
+                        </p>
+                      </div>
+
+                      {classCancellationLoading ? (
+                        <p className="rounded-lg border border-[#e6e0ee] bg-white px-3 py-5 text-sm text-[#2a203c]/75">
+                          Loading active class bookings...
+                        </p>
+                      ) : classCancellationStudents.length > 0 ? (
+                        <div className="space-y-3">
+                          <div className="hidden overflow-hidden rounded-xl border border-[#e6e0ee] md:block">
+                            <table className="min-w-full border-collapse">
+                              <thead className="bg-[#f6f1ff]">
+                                <tr className="text-left text-xs uppercase tracking-[0.08em] text-[#2a203c]/75">
+                                  <th className="px-3 py-2 font-semibold">Student</th>
+                                  <th className="px-3 py-2 font-semibold">Parent / account</th>
+                                  <th className="px-3 py-2 font-semibold">Phone</th>
+                                  <th className="px-3 py-2 font-semibold">Stripe</th>
+                                  <th className="px-3 py-2 text-right font-semibold">Action</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-[#ece6f4] bg-white text-sm text-[#2a203c]">
+                                {classCancellationStudents.map((row) => {
+                                  const childName =
+                                    `${row.childFirstName ?? ""} ${row.childLastName ?? ""}`.trim() || "Unknown";
+                                  const accountName =
+                                    `${row.accountFirstName ?? ""} ${row.accountLastName ?? ""}`.trim() || "Unknown";
+
+                                  return (
+                                    <tr key={row.bookingId}>
+                                      <td className="px-3 py-3 font-semibold">{childName}</td>
+                                      <td className="px-3 py-3">
+                                        <p className="font-semibold text-[#24193a]">{accountName}</p>
+                                        <p className="mt-0.5 text-[#5b526a] break-all">
+                                          {row.accountEmail || "No email address"}
+                                        </p>
+                                      </td>
+                                      <td className="px-3 py-3">
+                                        {row.accountTelNo || <span className="text-[#2a203c]/55">Not set</span>}
+                                      </td>
+                                      <td className="px-3 py-3">
+                                        {row.stripeCustomerId ? (
+                                          <a
+                                            href={getStripeCustomerUrl(row.stripeCustomerId)}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            className="inline-flex min-h-9 items-center justify-center rounded-lg border border-[#d9ccef] bg-[#faf7ff] px-3 text-xs font-semibold text-[#5b2ca7] transition hover:border-[#cbb6ea] hover:bg-[#f4eeff] hover:text-[#49228c]"
+                                          >
+                                            View customer
+                                          </a>
+                                        ) : (
+                                          <span className="text-[#2a203c]/55">No Stripe customer</span>
+                                        )}
+                                      </td>
+                                      <td className="px-3 py-3 text-right">
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            setClassCancellationCandidate(row);
+                                            setClassCancellationConfirmedStripeUpdate(false);
+                                            setClassCancellationError(null);
+                                          }}
+                                          className="inline-flex min-h-9 cursor-pointer items-center justify-center rounded-lg border border-[#dfcfe9] bg-white px-3 text-xs font-semibold text-[#6a1f35] transition hover:bg-[#fff4f7]"
+                                        >
+                                          Cancel booking
+                                        </button>
+                                      </td>
+                                    </tr>
+                                  );
+                                })}
+                              </tbody>
+                            </table>
+                          </div>
+
+                          <div className="space-y-2 md:hidden">
+                            {classCancellationStudents.map((row) => {
+                              const childName =
+                                `${row.childFirstName ?? ""} ${row.childLastName ?? ""}`.trim() || "Unknown";
+                              const accountName =
+                                `${row.accountFirstName ?? ""} ${row.accountLastName ?? ""}`.trim() || "Unknown";
+
+                              return (
+                                <div key={row.bookingId} className="rounded-xl border border-[#e6e0ee] bg-white p-3">
+                                  <div className="space-y-1.5 text-sm text-[#2a203c]">
+                                    <p className="font-semibold">{childName}</p>
+                                    <p className="font-semibold text-[#24193a]">{accountName}</p>
+                                    <p>{row.accountEmail || "No email address"}</p>
+                                    <p>{row.accountTelNo || "Phone not set"}</p>
+                                  </div>
+                                  <div className="mt-3 grid grid-cols-1 gap-2">
+                                    {row.stripeCustomerId ? (
+                                      <a
+                                        href={getStripeCustomerUrl(row.stripeCustomerId)}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="inline-flex min-h-10 items-center justify-center rounded-lg border border-[#d9ccef] bg-[#faf7ff] px-3 text-sm font-semibold text-[#5b2ca7] transition hover:border-[#cbb6ea] hover:bg-[#f4eeff] hover:text-[#49228c]"
+                                      >
+                                        View customer
+                                      </a>
+                                    ) : null}
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setClassCancellationCandidate(row);
+                                        setClassCancellationConfirmedStripeUpdate(false);
+                                        setClassCancellationError(null);
+                                      }}
+                                      className="inline-flex min-h-10 items-center justify-center rounded-lg border border-[#dfcfe9] bg-white px-3 text-sm font-semibold text-[#6a1f35] transition hover:bg-[#fff4f7]"
+                                    >
+                                      Cancel booking
+                                    </button>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ) : (
+                        <p className="rounded-lg border border-[#e6e0ee] bg-white px-3 py-5 text-sm text-[#2a203c]/75">
+                          No active class bookings were found for this class.
+                        </p>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      <div className="rounded-xl border border-[#e6e0ee] bg-white p-3">
+                        <div className="grid w-full grid-cols-1 gap-2 xl:grid-cols-[220px_220px_minmax(0,1fr)]">
+                          <select
+                            value={classCancellationProgrammeFilter}
+                            onChange={(event) =>
+                              setClassCancellationProgrammeFilter(
+                                event.target.value as "all" | "Recreational" | "Competition"
+                              )
+                            }
+                            className="h-10 rounded-lg border border-[#d7c7ef] bg-white px-3 text-sm text-[#2a203c] outline-none ring-[#6e2ac0]/25 transition focus:ring-2"
+                          >
+                            <option value="all">All programmes</option>
+                            <option value="Recreational">Recreational</option>
+                            <option value="Competition">Competition</option>
+                          </select>
+                          <select
+                            value={classCancellationWeekdayFilter}
+                            onChange={(event) => setClassCancellationWeekdayFilter(event.target.value)}
+                            className="h-10 rounded-lg border border-[#d7c7ef] bg-white px-3 text-sm text-[#2a203c] outline-none ring-[#6e2ac0]/25 transition focus:ring-2"
+                          >
+                            <option value="all">All weekdays</option>
+                            {classCancellationWeekdayOptions.map((weekday) => (
+                              <option key={weekday} value={weekday}>
+                                {weekday}
+                              </option>
+                            ))}
+                          </select>
+                          <div className="flex items-center text-sm text-[#2a203c]/80">
+                            Showing {filteredClassCancellationClasses.length} class
+                            {filteredClassCancellationClasses.length === 1 ? "" : "es"}.
+                          </div>
+                        </div>
+                      </div>
+
+                      {filteredClassCancellationClasses.length > 0 ? (
+                        <div className="space-y-3">
+                          {filteredClassCancellationClasses.map((row) => (
+                            <button
+                              key={row.id}
+                              type="button"
+                              onClick={() => void loadClassCancellationStudents(row.id)}
+                              className="group relative w-full overflow-hidden rounded-xl border border-[#e6e0ee] bg-white p-4 text-left transition hover:border-[#cbb6ea]"
+                            >
+                              <span
+                                aria-hidden
+                                className="pointer-events-none absolute inset-0 origin-left scale-x-0 bg-[#f0e8fb] transition-transform duration-300 ease-out group-hover:scale-x-100"
+                              />
+                              <span
+                                aria-hidden
+                                className="pointer-events-none absolute inset-y-2 left-0 z-[1] w-[2px] rounded-full bg-[#6e2ac0] opacity-0 transition-opacity duration-200 group-hover:opacity-75"
+                              />
+                              <div className="relative z-[1] grid gap-3 lg:grid-cols-[220px_220px_120px]">
+                                <div>
+                                  <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[#6f6287]">
+                                    Programme
+                                  </p>
+                                  <p className="mt-1 font-semibold text-[#24193a]">{row.programme}</p>
+                                </div>
+                                <div>
+                                  <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[#6f6287]">
+                                    Day / time
+                                  </p>
+                                  <p className="mt-1 font-semibold text-[#24193a]">
+                                    {normalizeWeekdayLabel(row.weekday) || "Weekday not set"}
+                                  </p>
+                                  <p className="mt-0.5 text-sm text-[#5b526a]">
+                                    {formatClassTimeRange(row.startTime, row.endTime)}
+                                  </p>
+                                </div>
+                                <div className="lg:text-right">
+                                  <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[#6f6287]">
+                                    Active
+                                  </p>
+                                  <p className="mt-1 font-semibold text-[#24193a]">{row.enrolledCount}</p>
+                                </div>
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="rounded-lg border border-[#e6e0ee] bg-white px-3 py-5 text-sm text-[#2a203c]/75">
+                          No class bookings match your current filters.
+                        </p>
+                      )}
+                    </div>
+                  )
+                ) : null}
+              </div>
             ) : null}
 
             {tab === "summer-camp-register" ? (
@@ -1158,6 +1657,104 @@ export default function AdminShell({
             document.body,
           )
         : null}
+
+      <Dialog.Root
+        open={classCancellationCandidate !== null}
+        onOpenChange={(open) => {
+          if (!open && !classCancellationSubmitting) {
+            setClassCancellationCandidate(null);
+            setClassCancellationConfirmedStripeUpdate(false);
+          }
+        }}
+      >
+        <Dialog.Portal>
+          <Dialog.Overlay className="fixed inset-0 z-[100] bg-black/45" />
+          <Dialog.Content className="fixed inset-x-3 top-1/2 z-[101] max-h-[86vh] -translate-y-1/2 overflow-hidden border border-[#d8ceeb] bg-white shadow-2xl sm:left-1/2 sm:right-auto sm:w-[min(560px,calc(100vw-32px))] sm:-translate-x-1/2">
+            <div className="border-b border-[#e8e0f2] px-4 py-4 sm:px-5">
+              <div>
+                <Dialog.Title className="text-lg font-bold text-[#24193a]">
+                  Cancel class booking
+                </Dialog.Title>
+                <Dialog.Description className="mt-1 text-sm text-[#5f5177]">
+                  This updates the booking in Eagle Gymnastics only. Refunds and subscription changes must be handled separately in Stripe.
+                </Dialog.Description>
+              </div>
+            </div>
+
+            <div className="space-y-4 px-4 py-4 sm:px-5">
+              <p className="text-sm text-[#342744]">
+                Remove{" "}
+                <span className="font-semibold text-[#24193a]">
+                  {classCancellationCandidate
+                    ? `${classCancellationCandidate.childFirstName ?? ""} ${classCancellationCandidate.childLastName ?? ""}`.trim() ||
+                      "this student"
+                    : "this student"}
+                </span>{" "}
+                from{" "}
+                <span className="font-semibold text-[#24193a]">
+                  {selectedCancellationClass?.className ?? "this class"}
+                </span>
+                ?
+              </p>
+              <p className="text-sm text-[#6c607d]">
+                The booking record will be retained and marked as cancelled with an admin removal reason.
+              </p>
+
+              <label className="flex items-start gap-3 rounded-xl border border-[#e6e0ee] bg-[#faf7ff] p-3 text-sm text-[#2a203c]">
+                <input
+                  type="checkbox"
+                  checked={classCancellationConfirmedStripeUpdate}
+                  onChange={(event) =>
+                    setClassCancellationConfirmedStripeUpdate(event.target.checked)
+                  }
+                  className="mt-0.5 h-4 w-4 rounded border-[#cdbfe0] text-[#6c35c3] focus:ring-[#6c35c3]"
+                />
+                <span>
+                  I confirm that Stripe payments and subscriptions have already been updated separately.
+                </span>
+              </label>
+            </div>
+
+            <div className="border-t border-[#e8e0f2] px-4 py-4 sm:px-5">
+              <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                <Dialog.Close asChild>
+                  <button
+                    type="button"
+                    disabled={classCancellationSubmitting}
+                    className="h-10 border border-[#ddd4ea] bg-white px-4 text-sm font-semibold text-[#6f6384] hover:bg-[#faf7ff] disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    Keep booking
+                  </button>
+                </Dialog.Close>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!classCancellationCandidate || !classCancellationConfirmedStripeUpdate) {
+                      return;
+                    }
+                    void cancelClassBooking(classCancellationCandidate);
+                  }}
+                  disabled={
+                    !classCancellationCandidate ||
+                    !classCancellationConfirmedStripeUpdate ||
+                    classCancellationSubmitting
+                  }
+                  className={[
+                    "h-10 border px-4 text-sm font-semibold transition",
+                    classCancellationCandidate &&
+                    classCancellationConfirmedStripeUpdate &&
+                    !classCancellationSubmitting
+                      ? "cursor-pointer border-[#d93636] bg-[#d93636] text-white hover:bg-[#bd2d2d]"
+                      : "cursor-not-allowed border-[#eadada] bg-[#f8f6fb] text-[#b79a9a]",
+                  ].join(" ")}
+                >
+                  {classCancellationSubmitting ? "Cancelling..." : "Cancel booking"}
+                </button>
+              </div>
+            </div>
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
 
       <Dialog.Root
         open={waitlistDeleteCandidate !== null}

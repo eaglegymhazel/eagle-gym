@@ -28,7 +28,7 @@ const sections = [
     copy: "Our gymnasium is available every Saturday from 3:00pm to 4:30pm for birthday parties, giving children a fun and active celebration packed with movement, games, and memorable moments.",
     cta: "BOOK PARTY",
     href: "/birthday-party",
-    image: "/brand/bday1.png",
+    image: "/birthdays/birthday3.png",
     tone: "bg-[#ffe8f4] text-[#2E2A33]",
   },
   {
