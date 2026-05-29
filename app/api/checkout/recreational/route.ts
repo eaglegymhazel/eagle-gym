@@ -2,6 +2,7 @@ import Stripe from "stripe";
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/admin";
 import { getBookingContext } from "@/lib/server/bookingContext";
+import { getOrCreateStripeCheckoutCustomer } from "@/lib/server/stripeCheckoutCustomer";
 
 export const runtime = "nodejs";
 
@@ -106,13 +107,39 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Unable to create booking hold" }, { status: 500 });
     }
 
+    const checkoutEmail = bookingContext.email?.trim() || "";
+    if (!checkoutEmail) {
+      return NextResponse.json({ error: "Account email not found." }, { status: 400 });
+    }
+
     const stripe = new Stripe(stripeSecretKey, { apiVersion: "2026-01-28.clover" });
+    const { data: existingCustomerRow } = await supabaseAdmin
+      .from("Bookings")
+      .select('"stripeCustomerId"')
+      .eq("accountId", bookingContext.accountId)
+      .eq("bookingType", "recreational")
+      .not("stripeCustomerId", "is", null)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    const stripeCustomerId = await getOrCreateStripeCheckoutCustomer({
+      stripe,
+      email: checkoutEmail,
+      accountId: bookingContext.accountId,
+      existingCustomerId:
+        existingCustomerRow &&
+        typeof existingCustomerRow.stripeCustomerId === "string"
+          ? existingCustomerRow.stripeCustomerId
+          : null,
+    });
+
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
+      customer: stripeCustomerId,
       line_items: [{ price: process.env.REC_PRICE_ID!, quantity }],
       success_url: `${process.env.APP_URL}/booking/success?type=recreational&bookingGroupId=${encodeURIComponent(bookingGroupId)}`,
       cancel_url: `${process.env.APP_URL}/booking/cancel`,
-      customer_email: bookingContext.email || undefined,
       metadata: {
         bookingType: "recreational",
         bookingGroupId,

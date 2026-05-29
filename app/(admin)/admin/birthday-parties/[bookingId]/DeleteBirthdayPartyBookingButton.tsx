@@ -21,6 +21,7 @@ export default function DeleteBirthdayPartyBookingButton({
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [isRemoving, setIsRemoving] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isRefundAcknowledged, setIsRefundAcknowledged] = useState(false);
 
   const handleDelete = async () => {
     setIsRemoving(true);
@@ -59,6 +60,9 @@ export default function DeleteBirthdayPartyBookingButton({
         onOpenChange={(open) => {
           if (!isRemoving) {
             setIsConfirmOpen(open);
+            if (!open) {
+              setIsRefundAcknowledged(false);
+            }
           }
         }}
       >
@@ -99,11 +103,19 @@ export default function DeleteBirthdayPartyBookingButton({
                 <span className="font-semibold text-[#24193a]">{slotDateLabel}</span>?
               </p>
               <p className="mt-2 text-sm text-[#6c607d]">
-                Note: payment refunding must happen through Stripe.
-              </p>
-              <p className="mt-2 text-sm text-[#6c607d]">
                 Warning, this action is permanent and cannot be undone.
               </p>
+              <label className="mt-4 flex cursor-pointer items-start gap-3 rounded-xl border border-[#f0c7cf] bg-[#fff4f6] p-3 text-sm text-[#7a2334]">
+                <input
+                  type="checkbox"
+                  checked={isRefundAcknowledged}
+                  onChange={(event) => setIsRefundAcknowledged(event.target.checked)}
+                  className="mt-0.5 h-4 w-4 cursor-pointer rounded border-[#d6aab4] text-[#d93636] focus:ring-[#d93636]"
+                />
+                <span>
+                  I understand this only removes the birthday party booking from Eagle Gymnastics. Any refund or payment changes must still be handled separately in Stripe.
+                </span>
+              </label>
             </div>
 
             <div className="border-t border-[#e8e0f2] px-4 py-4 sm:px-5">
@@ -120,12 +132,15 @@ export default function DeleteBirthdayPartyBookingButton({
                 <button
                   type="button"
                   onClick={() => {
+                    if (!isRefundAcknowledged) {
+                      return;
+                    }
                     void handleDelete();
                   }}
-                  disabled={isRemoving}
+                  disabled={isRemoving || !isRefundAcknowledged}
                   className={[
                     "h-10 border px-4 text-sm font-semibold transition",
-                    isRemoving
+                    isRemoving || !isRefundAcknowledged
                       ? "cursor-not-allowed border-[#eadada] bg-[#f8f6fb] text-[#b79a9a]"
                       : "cursor-pointer border-[#d93636] bg-[#d93636] text-white hover:bg-[#bd2d2d]",
                   ].join(" ")}

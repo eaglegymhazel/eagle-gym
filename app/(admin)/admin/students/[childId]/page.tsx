@@ -2,12 +2,13 @@ import Link from "next/link";
 import { supabaseAdmin } from "@/lib/admin";
 import { getMedicalInfoForChildren } from "@/lib/server/medical";
 import { getAdminBadgeDataForChild } from "@/lib/server/badges";
+import { getAdminRegisterClasses } from "@/lib/server/adminDashboard";
 import { getRecreationalClasses } from "@/lib/server/classes";
 import { getActiveBookingCountsForClassIds } from "@/lib/server/availability";
-import { Activity, ArrowLeft, CalendarDays, Shield, Star, UserCircle2, Users } from "lucide-react";
+import { Activity, ArrowLeft, Shield, UserCircle2, Users } from "lucide-react";
 import StudentProfileTabs from "./StudentProfileTabs";
 import CompetitionEligibilityControl from "./CompetitionEligibilityControl";
-import MoveRecreationalBookingControl from "./MoveRecreationalBookingControl";
+import AdminStudentClassActions from "./AdminStudentClassActions";
 
 type StudentProfilePageProps = {
   params: Promise<{ childId: string }>;
@@ -88,54 +89,6 @@ function computeAge(dateOfBirth: string | null): string {
   return `${Math.max(0, age)} years`;
 }
 
-function formatAttendingDuration(createdAt: string | null | undefined): string {
-  if (!createdAt) return "Attending since unknown date";
-  const start = new Date(createdAt);
-  if (Number.isNaN(start.getTime())) return "Attending since unknown date";
-
-  const now = new Date();
-  const diffMs = now.getTime() - start.getTime();
-  if (diffMs < 0) return "Attending recently";
-
-  const dayMs = 24 * 60 * 60 * 1000;
-  const days = Math.floor(diffMs / dayMs);
-  if (days < 7) {
-    const safeDays = Math.max(1, days);
-    return `Attending for ${safeDays} day${safeDays === 1 ? "" : "s"}`;
-  }
-
-  const months =
-    (now.getFullYear() - start.getFullYear()) * 12 + (now.getMonth() - start.getMonth());
-  if (months < 1) {
-    const weeks = Math.max(1, Math.floor(days / 7));
-    return `Attending for ${weeks} week${weeks === 1 ? "" : "s"}`;
-  }
-
-  if (months < 12) {
-    return `Attending for ${months} month${months === 1 ? "" : "s"}`;
-  }
-
-  const years = Math.floor(months / 12);
-  const remainingMonths = months % 12;
-  if (remainingMonths === 0) {
-    return `Attending for ${years} year${years === 1 ? "" : "s"}`;
-  }
-  return `Attending for ${years}y ${remainingMonths}m`;
-}
-
-function getProgrammeTag(className: string | null | undefined): "Rec" | "Comp" {
-  const text = (className ?? "").toLowerCase();
-  return text.includes("comp") ? "Comp" : "Rec";
-}
-
-function extractAgeBand(className: string | null | undefined): string | null {
-  const match = (className ?? "").match(/\(([^)]+)\)/);
-  const value = match?.[1]?.trim() || null;
-  if (!value) return null;
-  if (value.toLowerCase() === "comp") return null;
-  return value;
-}
-
 function displayText(value: string | null | undefined): string {
   return value?.trim() ? value : "Not provided";
 }
@@ -195,7 +148,7 @@ export default async function StudentProfilePage({ params }: StudentProfilePageP
   }
 
   const child = childData as ChildRow;
-  const [medicalByChildId, activeBookingsResult, accountResult, badgeData, recreationalClasses] = await Promise.all([
+  const [medicalByChildId, activeBookingsResult, accountResult, badgeData, recreationalClasses, allRegisterClasses] = await Promise.all([
     getMedicalInfoForChildren([child.id]),
     supabaseAdmin
       .from("Bookings")
@@ -213,6 +166,7 @@ export default async function StudentProfilePage({ params }: StudentProfilePageP
       : Promise.resolve({ data: null, error: null }),
     getAdminBadgeDataForChild(child.id),
     getRecreationalClasses(),
+    getAdminRegisterClasses(),
   ]);
 
   const medical = medicalByChildId[child.id] ?? null;
@@ -237,8 +191,16 @@ export default async function StudentProfilePage({ params }: StudentProfilePageP
     };
   });
   const account = (accountResult.data as AccountRow | null) ?? null;
-  const stripeCustomerId =
-    bookings.find((booking) => booking.stripeCustomerId)?.stripeCustomerId ?? null;
+  const recreationalStripeCustomerId =
+    bookings.find(
+      (booking) =>
+        booking.bookingType === "recreational" && booking.stripeCustomerId
+    )?.stripeCustomerId ?? null;
+  const competitionStripeCustomerId =
+    bookings.find(
+      (booking) =>
+        booking.bookingType === "competition" && booking.stripeCustomerId
+    )?.stripeCustomerId ?? null;
   const studentName = `${displayText(child.firstName)} ${displayText(child.lastName)}`.trim();
   const recreationalMoveClassIds = recreationalClasses.map((item) => item.id);
   const recreationalBookingCounts = await getActiveBookingCountsForClassIds(recreationalMoveClassIds);
@@ -418,15 +380,29 @@ export default async function StudentProfilePage({ params }: StudentProfilePageP
                 </dd>
               </div>
               <div className="sm:col-span-2 pt-2">
-                {stripeCustomerId ? (
-                  <a
-                    href={getStripeCustomerUrl(stripeCustomerId)}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex min-h-10 items-center justify-center rounded-lg border border-[#d9ccef] bg-[#faf7ff] px-4 text-sm font-semibold text-[#5b2ca7] transition hover:border-[#cbb6ea] hover:bg-[#f4eeff] hover:text-[#49228c]"
-                  >
-                    View Stripe customer
-                  </a>
+                {recreationalStripeCustomerId || competitionStripeCustomerId ? (
+                  <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+                    {recreationalStripeCustomerId ? (
+                      <a
+                        href={getStripeCustomerUrl(recreationalStripeCustomerId)}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex min-h-10 items-center justify-center rounded-lg border border-[#d9ccef] bg-[#faf7ff] px-4 text-sm font-semibold text-[#5b2ca7] transition hover:border-[#cbb6ea] hover:bg-[#f4eeff] hover:text-[#49228c]"
+                      >
+                        View Recreational Stripe customer
+                      </a>
+                    ) : null}
+                    {competitionStripeCustomerId ? (
+                      <a
+                        href={getStripeCustomerUrl(competitionStripeCustomerId)}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex min-h-10 items-center justify-center rounded-lg border border-[#d9ccef] bg-[#faf7ff] px-4 text-sm font-semibold text-[#5b2ca7] transition hover:border-[#cbb6ea] hover:bg-[#f4eeff] hover:text-[#49228c]"
+                      >
+                        View Competition Stripe customer
+                      </a>
+                    ) : null}
+                  </div>
                 ) : (
                   <p className="text-sm text-[#6c607d]">Stripe customer not available.</p>
                 )}
@@ -435,63 +411,12 @@ export default async function StudentProfilePage({ params }: StudentProfilePageP
           </section>
         </div>
 
-        <section className="border-b border-[#e8e0f2] px-5 py-5 md:px-6">
-          <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.08em] text-[#6f6287]">
-            <CalendarDays className="h-4 w-4 text-[#6e2ac0]" aria-hidden="true" />
-            Active bookings
-          </h2>
-          {bookings.length === 0 ? (
-            <p className="mt-3 text-sm text-[#5f5177]">No active bookings found.</p>
-          ) : (
-            <ul className="mt-3 divide-y divide-[#ece4f5] border border-[#ece4f5]">
-              {bookings.map((booking, index) => (
-                <li
-                  key={booking.id ?? `${booking.childId}-${booking.className ?? "class"}-${index}`}
-                  className="flex flex-col gap-1.5 px-4 py-2 md:flex-row md:items-center md:justify-between md:gap-3"
-                >
-                  {(() => {
-                    const programme = getProgrammeTag(booking.className);
-                    const ageBand = extractAgeBand(booking.className);
-                    const weekdayText = displayText(booking.weekday);
-                    const timeText = `${booking.startTime ?? "--:--"}${
-                      booking.endTime ? `-${booking.endTime}` : ""
-                    }`;
-
-                    return (
-                      <p className="min-w-0 flex flex-wrap items-center gap-x-2 gap-y-1 text-[#221833]">
-                        <span
-                          className={[
-                            "inline-flex items-center gap-1 text-sm font-semibold leading-none",
-                            programme === "Comp" ? "text-[#c89200]" : "text-[#0f8d4e]",
-                          ].join(" ")}
-                        >
-                          <Star className="h-3.5 w-3.5 fill-current" aria-hidden="true" />
-                          {programme}
-                        </span>
-                        <span className="text-sm font-semibold leading-none">{weekdayText}</span>
-                        <span className="text-sm font-medium leading-none text-[#322843]">{timeText}</span>
-                        {programme === "Rec" && ageBand ? (
-                          <span className="text-xs font-normal leading-none text-[#6e6383]">{ageBand}</span>
-                        ) : null}
-                      </p>
-                    );
-                  })()}
-
-                  <span className="text-xs font-medium leading-tight text-[#6e6383] md:flex-shrink-0">
-                    {formatAttendingDuration(booking.createdAt).replace("Attending for ", "Attending ")}
-                  </span>
-                  {booking.bookingType === "recreational" && booking.classId ? (
-                    <MoveRecreationalBookingControl
-                      bookingId={booking.id}
-                      currentClassId={booking.classId}
-                      options={recreationalMoveOptions}
-                    />
-                  ) : null}
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
+        <AdminStudentClassActions
+          childId={child.id}
+          initialBookings={bookings}
+          classOptions={allRegisterClasses}
+          recreationalMoveOptions={recreationalMoveOptions}
+        />
 
         <section className="px-5 py-5 md:px-6">
           <h2 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.08em] text-[#6f6287]">

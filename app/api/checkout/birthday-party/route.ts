@@ -13,6 +13,7 @@ import {
   getBirthdayPartyHoldExpiresAt,
   getBirthdayPartySlot,
 } from "@/lib/server/birthdayPartyBookings";
+import { getOrCreateStripeCheckoutCustomer } from "@/lib/server/stripeCheckoutCustomer";
 
 export const runtime = "nodejs";
 
@@ -214,11 +215,38 @@ export async function POST(req: Request) {
     }
 
     const appUrl = getAppUrl(req);
+    const checkoutEmail = bookingContext.email?.trim() || accountSummary?.email?.trim() || "";
+    if (!checkoutEmail) {
+      return NextResponse.json({ error: "Account email not found." }, { status: 400 });
+    }
+
+    const { data: existingCustomerRow } = await supabaseAdmin
+      .from("Bookings")
+      .select('"stripeCustomerId"')
+      .eq("accountId", bookingContext.accountId)
+      .eq("bookingType", "recreational")
+      .not("stripeCustomerId", "is", null)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    const stripeCustomerId = await getOrCreateStripeCheckoutCustomer({
+      stripe,
+      email: checkoutEmail,
+      accountId: bookingContext.accountId,
+      fullName: accountSummary?.fullName ?? null,
+      existingCustomerId:
+        existingCustomerRow &&
+        typeof existingCustomerRow.stripeCustomerId === "string"
+          ? existingCustomerRow.stripeCustomerId
+          : null,
+    });
+
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
       success_url: `${appUrl}/birthday-party/book/success?bookingId=${encodeURIComponent(bookingId)}`,
       cancel_url: `${appUrl}/birthday-party/book/review?slotId=${encodeURIComponent(slotId)}&partySize=${encodeURIComponent(String(price.partySize))}`,
-      customer_email: accountSummary?.email || undefined,
+      customer: stripeCustomerId,
       payment_method_types: ["card"],
       line_items: [
         {

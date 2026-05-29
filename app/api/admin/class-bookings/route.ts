@@ -252,3 +252,134 @@ export async function POST(request: NextRequest) {
     return jsonError(error instanceof Error ? error.message : "Unknown error", 500);
   }
 }
+
+export async function PUT(request: NextRequest) {
+  try {
+    const adminResult = await ensureAdmin(request);
+    if ("error" in adminResult) return adminResult.error;
+
+    const { authContext, response } = adminResult;
+    if (response) return response;
+
+    const body = (await request.json()) as {
+      childId?: unknown;
+      classId?: unknown;
+      confirmedStripeUpdate?: unknown;
+    };
+
+    const childId = typeof body.childId === "string" ? body.childId.trim() : "";
+    const classId = typeof body.classId === "string" ? body.classId.trim() : "";
+    const confirmedStripeUpdate = body.confirmedStripeUpdate === true;
+
+    if (!childId || !classId) {
+      return authContext.applyCookies(jsonError("childId and classId are required.", 400));
+    }
+
+    if (!confirmedStripeUpdate) {
+      return authContext.applyCookies(
+        jsonError("Stripe update confirmation is required.", 400)
+      );
+    }
+
+    const { data: child, error: childError } = await authContext.serviceRole
+      .from("Children")
+      .select('id,"accountId"')
+      .eq("id", childId)
+      .maybeSingle();
+
+    if (childError) {
+      return authContext.applyCookies(jsonError(childError.message, 500));
+    }
+
+    if (!child) {
+      return authContext.applyCookies(jsonError("Student not found.", 404));
+    }
+
+    const accountId =
+      typeof child.accountId === "string" && child.accountId.trim()
+        ? child.accountId.trim()
+        : "";
+
+    if (!accountId) {
+      return authContext.applyCookies(jsonError("Student account could not be resolved.", 400));
+    }
+
+    const { data: classRow, error: classError } = await authContext.serviceRole
+      .from("Classes")
+      .select('id,"isCompetitionClass","durationMinutes"')
+      .eq("id", classId)
+      .maybeSingle();
+
+    if (classError) {
+      return authContext.applyCookies(jsonError(classError.message, 500));
+    }
+
+    if (!classRow) {
+      return authContext.applyCookies(jsonError("Class not found.", 404));
+    }
+
+    const bookingType = classRow.isCompetitionClass === true ? "competition" : "recreational";
+
+    const { data: existingBooking, error: existingBookingError } = await authContext.serviceRole
+      .from("Bookings")
+      .select("id")
+      .eq("childId", childId)
+      .eq("classId", classId)
+      .eq("bookingType", bookingType)
+      .eq("status", "active")
+      .maybeSingle();
+
+    if (existingBookingError) {
+      return authContext.applyCookies(jsonError(existingBookingError.message, 500));
+    }
+
+    if (existingBooking?.id) {
+      return authContext.applyCookies(
+        jsonError("This student already has an active booking for that class.", 409)
+      );
+    }
+
+    const nowIso = new Date().toISOString();
+    const todayDate = nowIso.slice(0, 10);
+    const bookedDurationMinutes =
+      typeof classRow.durationMinutes === "number" && classRow.durationMinutes > 0
+        ? classRow.durationMinutes
+        : null;
+
+    const { data: insertedBooking, error: insertError } = await authContext.serviceRole
+      .from("Bookings")
+      .insert({
+        childId,
+        classId,
+        accountId,
+        bookingType,
+        startDate: todayDate,
+        status: "active",
+        autoRenew: true,
+        autoRenewConsent: true,
+        bookedDurationMinutes,
+        updatedAt: nowIso,
+      })
+      .select("id,bookingType,startDate")
+      .maybeSingle();
+
+    if (insertError) {
+      const message =
+        insertError.code === "23505"
+          ? "This student already has an active booking for that class."
+          : insertError.message;
+      return authContext.applyCookies(jsonError(message, 409));
+    }
+
+    return authContext.applyCookies(
+      NextResponse.json({
+        ok: true,
+        bookingId: insertedBooking?.id ?? null,
+        bookingType: insertedBooking?.bookingType ?? bookingType,
+        startDate: insertedBooking?.startDate ?? todayDate,
+      })
+    );
+  } catch (error) {
+    return jsonError(error instanceof Error ? error.message : "Unknown error", 500);
+  }
+}

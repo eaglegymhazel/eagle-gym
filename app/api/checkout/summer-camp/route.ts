@@ -2,6 +2,7 @@ import Stripe from "stripe";
 import { NextResponse } from "next/server";
 import { getBookingContext } from "@/lib/server/bookingContext";
 import { supabaseAdmin } from "@/lib/admin";
+import { getOrCreateStripeCheckoutCustomer } from "@/lib/server/stripeCheckoutCustomer";
 import {
   SUMMER_CAMP_2026,
   buildSummerCampSelectionByWeek,
@@ -173,8 +174,35 @@ export async function POST(req: Request) {
     }
 
     const stripe = new Stripe(stripeSecretKey, { apiVersion: "2026-01-28.clover" });
+    const checkoutEmail = bookingContext.email?.trim() || "";
+    if (!checkoutEmail) {
+      return NextResponse.json({ error: "Account email not found." }, { status: 400 });
+    }
+
+    const { data: existingCustomerRow } = await supabaseAdmin
+      .from("Bookings")
+      .select('"stripeCustomerId"')
+      .eq("accountId", bookingContext.accountId)
+      .eq("bookingType", "recreational")
+      .not("stripeCustomerId", "is", null)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    const stripeCustomerId = await getOrCreateStripeCheckoutCustomer({
+      stripe,
+      email: checkoutEmail,
+      accountId: bookingContext.accountId,
+      existingCustomerId:
+        existingCustomerRow &&
+        typeof existingCustomerRow.stripeCustomerId === "string"
+          ? existingCustomerRow.stripeCustomerId
+          : null,
+    });
+
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
+      customer: stripeCustomerId,
       line_items: [
         {
           price_data: {
@@ -190,7 +218,6 @@ export async function POST(req: Request) {
       ],
       success_url: `${process.env.APP_URL}/summer-camps/2026/success`,
       cancel_url: `${process.env.APP_URL}/summer-camps/2026/summary?childId=${encodeURIComponent(childId)}&days=${encodeURIComponent(selectedDayIds.join(","))}`,
-      customer_email: bookingContext.email || undefined,
       metadata: {
         bookingType: "summer-camp",
         bookingGroupId: bookingGroup.id,
