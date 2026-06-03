@@ -317,16 +317,37 @@ export default function AccountShell() {
     isActive: () => boolean,
     forceFresh = false
   ) => {
-    const res = await fetch("/api/account/bootstrap", {
-      method: "POST",
-      credentials: "include",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ includeChildDetails, forceFresh }),
-    })
+    const requestBootstrap = async () =>
+      fetch("/api/account/bootstrap", {
+        method: "POST",
+        credentials: "include",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ includeChildDetails, forceFresh }),
+      })
+
+    let res: Response
+
+    try {
+      res = await requestBootstrap()
+    } catch (error) {
+      if (!isActive()) return null
+      await new Promise((resolve) => window.setTimeout(resolve, 250))
+      if (!isActive()) return null
+      res = await requestBootstrap().catch(() => {
+        throw error
+      })
+    }
 
     if (res.status === 401) {
-      window.location.href = "/login"
-      return null
+      await new Promise((resolve) => window.setTimeout(resolve, 250))
+      if (!isActive()) return null
+
+      res = await requestBootstrap()
+
+      if (res.status === 401) {
+        window.location.href = "/login"
+        return null
+      }
     }
 
     const json = (await res.json()) as BootstrapResponse

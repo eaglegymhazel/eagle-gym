@@ -22,6 +22,7 @@ export default function LoginClient({
   const [msg, setMsg] = useState<string | null>(null)
   const [msgType, setMsgType] = useState<'error' | 'success' | null>(null)
   const [needsVerification, setNeedsVerification] = useState(false)
+  const [loginRedirecting, setLoginRedirecting] = useState(false)
   const [resending, setResending] = useState(false)
   const [resendCooldownUntil, setResendCooldownUntil] = useState<number | null>(null)
   const [now, setNow] = useState(() => Date.now())
@@ -47,9 +48,10 @@ export default function LoginClient({
 
   useEffect(() => {
     if (loading) return
+    if (loginRedirecting) return
     if (!user) return
     router.replace(redirectTo)
-  }, [loading, redirectTo, router, user])
+  }, [loading, loginRedirecting, redirectTo, router, user])
 
   const onLogin = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -72,6 +74,7 @@ export default function LoginClient({
       setMsg('Incorrect email or password. Please try again.')
       setMsgType('error')
     } else {
+      setLoginRedirecting(true)
       window.location.assign(redirectTo)
     }
   }
