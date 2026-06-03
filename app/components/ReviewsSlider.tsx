@@ -1,5 +1,7 @@
 "use client";
 
+const googleReviewsUrl = "https://share.google/1hcQGUOteA8Kj1RQg";
+
 const reviews = [
   {
     quote:
@@ -69,6 +71,17 @@ export default function ReviewsSlider() {
               </p>
             </article>
           ))}
+        </div>
+
+        <div className="mt-8 text-center">
+          <a
+            href={googleReviewsUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center justify-center rounded-full border border-[#ccb7e6] bg-white px-5 py-2.5 text-sm font-bold text-[#5b2ca7] transition hover:border-[#b79ada] hover:bg-[#faf7ff]"
+          >
+            Check out more reviews!
+          </a>
         </div>
       </div>
     </section>

@@ -1,3 +1,4 @@
+import type { Metadata } from "next"
 import Link from "next/link"
 import { PortableText } from "@portabletext/react"
 import type { TypedObject } from "@portabletext/types"
@@ -6,6 +7,7 @@ import { ArrowLeft } from "lucide-react"
 import { getNewsArticleBySlug } from "@/lib/sanity/news"
 import { urlForImage } from "@/lib/sanity/image"
 import ArticleLightboxImage from "../ArticleLightboxImage"
+import { absoluteUrl } from "@/lib/seo"
 
 type PortableImageValue = {
   asset?: {
@@ -56,6 +58,40 @@ const portableTextComponents = {
       )
     },
   },
+}
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>
+}): Promise<Metadata> {
+  const { slug } = await params
+  const article = await getNewsArticleBySlug(slug)
+
+  if (!article) {
+    return {
+      title: "News Article",
+      alternates: {
+        canonical: `/news/${slug}`,
+      },
+    }
+  }
+
+  return {
+    title: article.title,
+    description: article.excerpt ?? `Read ${article.title} from Eagle Gymnastics Academy.`,
+    alternates: {
+      canonical: `/news/${article.slug}`,
+    },
+    openGraph: {
+      type: "article",
+      title: article.title,
+      description: article.excerpt ?? `Read ${article.title} from Eagle Gymnastics Academy.`,
+      url: absoluteUrl(`/news/${article.slug}`),
+      publishedTime: article.date,
+      images: article.coverImage ? [{ url: article.coverImage, alt: article.title }] : undefined,
+    },
+  }
 }
 
 function renderLegacyBody(body: unknown[]) {

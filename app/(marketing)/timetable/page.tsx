@@ -1,9 +1,19 @@
+import type { Metadata } from "next";
 import {
   getCompetitionClasses,
   getRecreationalClasses,
   type RecreationalClassRow,
 } from "@/lib/server/classes";
 import TimetableClient, { type TimetableDay } from "./TimetableClient";
+
+export const metadata: Metadata = {
+  title: "Class Timetable",
+  description:
+    "View the Eagle Gymnastics Academy class timetable for recreational and competition gymnastics sessions in Paisley.",
+  alternates: {
+    canonical: "/timetable",
+  },
+};
 
 const WEEKDAY_ORDER = [
   "Monday",

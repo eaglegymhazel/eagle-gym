@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { createPortal } from "react-dom";
@@ -52,6 +52,30 @@ const navItems: NavItem[] = [
   { key: "birthday-parties", label: "Birthday Parties", icon: Gift },
 ];
 
+function AdminPanelSkeleton() {
+  return (
+    <div className="space-y-4 py-2">
+      <div className="grid gap-3 md:grid-cols-3">
+        {Array.from({ length: 3 }).map((_, index) => (
+          <div
+            key={`admin-skeleton-card-${index}`}
+            className="h-24 animate-pulse rounded-xl border border-[#e6e0ee] bg-gradient-to-r from-[#f7f3fb] via-[#f1e9fb] to-[#f7f3fb]"
+          />
+        ))}
+      </div>
+      <div className="rounded-xl border border-[#e6e0ee] bg-white p-4">
+        <div className="space-y-3">
+          {Array.from({ length: 6 }).map((_, index) => (
+            <div
+              key={`admin-skeleton-row-${index}`}
+              className="h-12 animate-pulse rounded-lg bg-gradient-to-r from-[#f7f3fb] via-[#f1e9fb] to-[#f7f3fb]"
+            />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function AdminShell({
   referenceNowIso,
@@ -122,6 +146,8 @@ export default function AdminShell({
     "all" | "past_due" | "unpaid"
   >("all");
   const [missedPaymentsSort, setMissedPaymentsSort] = useState<"newest" | "oldest">("newest");
+  const [isTabTransitionPending, startTabTransition] = useTransition();
+  const [pendingTab, setPendingTab] = useState<AdminTabKey | null>(null);
   const [waitlistActionError, setWaitlistActionError] = useState<string | null>(null);
   const [waitlistActionMessage, setWaitlistActionMessage] = useState<string | null>(null);
   const [waitlistRemovingKey, setWaitlistRemovingKey] = useState<string | null>(null);
@@ -142,6 +168,7 @@ export default function AdminShell({
 
   useEffect(() => {
     setTab(initialTab);
+    setPendingTab(null);
   }, [initialTab]);
 
   useEffect(() => {
@@ -154,9 +181,17 @@ export default function AdminShell({
   );
 
   const navigateToTab = (nextTab: AdminTabKey) => {
+    if (nextTab === tab && pendingTab == null) {
+      return;
+    }
+
     setTab(nextTab);
-    router.push(nextTab === "students" ? "/admin?tab=students" : `/admin?tab=${nextTab}`);
+    setPendingTab(nextTab);
+    startTabTransition(() => {
+      router.push(nextTab === "students" ? "/admin?tab=students" : `/admin?tab=${nextTab}`);
+    });
   };
+  const isTabLoading = isTabTransitionPending && pendingTab === tab;
 
   const childPickerProps = {
     children: childrenData,
@@ -536,6 +571,10 @@ export default function AdminShell({
               </div>
             </div>
 
+            {isTabLoading ? (
+              <AdminPanelSkeleton />
+            ) : (
+              <>
             {tab === "students" ? (
               <div className="space-y-4">
                 {childrenLoadError ? (
@@ -1090,6 +1129,8 @@ export default function AdminShell({
                 ) : null}
               </div>
             ) : null}
+              </>
+            )}
           </div>
         </section>
       </div>

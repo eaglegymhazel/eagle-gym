@@ -1,5 +1,15 @@
+import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
+
+export const metadata: Metadata = {
+  title: "Birthday Parties",
+  description:
+    "Book a gymnastics birthday party in Paisley with active games, gym fun, and dedicated party time at Eagle Gymnastics Academy.",
+  alternates: {
+    canonical: "/birthday-party",
+  },
+};
 
 const partyIncludes = [
   "30 minutes of high-energy gymnastics fun, games, and activities",

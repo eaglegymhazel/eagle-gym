@@ -1,9 +1,19 @@
+import type { Metadata } from "next";
 import ContactForm from "./ContactForm";
 
 const ADDRESS = "11 Knox St, Paisley PA1 2QJ, United Kingdom";
 const PHONE_DISPLAY = "0141 840 1454";
 const PHONE_TEL = "01418401454";
 const MAP_QUERY = encodeURIComponent(ADDRESS);
+
+export const metadata: Metadata = {
+  title: "Contact",
+  description:
+    "Contact Eagle Gymnastics Academy in Paisley for class information, bookings, birthday parties, and general enquiries.",
+  alternates: {
+    canonical: "/contact",
+  },
+};
 
 export default function ContactPage() {
   return (
