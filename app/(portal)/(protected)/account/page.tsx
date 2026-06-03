@@ -1,5 +1,10 @@
+import { Suspense } from "react";
 import AccountShell from "./AccountShell";
 
 export default function AccountPage() {
-  return <AccountShell />
+  return (
+    <Suspense fallback={null}>
+      <AccountShell />
+    </Suspense>
+  );
 }
