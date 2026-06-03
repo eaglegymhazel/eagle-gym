@@ -57,12 +57,8 @@ export async function POST(request: NextRequest) {
     page += 1;
   }
 
-  if (authUserExists) {
-    return NextResponse.json(
-      { error: "An account with this email already exists." },
-      { status: 409 }
-    );
-  }
-
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({
+    ok: true,
+    message: "If an account with this email address exists, you can continue with the next step.",
+  });
 }
