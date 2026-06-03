@@ -3,9 +3,12 @@ const rawSiteUrl =
   process.env.APP_URL?.trim() ||
   "https://www.eaglegymnasticsacademy.co.uk";
 
-export const siteUrl = rawSiteUrl.endsWith("/")
-  ? rawSiteUrl.slice(0, -1)
-  : rawSiteUrl;
+function normalizeSiteUrl(value: string): string {
+  const withScheme = /^https?:\/\//i.test(value) ? value : `https://${value}`;
+  return withScheme.endsWith("/") ? withScheme.slice(0, -1) : withScheme;
+}
+
+export const siteUrl = normalizeSiteUrl(rawSiteUrl);
 
 export const siteName = "Eagle Gymnastics Academy";
 export const defaultTitle = "Eagle Gymnastics Academy";
