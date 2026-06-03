@@ -23,8 +23,37 @@ import type { Child } from "@/components/admin/mockChildren";
 import type { Session } from "@/components/admin/mockSessions";
 import type { RegisterClassTemplate } from "@/components/admin/sessionBuild";
 
-export default async function AdminPage() {
+type AdminTabKey =
+  | "students"
+  | "register"
+  | "summer-camp-register"
+  | "waiting"
+  | "missed-payments"
+  | "birthday-parties";
+
+function resolveAdminTab(tab: string | undefined): AdminTabKey {
+  if (
+    tab === "students" ||
+    tab === "register" ||
+    tab === "summer-camp-register" ||
+    tab === "waiting" ||
+    tab === "missed-payments" ||
+    tab === "birthday-parties"
+  ) {
+    return tab;
+  }
+
+  return "students";
+}
+
+export default async function AdminPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ tab?: string }>;
+}) {
   const referenceNowIso = new Date().toISOString();
+  const resolvedSearchParams = await searchParams;
+  const activeTab = resolveAdminTab(resolvedSearchParams?.tab);
   let childrenData: Child[] = [];
   let registerClasses: RegisterClassTemplate[] = [];
   let summerCampRegisterSessions: Session[] = [];
@@ -40,51 +69,61 @@ export default async function AdminPage() {
   let birthdayPartyBookingsLoadError: string | null = null;
   let birthdayPartyAvailabilityLoadError: string | null = null;
 
-  try {
-    childrenData = await getAdminChildrenDirectory();
-  } catch (error) {
-    childrenLoadError = error instanceof Error ? error.message : "Unable to load children.";
+  if (activeTab === "students") {
+    try {
+      childrenData = await getAdminChildrenDirectory();
+    } catch (error) {
+      childrenLoadError = error instanceof Error ? error.message : "Unable to load children.";
+    }
   }
 
-  try {
-    registerClasses = await getAdminRegisterClasses();
-  } catch (error) {
-    registerClassesError =
-      error instanceof Error ? error.message : "Unable to load register classes.";
+  if (activeTab === "register") {
+    try {
+      registerClasses = await getAdminRegisterClasses();
+    } catch (error) {
+      registerClassesError =
+        error instanceof Error ? error.message : "Unable to load register classes.";
+    }
   }
 
-  try {
-    summerCampRegisterSessions = await getAdminSummerCampRegisterSessions();
-  } catch (error) {
-    summerCampRegisterSessionsError =
-      error instanceof Error ? error.message : "Unable to load summer camp registers.";
+  if (activeTab === "summer-camp-register") {
+    try {
+      summerCampRegisterSessions = await getAdminSummerCampRegisterSessions();
+    } catch (error) {
+      summerCampRegisterSessionsError =
+        error instanceof Error ? error.message : "Unable to load summer camp registers.";
+    }
   }
 
-  try {
-    waitlistRows = await getAdminWaitlist();
-  } catch (error) {
-    waitlistLoadError = error instanceof Error ? error.message : "Unable to load waiting list.";
+  if (activeTab === "waiting") {
+    try {
+      waitlistRows = await getAdminWaitlist();
+    } catch (error) {
+      waitlistLoadError = error instanceof Error ? error.message : "Unable to load waiting list.";
+    }
   }
 
-  try {
-    missedPaymentsRows = await getAdminMissedPayments();
-  } catch (error) {
-    missedPaymentsLoadError =
-      error instanceof Error ? error.message : "Unable to load missed payments.";
+  if (activeTab === "missed-payments") {
+    try {
+      missedPaymentsRows = await getAdminMissedPayments();
+    } catch (error) {
+      missedPaymentsLoadError =
+        error instanceof Error ? error.message : "Unable to load missed payments.";
+    }
   }
 
-  try {
-    birthdayPartyBookingsRows = await getAdminBirthdayPartyBookings();
-  } catch (error) {
-    birthdayPartyBookingsLoadError =
-      error instanceof Error ? error.message : "Unable to load birthday party bookings.";
-  }
-
-  try {
-    birthdayPartyCalendarSlots = await getBirthdayPartyCalendarSlots();
-  } catch (error) {
-    birthdayPartyAvailabilityLoadError =
-      error instanceof Error ? error.message : "Unable to load birthday party availability.";
+  if (activeTab === "birthday-parties") {
+    try {
+      [birthdayPartyBookingsRows, birthdayPartyCalendarSlots] = await Promise.all([
+        getAdminBirthdayPartyBookings(),
+        getBirthdayPartyCalendarSlots(),
+      ]);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Unable to load birthday party data.";
+      birthdayPartyBookingsLoadError = message;
+      birthdayPartyAvailabilityLoadError = message;
+    }
   }
 
   return (

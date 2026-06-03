@@ -140,10 +140,23 @@ export default function AdminShell({
   const birthdayPartyCalendarSlots = initialBirthdayPartyCalendarSlots;
   const birthdayPartyAvailabilityLoadError = initialBirthdayPartyAvailabilityLoadError;
 
+  useEffect(() => {
+    setTab(initialTab);
+  }, [initialTab]);
+
+  useEffect(() => {
+    setWaitlistRowsState(initialWaitlistRows);
+  }, [initialWaitlistRows]);
+
   const registerSessions = useMemo(
     () => buildUpcomingSessions(registerClasses, 14, new Date(referenceNowIso)),
     [referenceNowIso, registerClasses]
   );
+
+  const navigateToTab = (nextTab: AdminTabKey) => {
+    setTab(nextTab);
+    router.push(nextTab === "students" ? "/admin?tab=students" : `/admin?tab=${nextTab}`);
+  };
 
   const childPickerProps = {
     children: childrenData,
@@ -498,7 +511,7 @@ export default function AdminShell({
                     tab === item.key ? styles.navItemActive : ""
                   } cursor-pointer`}
                   aria-current={tab === item.key ? "page" : undefined}
-                  onClick={() => setTab(item.key)}
+                  onClick={() => navigateToTab(item.key)}
                 >
                   {item.label}
                 </button>
@@ -1145,7 +1158,7 @@ export default function AdminShell({
                             icon={item.icon}
                             isActive={isActive}
                             onSelect={() => {
-                              setTab(item.key);
+                              navigateToTab(item.key);
                               setIsMobileNavOpen(false);
                             }}
                           />
