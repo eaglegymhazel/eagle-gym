@@ -59,7 +59,7 @@ export default function BookingClientShell({
     setSummerCampWarning(null);
     setPendingChildId(newChildId);
     setIsSwitchingChild(true);
-    router.replace(`/book?childId=${newChildId}`);
+    window.location.replace(`/book?childId=${encodeURIComponent(newChildId)}`);
   };
 
   const selectedChild = children.find((item) => item.id === childId) ?? null;
@@ -90,7 +90,7 @@ export default function BookingClientShell({
     }
 
     setSummerCampWarning(null);
-    router.push(`/summer-camps/2026/book?childId=${encodeURIComponent(childId)}`);
+    window.location.assign(`/summer-camps/2026/book?childId=${encodeURIComponent(childId)}`);
   };
 
   return (

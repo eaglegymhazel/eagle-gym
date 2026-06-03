@@ -49,7 +49,9 @@ export default function BookingGateway({
             <button
               type="button"
               disabled={isSwitchingChild}
-              onClick={() => router.push(`/book/recreational?childId=${childId}`)}
+              onClick={() =>
+                window.location.assign(`/book/recreational?childId=${encodeURIComponent(childId)}`)
+              }
               className={`group inline-flex h-[56px] w-[260px] items-center justify-center rounded-full bg-[#6c35c3] px-6 text-sm font-semibold !text-white shadow-[0_18px_40px_-18px_rgba(108,53,195,0.85)] transition-colors hover:bg-[#5325a3] ${
                 isSwitchingChild
                   ? "cursor-not-allowed opacity-60 shadow-none hover:bg-[#6c35c3]"
@@ -105,7 +107,9 @@ export default function BookingGateway({
               <button
                 type="button"
                 disabled={isSwitchingChild}
-                onClick={() => router.push(`/book/competition?childId=${childId}`)}
+                onClick={() =>
+                  window.location.assign(`/book/competition?childId=${encodeURIComponent(childId)}`)
+                }
                 className={`group inline-flex h-[56px] w-[260px] items-center justify-center rounded-full bg-white px-6 text-sm font-semibold text-[#2b1b4f] shadow-[0_18px_40px_-18px_rgba(12,8,30,0.7)] transition-colors hover:bg-white/95 ${
                   isSwitchingChild ? "cursor-not-allowed opacity-60 shadow-none" : "cursor-pointer"
                 }`}

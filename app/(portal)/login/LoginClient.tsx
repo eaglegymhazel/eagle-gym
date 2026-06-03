@@ -72,7 +72,7 @@ export default function LoginClient({
       setMsg('Incorrect email or password. Please try again.')
       setMsgType('error')
     } else {
-      router.push(redirectTo)
+      window.location.assign(redirectTo)
     }
   }
 

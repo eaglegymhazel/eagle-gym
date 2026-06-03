@@ -656,7 +656,7 @@ export default function AccountShell() {
     }
     if (count === 1) {
       const child = children[0]
-      router.push(`/book?childId=${child.id}`)
+      window.location.assign(`/book?childId=${encodeURIComponent(child.id)}`)
       return
     }
     setIsChildModalOpen(true)
@@ -1116,7 +1116,7 @@ export default function AccountShell() {
                   childOptions={data.children}
                   onSelect={(child) => {
                     setIsChildModalOpen(false)
-                    router.push(`/book?childId=${child.id}`)
+                    window.location.assign(`/book?childId=${encodeURIComponent(child.id)}`)
                   }}
                 />
               </>

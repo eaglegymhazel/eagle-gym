@@ -19,6 +19,10 @@ export const runtime = "nodejs";
 
 const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
 
+function getAppUrl(req: Request): string {
+  return process.env.APP_URL?.trim() || new URL(req.url).origin;
+}
+
 function toPence(value: number): number {
   return Math.round(value * 100);
 }
@@ -199,6 +203,7 @@ export async function POST(req: Request) {
           ? existingCustomerRow.stripeCustomerId
           : null,
     });
+    const appUrl = getAppUrl(req);
 
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
@@ -216,8 +221,8 @@ export async function POST(req: Request) {
           quantity: 1,
         },
       ],
-      success_url: `${process.env.APP_URL}/summer-camps/2026/success`,
-      cancel_url: `${process.env.APP_URL}/summer-camps/2026/summary?childId=${encodeURIComponent(childId)}&days=${encodeURIComponent(selectedDayIds.join(","))}`,
+      success_url: `${appUrl}/summer-camps/2026/success`,
+      cancel_url: `${appUrl}/summer-camps/2026/summary?childId=${encodeURIComponent(childId)}&days=${encodeURIComponent(selectedDayIds.join(","))}`,
       metadata: {
         bookingType: "summer-camp",
         bookingGroupId: bookingGroup.id,

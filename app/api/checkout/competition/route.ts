@@ -13,6 +13,10 @@ export const runtime = "nodejs";
 const stripeSecretKey = process.env.COMP_STRIPE_SECRET_KEY;
 const HOLD_MINUTES = 15;
 
+function getAppUrl(req: Request): string {
+  return process.env.APP_URL?.trim() || new URL(req.url).origin;
+}
+
 export async function POST(req: Request) {
   let bookingGroupId = "";
 
@@ -204,13 +208,14 @@ export async function POST(req: Request) {
           ? existingCustomerRow.stripeCustomerId
           : null,
     });
+    const appUrl = getAppUrl(req);
 
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
       customer: stripeCustomerId,
       line_items: [{ price: priceId, quantity: 1 }],
-      success_url: `${process.env.APP_URL}/booking/success?type=competition&bookingGroupId=${encodeURIComponent(bookingGroupId)}`,
-      cancel_url: `${process.env.APP_URL}/booking/cancel`,
+      success_url: `${appUrl}/booking/success?type=competition&bookingGroupId=${encodeURIComponent(bookingGroupId)}`,
+      cancel_url: `${appUrl}/booking/cancel`,
       metadata: {
         bookingType: "competition",
         bookingGroupId,
