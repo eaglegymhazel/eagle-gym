@@ -33,6 +33,18 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Child not found" }, { status: 404 });
     }
 
+    const child = bookingContext.children.find((item) => item.id === childId);
+    if (!child?.id) {
+      return NextResponse.json({ error: "Child not found" }, { status: 404 });
+    }
+
+    if (child.competitionEligible !== true) {
+      return NextResponse.json(
+        { error: "This child is not eligible for competition bookings." },
+        { status: 403 }
+      );
+    }
+
     const draft = await upsertCompetitionBookingDraft({
       accountId: bookingContext.accountId,
       childId,
@@ -84,6 +96,18 @@ export async function PATCH(req: Request) {
 
     if (!bookingContext.children.some((child) => child.id === existingDraft.childId)) {
       return NextResponse.json({ error: "Child not found" }, { status: 404 });
+    }
+
+    const child = bookingContext.children.find((item) => item.id === existingDraft.childId);
+    if (!child?.id) {
+      return NextResponse.json({ error: "Child not found" }, { status: 404 });
+    }
+
+    if (child.competitionEligible !== true) {
+      return NextResponse.json(
+        { error: "This child is not eligible for competition bookings." },
+        { status: 403 }
+      );
     }
 
     const draft = await upsertCompetitionBookingDraft({

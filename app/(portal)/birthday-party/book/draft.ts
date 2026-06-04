@@ -2,7 +2,7 @@
 
 export type BirthdayPartyDraft = {
   slotId: string;
-  partySize: number;
+  partySize: number | null;
   birthdayChildFirstName: string;
   birthdayChildLastName: string;
   birthdayChildDateOfBirth: string;

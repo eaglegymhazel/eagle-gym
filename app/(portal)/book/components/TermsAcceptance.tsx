@@ -2,12 +2,50 @@
 
 import { useState } from "react";
 
+type TermsSection = {
+  title: string;
+  body: string;
+  tone?: "default" | "warning";
+};
+
 type TermsAcceptanceProps = {
   accepted: boolean;
   onAccept: () => void;
+  title?: string;
+  intro?: string;
+  warningText?: string | null;
+  sections?: TermsSection[];
+  acceptLabel?: string;
 };
 
-export default function TermsAcceptance({ accepted, onAccept }: TermsAcceptanceProps) {
+const defaultSections: TermsSection[] = [
+  {
+    title: "Membership and payments",
+    body:
+      "Monthly fees are spread across the full year, including holiday breaks, to keep payments simple and consistent. Payments continue during holiday periods.",
+  },
+  {
+    title: "Annual fee review",
+    body:
+      "An annual club fee review takes place each May. Fees may increase at that time to reflect rising operational and running costs.",
+    tone: "warning",
+  },
+  {
+    title: "Gym Holiday Dates",
+    body:
+      "The gym is closed and there are no classes on these dates: 2025/2026 winter break Dec 23 - Jan 4, spring break Apr 6 - Apr 19, summer break Jun 29 - Aug 10. 2026/2027 winter break Dec 21 - Jan 4, spring break Apr 5 - Apr 18, summer break Jun 27 - Aug 8.",
+  },
+];
+
+export default function TermsAcceptance({
+  accepted,
+  onAccept,
+  title = "Subscription Cancellation Policy",
+  intro = "Please review the key membership terms below before confirming your booking.",
+  warningText = "You must provide 1 full month's written notice before membership can end.",
+  sections = defaultSections,
+  acceptLabel = "I agree to the terms",
+}: TermsAcceptanceProps) {
   const [isOpen, setIsOpen] = useState(false);
 
   return (
@@ -35,7 +73,7 @@ export default function TermsAcceptance({ accepted, onAccept }: TermsAcceptanceP
             disabled
             className="h-4 w-4 cursor-not-allowed rounded border border-[#cfbfeb] text-[#6c35c3] disabled:opacity-100"
           />
-          <span>I agree to the terms</span>
+          <span>{acceptLabel}</span>
         </label>
         {!accepted ? (
           <p className="mt-1 text-[11px] text-[#6a5a86]">
@@ -53,88 +91,51 @@ export default function TermsAcceptance({ accepted, onAccept }: TermsAcceptanceP
                 Before You Confirm
               </p>
               <h3 className="mt-2 text-[1.7rem] font-black tracking-tight text-[#1f1a25]">
-                Subscription Cancellation Policy
+                {title}
               </h3>
               <p className="mt-2 max-w-xl text-sm leading-relaxed text-[#5a4d70]">
-                Please review the key membership terms below before confirming your booking.
+                {intro}
               </p>
             </div>
 
             <div className="space-y-6 px-5 py-5 sm:px-7 sm:py-6">
-              <p className="rounded-2xl border border-[#f3d3da] bg-[#fff4f6] px-4 py-3 text-center text-sm font-semibold text-[#8b1f35]">
-              You must provide <span className="underline">1 full month&apos;s written notice</span>{" "}
-              before membership can end.
-              </p>
-
-              <section className="space-y-3 rounded-2xl border border-[#ece3f7] bg-[#faf8fd] px-4 py-4">
-                <h4 className="text-base font-black tracking-tight text-[#1f1a25]">
-                  Membership and payments
-                </h4>
-                <p className="text-sm leading-relaxed text-[#2E2A33]">
-                  Monthly fees are spread across the full year, including holiday breaks, to keep
-                  payments simple and consistent. Payments continue during holiday periods.
+              {warningText ? (
+                <p className="rounded-2xl border border-[#f3d3da] bg-[#fff4f6] px-4 py-3 text-center text-sm font-semibold text-[#8b1f35]">
+                  {warningText}
                 </p>
-              </section>
+              ) : null}
 
-              <section className="space-y-3 rounded-2xl border border-[#efe1bf] bg-[#fff9e8] px-4 py-4">
-                <h4 className="text-base font-black tracking-tight text-[#5f4710]">
-                  Annual fee review
-                </h4>
-                <p className="text-sm leading-relaxed text-[#6e5110]">
-                  An annual club fee review takes place each May. Fees may increase at that time to
-                  reflect rising operational and running costs.
-                </p>
-              </section>
-
-              <section className="border-t border-[#e9e1f2] pt-5">
-                <h4 className="text-center text-2xl font-black tracking-tight text-[#1f1a25]">
-                  Gym Holiday Dates
-                </h4>
-                <p className="mt-1 text-center text-sm text-[#4f4265]">
-                  The gym is closed and there are no classes on these dates.
-                </p>
-
-                <div className="mt-5 grid gap-3.5 sm:grid-cols-2">
-                  <article className="overflow-hidden rounded-2xl border border-[#e5d8f4] bg-white shadow-[0_10px_22px_-18px_rgba(31,20,50,0.5)]">
-                    <header className="border-b border-[#efe7fa] bg-[#faf7ff] px-4 py-3">
-                      <p className="text-lg font-black text-[#1f1a25]">2025/2026</p>
-                    </header>
-                    <ul className="divide-y divide-[#f1e9fb] text-sm text-[#2E2A33]">
-                      <li className="grid grid-cols-[1fr_auto] items-baseline gap-3 px-4 py-3">
-                        <span className="font-semibold text-[#4f4265]">Winter break</span>
-                        <span className="text-right font-bold">Dec 23 - Jan 4</span>
-                      </li>
-                      <li className="grid grid-cols-[1fr_auto] items-baseline gap-3 px-4 py-3">
-                        <span className="font-semibold text-[#4f4265]">Spring break</span>
-                        <span className="text-right font-bold">Apr 6 - Apr 19</span>
-                      </li>
-                      <li className="grid grid-cols-[1fr_auto] items-baseline gap-3 px-4 py-3">
-                        <span className="font-semibold text-[#4f4265]">Summer break</span>
-                        <span className="text-right font-bold">Jun 29 - Aug 10</span>
-                      </li>
-                    </ul>
-                  </article>
-                  <article className="overflow-hidden rounded-2xl border border-[#e5d8f4] bg-white shadow-[0_10px_22px_-18px_rgba(31,20,50,0.5)]">
-                    <header className="border-b border-[#efe7fa] bg-[#faf7ff] px-4 py-3">
-                      <p className="text-lg font-black text-[#1f1a25]">2026/2027</p>
-                    </header>
-                    <ul className="divide-y divide-[#f1e9fb] text-sm text-[#2E2A33]">
-                      <li className="grid grid-cols-[1fr_auto] items-baseline gap-3 px-4 py-3">
-                        <span className="font-semibold text-[#4f4265]">Winter break</span>
-                        <span className="text-right font-bold">Dec 21 - Jan 4</span>
-                      </li>
-                      <li className="grid grid-cols-[1fr_auto] items-baseline gap-3 px-4 py-3">
-                        <span className="font-semibold text-[#4f4265]">Spring break</span>
-                        <span className="text-right font-bold">Apr 5 - Apr 18</span>
-                      </li>
-                      <li className="grid grid-cols-[1fr_auto] items-baseline gap-3 px-4 py-3">
-                        <span className="font-semibold text-[#4f4265]">Summer break</span>
-                        <span className="text-right font-bold">Jun 27 - Aug 8</span>
-                      </li>
-                    </ul>
-                  </article>
-                </div>
-              </section>
+              {sections.map((section) => {
+                const warning = section.tone === "warning";
+                return (
+                  <section
+                    key={section.title}
+                    className={[
+                      "space-y-3 rounded-2xl px-4 py-4",
+                      warning
+                        ? "border border-[#efe1bf] bg-[#fff9e8]"
+                        : "border border-[#ece3f7] bg-[#faf8fd]",
+                    ].join(" ")}
+                  >
+                    <h4
+                      className={[
+                        "text-base font-black tracking-tight",
+                        warning ? "text-[#5f4710]" : "text-[#1f1a25]",
+                      ].join(" ")}
+                    >
+                      {section.title}
+                    </h4>
+                    <p
+                      className={[
+                        "text-sm leading-relaxed",
+                        warning ? "text-[#6e5110]" : "text-[#2E2A33]",
+                      ].join(" ")}
+                    >
+                      {section.body}
+                    </p>
+                  </section>
+                );
+              })}
             </div>
 
             <div className="border-t border-[#ece3f7] px-5 py-4 sm:px-7">

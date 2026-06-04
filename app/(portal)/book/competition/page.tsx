@@ -144,6 +144,10 @@ export default async function CompetitionBookingPage({
     redirect("/book");
   }
 
+  if (child.competitionEligible !== true) {
+    redirect("/book");
+  }
+
   const childName = `${child.firstName ?? ""} ${child.lastName ?? ""}`.trim();
   const childAge = computeAge(child.dateOfBirth ?? null);
   const initialDraft = draftId

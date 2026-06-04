@@ -6,6 +6,7 @@ import { AlertCircle, ArrowLeft, CreditCard } from "lucide-react";
 import { parseBirthdayPartySize } from "@/lib/birthdayPartyBookingValidation";
 import type { BirthdayPartyAccountSummary, BirthdayPartyPriceBreakdown } from "@/lib/server/birthdayPartyBookings";
 import { loadBirthdayPartyDraft, type BirthdayPartyDraft } from "../draft";
+import TermsAcceptance from "@/app/(portal)/book/components/TermsAcceptance";
 
 type BirthdayPartyReviewClientProps = {
   slotId: string;
@@ -47,6 +48,7 @@ export default function BirthdayPartyReviewClient({
   const [draft, setDraft] = useState<BirthdayPartyDraft | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [hasAcceptedTerms, setHasAcceptedTerms] = useState(false);
 
   useEffect(() => {
     const savedDraft = loadBirthdayPartyDraft();
@@ -79,7 +81,7 @@ export default function BirthdayPartyReviewClient({
     };
   }, [draft, partySize, slotId]);
 
-  const backHref = `/birthday-party/book`;
+  const backHref = `/birthday-party/book/details?slotId=${encodeURIComponent(slotId)}`;
 
   const handleCheckout = async () => {
     if (isSubmitting || !isSlotAvailable) return;
@@ -287,12 +289,38 @@ export default function BirthdayPartyReviewClient({
               <button
                 type="button"
                 onClick={handleCheckout}
-                disabled={isSubmitting || !isSlotAvailable}
+                disabled={isSubmitting || !isSlotAvailable || !hasAcceptedTerms}
                 className="mt-5 inline-flex h-11 w-full items-center justify-center gap-2 rounded-full bg-[#6c35c3] px-5 text-sm font-semibold text-white !text-white shadow-[0_12px_24px_-12px_rgba(69,34,124,0.78)] transition hover:bg-[#5b2ca7] disabled:cursor-not-allowed disabled:bg-[#c5addf] disabled:!text-white"
               >
                 <CreditCard className="h-4 w-4" aria-hidden="true" />
                 {isSubmitting ? "Preparing Payment..." : "Continue to Payment"}
               </button>
+              <div className="pt-3 pl-2">
+                <TermsAcceptance
+                  accepted={hasAcceptedTerms}
+                  onAccept={() => setHasAcceptedTerms(true)}
+                  title="Birthday Party Terms"
+                  intro="Please review the birthday party cancellation and rescheduling terms before confirming your booking."
+                  warningText={null}
+                  sections={[
+                    {
+                      title: "Cancellations",
+                      body:
+                        "Cancellations made more than 1 month before the party date will receive a full refund, less a £10 administration fee. Cancellations made between 7 days and 1 month before the party date will receive a 75% refund. Unfortunately, cancellations made within 7 days of the party date are non-refundable, as arrangements and staffing will already have been confirmed.",
+                    },
+                    {
+                      title: "Rescheduling",
+                      body:
+                        "If you need to move your party and there are more than 7 days before the booking date, you can transfer your booking to another available date free of charge. If there are 7 days or less before the booking date, your booking can still be transferred to another available date for a £50 administration fee to cover the costs of rearranging staffing.",
+                    },
+                    {
+                      title: "Contact Us",
+                      body:
+                        "If you need to contact us regarding your booking for any reason, please see the Contact Us page on our website for details. A link to this will be found on your booking email.",
+                    },
+                  ]}
+                />
+              </div>
             </div>
           </aside>
         </div>

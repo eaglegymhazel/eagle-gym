@@ -377,15 +377,15 @@ export default async function BookingSuccessPage({
                       </div>
                     </div>
                     <div className="text-left sm:text-right">
-                      <p className="text-sm font-bold text-[#2a0c4f]">
-                        {bookingType === "competition"
-                          ? "Included in monthly total"
-                          : item.price != null
+                      {bookingType === "recreational" ? (
+                        <p className="text-sm font-bold text-[#2a0c4f]">
+                          {item.price != null
                             ? `${formatCurrency(item.price)} / month`
                             : "Price confirmed by Stripe"}
-                      </p>
+                        </p>
+                      ) : null}
                       <p className="mt-1 text-xs font-semibold uppercase tracking-[0.12em] text-[#6c35c3]">
-                        {item.status === "finalized" ? "Finalized" : "Pending confirmation"}
+                        {item.status === "finalized" ? "Confirmed" : "Pending confirmation"}
                       </p>
                     </div>
                   </div>

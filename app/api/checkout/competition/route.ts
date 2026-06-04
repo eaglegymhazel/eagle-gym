@@ -79,6 +79,18 @@ export async function POST(req: Request) {
       );
     }
 
+    const child = bookingContext.children.find((item) => item.id === draftRecord.childId);
+    if (!child?.id) {
+      return NextResponse.json({ error: "Child not found" }, { status: 404 });
+    }
+
+    if (child.competitionEligible !== true) {
+      return NextResponse.json(
+        { error: "This child is not eligible for competition bookings." },
+        { status: 403 }
+      );
+    }
+
     const normalizedClassIds = selections
       .map((selection) => (typeof selection.classId === "string" ? selection.classId.trim() : ""))
       .filter((id) => id.length > 0);

@@ -177,6 +177,16 @@ export default async function CompetitionReviewPage({
     );
   }
 
+  if (child.competitionEligible !== true) {
+    return (
+      <ErrorState
+        title="Competition booking unavailable"
+        message="This child is not currently eligible for competition bookings. Please return to the booking area."
+        backHref="/book"
+      />
+    );
+  }
+
   const childName = `${child.firstName ?? ""} ${child.lastName ?? ""}`.trim();
   const childAge = computeAge(child.dateOfBirth ?? null);
   const competitionPricing = competitionPricingRows

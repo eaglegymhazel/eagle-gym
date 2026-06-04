@@ -389,7 +389,9 @@ export default function AccountShell() {
       setError(null)
       try {
         const forceFresh = searchParams.get("refresh") === "bookings"
-        const includeChildDetails = forceFresh || searchParams.get("tab") === "bookings"
+        const activeTab = searchParams.get("tab")
+        const includeChildDetails =
+          forceFresh || activeTab === "bookings" || activeTab === "children"
         const json = await loadBootstrap(includeChildDetails, () => isActive, forceFresh)
         if (json) {
           setData(json)

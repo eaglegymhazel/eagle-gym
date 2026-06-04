@@ -5,7 +5,9 @@ import {
   sendBirthdayPartyConfirmationEmail,
   sendCompetitionClassBookingConfirmationEmail,
   sendRecreationalClassBookingConfirmationEmail,
+  sendSummerCampBookingConfirmationEmail,
   type RecreationalClassEmailItem,
+  type SummerCampEmailItem,
 } from "@/lib/server/bookingEmails";
 
 export const runtime = "nodejs";
@@ -52,6 +54,30 @@ type RecreationalClassEmailRow = {
   endTime: string | null;
   durationMinutes: number | null;
   price: number | string | null;
+};
+
+type SummerCampBookingGroupRow = {
+  id: string;
+  accountId: string;
+  childId: string;
+  slug: string;
+  status: string;
+  totalAmountPence: number | null;
+  stripeCheckoutSessionId: string | null;
+};
+
+type SummerCampBookingRow = {
+  id: string;
+  childId: string;
+  campDate: string;
+  status: string;
+};
+
+type SummerCampSessionEmailRow = {
+  campDate: string;
+  title: string | null;
+  startTime: string | null;
+  endTime: string | null;
 };
 
 const WEEKDAY_ORDER = [
@@ -258,6 +284,105 @@ async function sendClassBookingConfirmationEmail({
       error: result.error,
     });
   }
+}
+
+async function sendSummerCampConfirmationEmail(group: SummerCampBookingGroupRow) {
+  const [{ data: accountData, error: accountError }, { data: childData, error: childError }, { data: bookingData, error: bookingError }, { data: sessionData, error: sessionError }] =
+    await Promise.all([
+      supabaseAdmin
+        .from("Accounts")
+        .select("accFirstName,accLastName,email")
+        .eq("id", group.accountId)
+        .maybeSingle(),
+      supabaseAdmin
+        .from("Children")
+        .select("firstName,lastName")
+        .eq("id", group.childId)
+        .maybeSingle(),
+      supabaseAdmin
+        .from("SummerCampBookings")
+        .select('id,"childId","campDate",status')
+        .eq("bookingGroupId", group.id)
+        .in("status", ["pending", "active"]),
+      supabaseAdmin
+        .from("SummerCampSessions")
+        .select('campDate:"campDate",title,startTime:"startTime",endTime:"endTime"')
+        .eq("slug", group.slug),
+    ]);
+
+  if (accountError || childError || bookingError || sessionError) {
+    console.error("[stripe-webhook] Failed to load summer camp confirmation email data", {
+      bookingGroupId: group.id,
+      accountError: accountError?.message,
+      childError: childError?.message,
+      bookingError: bookingError?.message,
+      sessionError: sessionError?.message,
+    });
+    return;
+  }
+
+  const account = accountData as AccountEmailRow | null;
+  if (!account?.email) {
+    console.warn("[stripe-webhook] Summer camp confirmation email skipped; account has no email", {
+      bookingGroupId: group.id,
+      accountId: group.accountId,
+    });
+    return;
+  }
+
+  const child = childData as ChildEmailRow | null;
+  const bookings = (bookingData ?? []) as SummerCampBookingRow[];
+  const sessionByDate = new Map(
+    ((sessionData ?? []) as SummerCampSessionEmailRow[]).map((item) => [item.campDate, item])
+  );
+  const dates: SummerCampEmailItem[] = bookings
+    .slice()
+    .sort((a, b) => a.campDate.localeCompare(b.campDate))
+    .map((item) => {
+      const session = sessionByDate.get(item.campDate);
+      return {
+        label: formatDateLabel(item.campDate),
+        startTime: session?.startTime ?? null,
+        endTime: session?.endTime ?? null,
+      };
+    });
+
+  const accountName =
+    `${account.accFirstName?.trim() ?? ""} ${account.accLastName?.trim() ?? ""}`.trim() ||
+    "there";
+  const childName =
+    `${child?.firstName?.trim() ?? ""} ${child?.lastName?.trim() ?? ""}`.trim() ||
+    "Selected child";
+  const campTitle =
+    ((sessionData ?? []) as SummerCampSessionEmailRow[])[0]?.title?.trim() || "Summer Camp 2026";
+
+  const result = await sendSummerCampBookingConfirmationEmail({
+    toEmail: account.email,
+    accountName,
+    childName,
+    campTitle,
+    dates,
+    totalAmountPence: group.totalAmountPence,
+  });
+
+  if (!result.ok) {
+    console.error("[stripe-webhook] Failed to send summer camp confirmation email", {
+      bookingGroupId: group.id,
+      error: result.error,
+    });
+  }
+}
+
+function formatDateLabel(value: string): string {
+  const date = new Date(`${value}T12:00:00Z`);
+  if (Number.isNaN(date.getTime())) return value;
+  return new Intl.DateTimeFormat("en-GB", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(date);
 }
 
 async function finalizeClassBooking(
@@ -519,6 +644,37 @@ export async function POST(req: Request) {
           : session.payment_intent?.id ?? null;
 
       if (bookingGroupId) {
+        const { data: groupData, error: groupError } = await supabaseAdmin
+          .from("SummerCampBookingGroups")
+          .select('id,"accountId","childId",slug,status,"totalAmountPence","stripeCheckoutSessionId"')
+          .eq("id", bookingGroupId)
+          .maybeSingle();
+
+        if (groupError) {
+          console.error("[stripe-webhook] Failed to load SummerCampBookingGroups", {
+            bookingGroupId,
+            error: groupError.message,
+          });
+          return NextResponse.json({ error: groupError.message }, { status: 500 });
+        }
+
+        const group = groupData as SummerCampBookingGroupRow | null;
+        if (!group) {
+          console.warn("[stripe-webhook] Summer camp booking group not found", {
+            bookingGroupId,
+            sessionId: session.id,
+          });
+          return NextResponse.json({ ok: true });
+        }
+
+        const alreadyPaid =
+          group.status === "paid" &&
+          group.stripeCheckoutSessionId === session.id;
+
+        if (alreadyPaid) {
+          return NextResponse.json({ ok: true });
+        }
+
         const paidAt = new Date().toISOString();
 
         const { error: updateGroupError } = await supabaseAdmin
@@ -556,6 +712,12 @@ export async function POST(req: Request) {
           });
           return NextResponse.json({ error: updateBookingsError.message }, { status: 500 });
         }
+
+        await sendSummerCampConfirmationEmail({
+          ...group,
+          status: "paid",
+          stripeCheckoutSessionId: session.id,
+        });
 
         console.log("[stripe-webhook] Summer camp booking activated", {
           bookingGroupId,

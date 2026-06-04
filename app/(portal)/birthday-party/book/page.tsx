@@ -5,13 +5,21 @@ import BirthdayPartyBookingClient, {
 } from "./BirthdayPartyBookingClient";
 import { getBookingContext } from "@/lib/server/bookingContext";
 import {
-  calculateBirthdayPartyPrice,
   getBirthdayPartyAccountSummary,
   getBirthdayPartyCalendarSlots,
   getBirthdayPartySlotDisplay,
+  parseBirthdayPartySlotId,
 } from "@/lib/server/birthdayPartyBookings";
 
-export default async function BirthdayPartyBookingPage() {
+type SearchParams = {
+  slotId?: string;
+};
+
+export default async function BirthdayPartyBookingPage({
+  searchParams,
+}: {
+  searchParams?: SearchParams | Promise<SearchParams>;
+}) {
   const bookingContext = await getBookingContext();
 
   if (bookingContext.status === "unauthorized") {
@@ -30,6 +38,10 @@ export default async function BirthdayPartyBookingPage() {
   if (!accountSummary) {
     redirect("/account");
   }
+
+  const resolvedSearchParams = await searchParams;
+  const requestedSlotId = resolvedSearchParams?.slotId?.trim() ?? "";
+  const parsedRequestedSlot = parseBirthdayPartySlotId(requestedSlotId);
 
   const calendarSlots: BirthdayPartyBookingCalendarSlot[] = calendarSlotsRaw.map((slot) => {
     const display = getBirthdayPartySlotDisplay(slot);
@@ -55,12 +67,17 @@ export default async function BirthdayPartyBookingPage() {
       formattedTime: slot.formattedTime,
     }));
 
+  const selectedSlotId =
+    parsedRequestedSlot && slots.some((slot) => slot.id === requestedSlotId)
+      ? requestedSlotId
+      : undefined;
+
   return (
     <BirthdayPartyBookingClient
       accountName={accountSummary.fullName}
       slots={slots}
       calendarSlots={calendarSlots}
-      initialPricePreview={calculateBirthdayPartyPrice(12)}
+      selectedSlotId={selectedSlotId}
     />
   );
 }

@@ -221,7 +221,7 @@ export async function POST(req: Request) {
           quantity: 1,
         },
       ],
-      success_url: `${appUrl}/summer-camps/2026/success`,
+      success_url: `${appUrl}/summer-camps/2026/success?bookingGroupId=${encodeURIComponent(bookingGroup.id)}`,
       cancel_url: `${appUrl}/summer-camps/2026/summary?childId=${encodeURIComponent(childId)}&days=${encodeURIComponent(selectedDayIds.join(","))}`,
       metadata: {
         bookingType: "summer-camp",
