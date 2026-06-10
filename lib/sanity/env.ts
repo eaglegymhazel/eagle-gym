@@ -8,3 +8,4 @@ export const studioTitle =
 export const hasSanityConfig = Boolean(projectId && dataset)
 
 export const previewSecret = process.env.SANITY_PREVIEW_SECRET ?? ""
+export const webhookSecret = process.env.SANITY_WEBHOOK_SECRET ?? ""

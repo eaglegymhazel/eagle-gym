@@ -1,5 +1,5 @@
 import { groq } from "next-sanity"
-import { sanityClient } from "./client"
+import { sanityClient, sanityFetch } from "./client"
 import type { NewsBodyBlock, NewsPost } from "@/app/(marketing)/news/data"
 import { newsPosts } from "@/app/(marketing)/news/data"
 
@@ -119,7 +119,10 @@ export async function getNewsPosts(): Promise<NewsPost[]> {
   }
 
   try {
-    const posts = await sanityClient.fetch<SanityNewsPost[]>(newsListQuery)
+    const posts = await sanityFetch<SanityNewsPost[]>({
+      query: newsListQuery,
+      tags: ["news"],
+    })
     if (!posts?.length) {
       return newsPosts
     }
@@ -137,8 +140,10 @@ export async function getNewsArticleBySlug(slug: string): Promise<NewsArticle | 
   }
 
   try {
-    const post = await sanityClient.fetch<SanityNewsPost | null>(newsArticleQuery, {
-      slug,
+    const post = await sanityFetch<SanityNewsPost | null>({
+      query: newsArticleQuery,
+      params: { slug },
+      tags: ["news", `news:${slug}`],
     })
 
     if (!post) {

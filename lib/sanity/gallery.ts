@@ -1,5 +1,5 @@
 import { groq } from "next-sanity"
-import { sanityClient } from "./client"
+import { sanityClient, sanityFetch } from "./client"
 
 export type GalleryCategory =
   | "general"
@@ -63,7 +63,10 @@ export async function getGalleryImages(): Promise<GalleryImageItem[]> {
   }
 
   try {
-    const rows = await sanityClient.fetch<SanityGalleryImage[]>(galleryImagesQuery)
+    const rows = await sanityFetch<SanityGalleryImage[]>({
+      query: galleryImagesQuery,
+      tags: ["gallery"],
+    })
     return (rows ?? [])
       .map((row) => {
         const src = row.image?.asset?.url
