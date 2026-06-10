@@ -1,4 +1,4 @@
-import { revalidateTag } from "next/cache"
+import { revalidatePath, revalidateTag } from "next/cache"
 import { NextResponse, type NextRequest } from "next/server"
 import { parseBody } from "next-sanity/webhook"
 import { webhookSecret } from "@/lib/sanity/env"
@@ -47,7 +47,18 @@ export async function POST(request: NextRequest) {
   }
 
   for (const tag of new Set(tags)) {
-    revalidateTag(tag, "max")
+    revalidateTag(tag, { expire: 0 })
+  }
+
+  if (body?._type === "newsPost") {
+    revalidatePath("/news")
+    if (body.slug?.current) {
+      revalidatePath(`/news/${body.slug.current}`)
+    }
+  }
+
+  if (body?._type === "galleryImage") {
+    revalidatePath("/gallery")
   }
 
   return NextResponse.json({
