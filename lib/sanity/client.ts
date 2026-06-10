@@ -7,7 +7,7 @@ export const sanityClient = hasSanityConfig
       projectId,
       dataset,
       apiVersion,
-      useCdn: process.env.NODE_ENV === "production",
+      useCdn: false,
     })
   : null
 
@@ -32,7 +32,9 @@ export async function sanityFetch<T>({
 
   return sanityClient.fetch<T>(query, params, {
     perspective: isDraftMode ? "drafts" : "published",
-    useCdn: !isDraftMode,
+    // Webhook revalidation can run before Sanity's CDN has the new document.
+    // Use the live API so Vercel never rebuilds and caches the previous result.
+    useCdn: false,
     next: isDraftMode
       ? { revalidate: 0 }
       : {
