@@ -572,6 +572,14 @@ export default function AccountShell() {
     if (!PHONE_PATTERN.test(payload.accEmergencyTelNo)) {
       nextFieldErrors.accEmergencyTelNo = "Emergency contact number can contain numbers only."
     }
+    if (
+      PHONE_PATTERN.test(payload.accTelNo) &&
+      PHONE_PATTERN.test(payload.accEmergencyTelNo) &&
+      payload.accTelNo === payload.accEmergencyTelNo
+    ) {
+      nextFieldErrors.accEmergencyTelNo =
+        "Emergency contact number must be different from the contact number."
+    }
     if (payload.accAddress && !ADDRESS_PATTERN.test(payload.accAddress)) {
       nextFieldErrors.accAddress = "Address can contain letters, numbers and spaces only."
     }

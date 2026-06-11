@@ -9,6 +9,8 @@ type ChildPickerProps = {
   placeholder?: string;
   recentChildren?: string[];
   maxResults?: number;
+  listHeading?: string;
+  emptyMessage?: string;
 };
 
 const PAGE_SIZE = 12;
@@ -51,6 +53,8 @@ export default function ChildPicker({
   placeholder = "Type a name (e.g., 'Olivia Smi')",
   recentChildren,
   maxResults = 16,
+  listHeading = "All Students",
+  emptyMessage = "No children found.",
 }: ChildPickerProps) {
   const listboxId = useId();
   const rootRef = useRef<HTMLDivElement | null>(null);
@@ -343,7 +347,7 @@ export default function ChildPicker({
 
       <div className="border-t border-[#e6e0ee] pt-2">
         <div className="mb-2 flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-[#2a203c]">All Students</h3>
+          <h3 className="text-sm font-semibold text-[#2a203c]">{listHeading}</h3>
         </div>
 
         <div className="mb-0.5 hidden border-b border-[#ebe6f2] px-2 pb-1 text-[10px] font-semibold uppercase tracking-[0.06em] text-[#615573] sm:grid sm:grid-cols-[minmax(0,1fr)_220px]">
@@ -353,7 +357,7 @@ export default function ChildPicker({
 
         <div>
           {pagedChildren.length === 0 ? (
-            <div className="px-2 py-3 text-sm text-[#6d6281]">No children found.</div>
+            <div className="px-2 py-3 text-sm text-[#6d6281]">{emptyMessage}</div>
           ) : null}
           {pagedChildren.map((child) => {
             const currentClass =

@@ -32,6 +32,7 @@ type ChildRow = {
   lastName: string | null;
   dateOfBirth: string | null;
   pickedUp: string | null;
+  photoConsent: boolean | null;
 };
 
 type PaymentFollowUpStudent = {
@@ -248,7 +249,7 @@ export default async function RegisterDetailPage({
     const [{ data: childRows }, medicalMap] = await Promise.all([
       supabaseAdmin
         .from("Children")
-        .select("id,accountId,firstName,lastName,dateOfBirth,pickedUp")
+        .select("id,accountId,firstName,lastName,dateOfBirth,pickedUp,photoConsent")
         .in("id", childIds),
       getMedicalInfoForChildren(childIds),
     ]);
@@ -275,6 +276,7 @@ export default async function RegisterDetailPage({
         fullName: `${firstName} ${lastName}`.trim() || "Unknown student",
         requiresPickup: toRequiresPickup(child?.pickedUp),
         hasMedicalAlert,
+        photographyAllowed: child?.photoConsent === true,
       };
     })
     .sort((a, b) => a.fullName.localeCompare(b.fullName, "en-GB"));

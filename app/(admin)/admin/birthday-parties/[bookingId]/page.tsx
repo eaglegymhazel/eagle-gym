@@ -2,7 +2,9 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, CalendarDays, CreditCard, Gift, Mail, NotebookPen, Phone, Users } from "lucide-react";
 import { getAdminBirthdayPartyBookingById } from "@/lib/server/adminBirthdayPartyBookings";
+import { getBirthdayPartyCalendarSlots } from "@/lib/server/birthdayPartyBookings";
 import DeleteBirthdayPartyBookingButton from "./DeleteBirthdayPartyBookingButton";
+import RescheduleBirthdayPartyButton from "./RescheduleBirthdayPartyButton";
 
 type BirthdayPartyAdminDetailPageProps = {
   params: Promise<{ bookingId: string }>;
@@ -79,6 +81,19 @@ export default async function BirthdayPartyAdminDetailPage({
   if (!booking) {
     notFound();
   }
+
+  const availableSlots = (await getBirthdayPartyCalendarSlots())
+    .filter((slot) => slot.isAvailable)
+    .map((slot) => ({
+      id: slot.id,
+      slotDate: slot.slotDate,
+      startTime: slot.startTime,
+      endTime: slot.endTime,
+    }));
+  const currentSlotLabel = `${formatDate(booking.slotDate)} | ${formatTimeRange(
+    booking.startTime,
+    booking.endTime
+  )}`;
 
   return (
     <main className="mx-auto w-full max-w-7xl select-text px-4 py-6 sm:px-6 lg:py-8">
@@ -270,7 +285,7 @@ export default async function BirthdayPartyAdminDetailPage({
             </div>
           </dl>
           <div className="mt-6 flex flex-col gap-3 border-t border-[#eee6f6] pt-5 lg:flex-row lg:items-end lg:justify-between">
-            <div className="w-full lg:w-auto">
+            <div className="flex w-full flex-col gap-3 sm:flex-row lg:w-auto">
               {booking.stripePaymentIntentId ? (
                 <a
                   href={getStripePaymentUrl(booking.stripePaymentIntentId)}
@@ -281,6 +296,12 @@ export default async function BirthdayPartyAdminDetailPage({
                   View payment in Stripe
                 </a>
               ) : null}
+              <RescheduleBirthdayPartyButton
+                bookingId={booking.id}
+                childName={booking.birthdayChildFullName}
+                currentSlotLabel={currentSlotLabel}
+                availableSlots={availableSlots}
+              />
             </div>
             <DeleteBirthdayPartyBookingButton
               bookingId={booking.id}

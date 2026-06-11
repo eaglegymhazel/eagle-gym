@@ -130,6 +130,7 @@ export default async function SummerCampRegisterDetailPage({
         fullName: `${firstName} ${lastName}`.trim() || "Unknown student",
         requiresPickup: toRequiresPickup(student.pickedUp),
         hasMedicalAlert,
+        photographyAllowed: student.photoConsent === true,
       };
     })
     .sort((a, b) => a.fullName.localeCompare(b.fullName, "en-GB"));

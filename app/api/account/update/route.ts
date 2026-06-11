@@ -80,6 +80,13 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    if (accTelNo === accEmergencyTelNo) {
+      return NextResponse.json(
+        { error: "Emergency contact number must be different from the contact number." },
+        { status: 400 }
+      )
+    }
+
     if (accAddress && !ADDRESS_PATTERN.test(accAddress)) {
       return NextResponse.json(
         { error: "Address can contain letters, numbers and spaces only." },

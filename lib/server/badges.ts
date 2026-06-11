@@ -1,6 +1,7 @@
 import "server-only";
 
 import { supabaseAdmin } from "@/lib/admin";
+import { hasCompletedBadgeSkills } from "@/lib/badgeCompletion";
 
 export type AdminBadgeSkill = {
   id: string;
@@ -158,6 +159,7 @@ export async function getAdminBadgeDataForChild(childId: string): Promise<{
         completedAt:
           completedAtByAssignmentAndSkill.get(`${assignment.id}:${skill.id}`) ?? null,
       }));
+      const completedSkillCount = badgeSkills.filter((skill) => skill.completedAt).length;
 
       return {
         assignmentId: assignment.id,
@@ -165,7 +167,9 @@ export async function getAdminBadgeDataForChild(childId: string): Promise<{
         name: definition?.name?.trim() || "Untitled badge",
         description: definition?.description ?? null,
         category: definition?.category ?? null,
-        isCompleted: assignment.is_completed === true,
+        isCompleted:
+          assignment.is_completed === true ||
+          hasCompletedBadgeSkills(completedSkillCount, badgeSkills.length),
         completedAt: assignment.completed_at,
         dateAwarded: assignment.date_awarded,
         datePaid: assignment.date_paid,

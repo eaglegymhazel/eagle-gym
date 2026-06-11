@@ -9,6 +9,8 @@ type ChildRow = {
   firstName: string | null;
   lastName: string | null;
   dateOfBirth: string | null;
+  isArchived: boolean | null;
+  archivedAt: string | null;
 };
 
 type AccountRow = {
@@ -119,7 +121,7 @@ export async function GET(request: NextRequest) {
       const to = from + QUERY_PAGE_SIZE - 1;
       const { data: childRows, error: childError } = await supabaseAdmin
         .from("Children")
-        .select("id,accountId,firstName,lastName,dateOfBirth")
+        .select("id,accountId,firstName,lastName,dateOfBirth,isArchived,archivedAt")
         .order("created_at", { ascending: false })
         .range(from, to);
 
@@ -220,6 +222,8 @@ export async function GET(request: NextRequest) {
         lastAttended,
         lastAttendedClass: primaryBooking?.className ?? "",
         status: bookings.length > 0 ? ("Active" as const) : ("Inactive" as const),
+        isArchived: child.isArchived === true,
+        archivedAt: child.archivedAt ?? null,
       };
     });
 

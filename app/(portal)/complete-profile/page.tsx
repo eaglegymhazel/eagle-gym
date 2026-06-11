@@ -40,6 +40,18 @@ const schema = z.object({
     .refine((value) => /^[A-Za-z0-9]{3}\s?[A-Za-z0-9]{0,4}$/.test(value), {
       message: "Post Code is required and must be alphanumeric.",
     }),
+}).superRefine((values, context) => {
+  if (
+    values.accTelNo &&
+    values.accEmergencyTelNo &&
+    values.accTelNo === values.accEmergencyTelNo
+  ) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["accEmergencyTelNo"],
+      message: "Emergency phone number must be different from your phone number.",
+    });
+  }
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -105,7 +117,8 @@ export default function CompleteProfilePage() {
       !values.accTelNo ||
       !values.accEmergencyTelNo ||
       !/^[0-9]+$/.test(values.accTelNo) ||
-      !/^[0-9]+$/.test(values.accEmergencyTelNo)
+      !/^[0-9]+$/.test(values.accEmergencyTelNo) ||
+      values.accTelNo === values.accEmergencyTelNo
     ) {
       setSubmitError(true);
       return;

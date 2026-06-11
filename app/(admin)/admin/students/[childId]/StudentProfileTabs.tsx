@@ -4,6 +4,7 @@ import { useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
 import * as Dialog from "@radix-ui/react-dialog";
 import { ArrowLeft } from "lucide-react";
+import { hasCompletedBadgeSkills } from "@/lib/badgeCompletion";
 
 type StudentProfileTabsProps = {
   children: ReactNode;
@@ -11,6 +12,7 @@ type StudentProfileTabsProps = {
   studentName: string;
   dateOfBirthLabel: string;
   ageLabel: string;
+  backHref: string;
   initialAssignedBadges: AdminAssignedBadge[];
   initialAvailableBadges: AdminBadgeDefinitionOption[];
 };
@@ -52,7 +54,7 @@ type BadgeApiResponse = {
 };
 
 function badgeStatus(done: number, total: number, isCompleted: boolean): "Not started" | "In progress" | "Complete" {
-  if (isCompleted || (total > 0 && done >= total)) return "Complete";
+  if (isCompleted || hasCompletedBadgeSkills(done, total)) return "Complete";
   if (done <= 0) return "Not started";
   return "In progress";
 }
@@ -104,6 +106,7 @@ export default function StudentProfileTabs({
   studentName,
   dateOfBirthLabel,
   ageLabel,
+  backHref,
   initialAssignedBadges,
   initialAvailableBadges,
 }: StudentProfileTabsProps) {
@@ -126,7 +129,14 @@ export default function StudentProfileTabs({
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const completeCount = useMemo(
-    () => assignedBadges.filter((badge) => badge.isCompleted).length,
+    () =>
+      assignedBadges.filter((badge) => {
+        const completedSkills = badge.skills.filter((skill) => skill.completedAt).length;
+        return (
+          badge.isCompleted ||
+          hasCompletedBadgeSkills(completedSkills, badge.skills.length)
+        );
+      }).length,
     [assignedBadges]
   );
   const hasExpandedBadges = assignedBadges.some((badge) => expandedByAssignmentId[badge.assignmentId]);
@@ -380,7 +390,7 @@ export default function StudentProfileTabs({
                 </p>
               </div>
               <Link
-                href="/admin?tab=students"
+                href={backHref}
                 className="inline-flex w-full cursor-pointer items-center justify-center gap-1.5 border border-[#c7b4e5] bg-[#f7f2ff] px-3.5 py-2 text-sm font-semibold text-[#4f2390] shadow-[0_1px_0_rgba(255,255,255,0.8)_inset] transition hover:border-[#b398dd] hover:bg-[#f1e8ff] active:bg-[#ebddff] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6e2ac0]/35 md:w-auto"
               >
                 <ArrowLeft className="h-4 w-4" aria-hidden="true" />
@@ -635,7 +645,7 @@ export default function StudentProfileTabs({
                 const isThisAssignmentSaving = savingAssignmentId === badge.assignmentId;
                 const dateAwardedValue = formatDateInputValue(badge.dateAwarded);
                 const datePaidValue = formatDateInputValue(badge.datePaid);
-                const isTrackingLocked = !badge.isCompleted;
+                const isTrackingLocked = status !== "Complete";
 
                 return (
                   <article

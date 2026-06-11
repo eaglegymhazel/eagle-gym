@@ -12,6 +12,7 @@ import {
   getBirthdayPartyAccountSummary,
   getBirthdayPartyHoldExpiresAt,
   getBirthdayPartySlot,
+  hasBirthdayPartyBookingLeadTime,
 } from "@/lib/server/birthdayPartyBookings";
 import { getOrCreateStripeCheckoutCustomer } from "@/lib/server/stripeCheckoutCustomer";
 
@@ -89,6 +90,13 @@ export async function POST(req: Request) {
 
     if (!slotId || !parsedSlot || partySize === null) {
       return NextResponse.json({ error: "Invalid birthday party details" }, { status: 400 });
+    }
+
+    if (!hasBirthdayPartyBookingLeadTime(parsedSlot.slotDate)) {
+      return NextResponse.json(
+        { error: "Birthday parties must be booked at least 6 days in advance." },
+        { status: 409 }
+      );
     }
 
     if (!birthdayChildFirstName || !birthdayChildLastName || !birthdayChildDateOfBirth) {

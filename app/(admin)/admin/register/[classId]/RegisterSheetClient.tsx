@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, User, Users } from "lucide-react";
+import { ArrowLeft, CameraOff, User, Users } from "lucide-react";
 
 type AttendanceState = "unmarked" | "present" | "absent";
 
@@ -11,6 +11,7 @@ type RegisterStudent = {
   fullName: string;
   requiresPickup: boolean;
   hasMedicalAlert: boolean;
+  photographyAllowed: boolean;
 };
 
 type PaymentFollowUpStudent = {
@@ -489,6 +490,15 @@ export default function RegisterSheetClient({
                               <rect x="10.2" y="5.8" width="3.6" height="12.4" fill="#ef1b1b" />
                               <rect x="5.8" y="10.2" width="12.4" height="3.6" fill="#ef1b1b" />
                             </svg>
+                          </span>
+                        ) : null}
+                        {!student.photographyAllowed ? (
+                          <span
+                            className="inline-flex h-5 w-5 shrink-0 items-center justify-center text-[#c81e3a]"
+                            title="Photography is not permitted"
+                            aria-label="Photography is not permitted"
+                          >
+                            <CameraOff className="h-4.5 w-4.5" aria-hidden="true" />
                           </span>
                         ) : null}
                       </div>

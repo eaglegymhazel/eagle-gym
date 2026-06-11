@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { supabaseAdmin } from "@/lib/admin";
+import { hasCompletedBadgeSkills } from "@/lib/badgeCompletion";
 import { getAdminBadgeDataForChild } from "@/lib/server/badges";
 import { getWebAccountRoleForUser, isAdminRole } from "@/lib/server/webAccountRole";
 
@@ -169,6 +170,7 @@ export async function PATCH(request: NextRequest) {
 
     if (assignmentError) return applyCookies(jsonError(assignmentError.message, 500));
     if (!assignment) return applyCookies(jsonError("Badge assignment not found.", 404));
+    let assignmentIsCompleted = assignment.is_completed === true;
 
     if (hasSkillUpdate) {
       if (!badgeSkillId || typeof body.completed !== "boolean") {
@@ -221,7 +223,11 @@ export async function PATCH(request: NextRequest) {
       if (totalError) return applyCookies(jsonError(totalError.message, 500));
       if (completedError) return applyCookies(jsonError(completedError.message, 500));
 
-      const isCompleted = (totalSkills ?? 0) > 0 && (completedSkills ?? 0) >= (totalSkills ?? 0);
+      const isCompleted = hasCompletedBadgeSkills(
+        completedSkills ?? 0,
+        totalSkills ?? 0
+      );
+      assignmentIsCompleted = isCompleted;
       const { error: updateError } = await supabaseAdmin
         .from("child_badge_assignments")
         .update({
@@ -234,7 +240,31 @@ export async function PATCH(request: NextRequest) {
     }
 
     if (hasAssignmentUpdate) {
-      if (assignment.is_completed !== true) {
+      if (!assignmentIsCompleted) {
+        const [
+          { count: totalSkills, error: totalError },
+          { count: completedSkills, error: completedError },
+        ] = await Promise.all([
+          supabaseAdmin
+            .from("badge_skills")
+            .select("id", { count: "exact", head: true })
+            .eq("badge_id", assignment.badge_id),
+          supabaseAdmin
+            .from("child_badge_skill_progress")
+            .select("id", { count: "exact", head: true })
+            .eq("assignment_id", assignmentId),
+        ]);
+
+        if (totalError) return applyCookies(jsonError(totalError.message, 500));
+        if (completedError) return applyCookies(jsonError(completedError.message, 500));
+
+        assignmentIsCompleted = hasCompletedBadgeSkills(
+          completedSkills ?? 0,
+          totalSkills ?? 0
+        );
+      }
+
+      if (!assignmentIsCompleted) {
         return applyCookies(
           jsonError(
             "Award and payment dates can only be updated after the badge is complete.",
@@ -243,7 +273,17 @@ export async function PATCH(request: NextRequest) {
         );
       }
 
-      const assignmentPatch: { date_awarded?: string | null; date_paid?: string | null } = {};
+      const assignmentPatch: {
+        is_completed?: boolean;
+        completed_at?: string;
+        date_awarded?: string | null;
+        date_paid?: string | null;
+      } = {};
+
+      if (assignment.is_completed !== true) {
+        assignmentPatch.is_completed = true;
+        assignmentPatch.completed_at = new Date().toISOString();
+      }
 
       if (Object.prototype.hasOwnProperty.call(body, "dateAwarded")) {
         if (body.dateAwarded === null || body.dateAwarded === "") {

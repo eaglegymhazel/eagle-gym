@@ -20,6 +20,7 @@ export type SummerCampRegisterStudent = {
   lastName: string | null;
   dateOfBirth: string | null;
   pickedUp: string | null;
+  photoConsent: boolean | null;
   bookingStatus: string | null;
 };
 
@@ -114,7 +115,7 @@ export async function getSummerCampRegisterStudents(params: {
   const { data, error } = await serviceRole
     .from("SummerCampBookings")
     .select(
-      'status,Children!inner(id,firstName,lastName,dateOfBirth,pickedUp)'
+      'status,Children!inner(id,firstName,lastName,dateOfBirth,pickedUp,photoConsent)'
     )
     .eq("slug", params.slug)
     .eq("campDate", params.campDate)
@@ -133,6 +134,7 @@ export async function getSummerCampRegisterStudents(params: {
           lastName: string | null;
           dateOfBirth: string | null;
           pickedUp: string | null;
+          photoConsent: boolean | null;
         }
       | Array<{
           id: string;
@@ -140,6 +142,7 @@ export async function getSummerCampRegisterStudents(params: {
           lastName: string | null;
           dateOfBirth: string | null;
           pickedUp: string | null;
+          photoConsent: boolean | null;
         }>
       | null;
   }>).reduce<SummerCampRegisterStudent[]>((acc, row) => {
@@ -151,6 +154,7 @@ export async function getSummerCampRegisterStudents(params: {
       lastName: child.lastName ?? null,
       dateOfBirth: child.dateOfBirth ?? null,
       pickedUp: child.pickedUp ?? null,
+      photoConsent: child.photoConsent ?? null,
       bookingStatus: row.status ?? null,
     });
     return acc;

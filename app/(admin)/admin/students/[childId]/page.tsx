@@ -9,6 +9,7 @@ import { Activity, ArrowLeft, Shield, UserCircle2, Users } from "lucide-react";
 import StudentProfileTabs from "./StudentProfileTabs";
 import CompetitionEligibilityControl from "./CompetitionEligibilityControl";
 import AdminStudentClassActions from "./AdminStudentClassActions";
+import ArchiveStudentButton from "./ArchiveStudentButton";
 
 type StudentProfilePageProps = {
   params: Promise<{ childId: string }>;
@@ -23,6 +24,8 @@ type ChildRow = {
   photoConsent: boolean | null;
   competitionEligible: boolean | null;
   pickedUp: string | null;
+  isArchived: boolean | null;
+  archivedAt: string | null;
 };
 
 type AccountRow = {
@@ -123,7 +126,7 @@ export default async function StudentProfilePage({ params }: StudentProfilePageP
   const { data: childData, error: childError } = await supabaseAdmin
     .from("Children")
     .select(
-      "id,accountId,firstName,lastName,dateOfBirth,photoConsent,competitionEligible,pickedUp"
+      "id,accountId,firstName,lastName,dateOfBirth,photoConsent,competitionEligible,pickedUp,isArchived,archivedAt"
     )
     .eq("id", childId)
     .maybeSingle();
@@ -241,6 +244,11 @@ export default async function StudentProfilePage({ params }: StudentProfilePageP
         studentName={studentName}
         dateOfBirthLabel={formatDate(child.dateOfBirth)}
         ageLabel={computeAge(child.dateOfBirth)}
+        backHref={
+          child.isArchived === true
+            ? "/admin?tab=students&studentView=archived"
+            : "/admin?tab=students"
+        }
         initialAssignedBadges={badgeData.assignedBadges}
         initialAvailableBadges={badgeData.availableBadges}
       >
@@ -255,13 +263,25 @@ export default async function StudentProfilePage({ params }: StudentProfilePageP
                 {formatDate(child.dateOfBirth)} | {computeAge(child.dateOfBirth)}
               </p>
             </div>
-            <Link
-              href="/admin?tab=students"
-              className="inline-flex w-full items-center justify-center gap-1.5 border border-[#c7b4e5] bg-[#f7f2ff] px-3.5 py-2 text-sm font-semibold text-[#4f2390] shadow-[0_1px_0_rgba(255,255,255,0.8)_inset] transition hover:border-[#b398dd] hover:bg-[#f1e8ff] active:bg-[#ebddff] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6e2ac0]/35 md:w-auto"
-            >
-              <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-              Back to Student Management
-            </Link>
+            <div className="flex w-full flex-col gap-2 sm:flex-row md:w-auto md:justify-end">
+              <ArchiveStudentButton
+                childId={child.id}
+                studentName={studentName}
+                isArchived={child.isArchived === true}
+                archivedAt={child.archivedAt ?? null}
+              />
+              <Link
+                href={
+                  child.isArchived === true
+                    ? "/admin?tab=students&studentView=archived"
+                    : "/admin?tab=students"
+                }
+                className="inline-flex min-h-10 w-full items-center justify-center gap-1.5 border border-[#c7b4e5] bg-[#f7f2ff] px-3.5 py-2 text-sm font-semibold text-[#4f2390] shadow-[0_1px_0_rgba(255,255,255,0.8)_inset] transition hover:border-[#b398dd] hover:bg-[#f1e8ff] active:bg-[#ebddff] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6e2ac0]/35 sm:w-auto"
+              >
+                <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+                Back to Student Management
+              </Link>
+            </div>
           </header>
 
         <div className="grid gap-0 lg:grid-cols-2">

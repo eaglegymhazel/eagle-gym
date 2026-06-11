@@ -3,6 +3,7 @@
 import * as Dialog from '@radix-ui/react-dialog'
 import { useEffect, useMemo, useState } from 'react'
 import styles from '../account.module.css'
+import { hasCompletedBadgeSkills } from '@/lib/badgeCompletion'
 
 type ChildSummary = {
   id: string
@@ -952,7 +953,13 @@ export default function ChildrenClientPanel({
     </div>
   )
 
-  const completedBadgeCount = assignedBadges.filter((badge) => badge.isCompleted).length
+  const completedBadgeCount = assignedBadges.filter((badge) => {
+    const completedSkills = badge.skills.filter((skill) => skill.completedAt).length
+    return (
+      badge.isCompleted ||
+      hasCompletedBadgeSkills(completedSkills, badge.skills.length)
+    )
+  }).length
 
   const badgesPanel = (
     <div className={styles.childCard}>
@@ -978,7 +985,7 @@ export default function ChildrenClientPanel({
           const completed = badge.skills.filter((skill) => skill.completedAt).length
           const percent = total > 0 ? Math.round((completed / total) * 100) : 0
           const status =
-            badge.isCompleted || (total > 0 && completed >= total)
+            badge.isCompleted || hasCompletedBadgeSkills(completed, total)
               ? 'Complete'
               : completed === 0
                 ? 'Not started'

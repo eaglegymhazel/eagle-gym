@@ -4,6 +4,7 @@ import { supabaseAdmin } from "@/lib/admin";
 
 const LONDON_TZ = "Europe/London";
 const SLOT_GENERATION_DAYS = 730;
+const MINIMUM_BOOKING_LEAD_DAYS = 6;
 const HOLD_MINUTES = 30;
 const BASE_PRICE_PENCE = 15000;
 const INCLUDED_CHILDREN = 12;
@@ -109,6 +110,21 @@ function toDateKey(date: Date): string {
 
 function getUtcWeekday(date: Date): number {
   return date.getUTCDay();
+}
+
+export function hasBirthdayPartyBookingLeadTime(
+  slotDate: string,
+  now = new Date()
+): boolean {
+  const { year, month, day } = getLondonDateParts(now);
+  const today = new Date(Date.UTC(year, month - 1, day, 12, 0, 0, 0));
+  const earliestBookableDate = addDays(today, MINIMUM_BOOKING_LEAD_DAYS);
+  const parsedSlotDate = new Date(`${slotDate}T12:00:00Z`);
+
+  return (
+    !Number.isNaN(parsedSlotDate.getTime()) &&
+    parsedSlotDate >= earliestBookableDate
+  );
 }
 
 function toSlotId(slotDate: string, startTime: string, endTime: string): string {
@@ -240,7 +256,10 @@ function buildCandidateSlots(
       const id = toSlotId(slotDate, rule.start_time, rule.end_time);
       const blockedReason = blockedByKey.get(id) ?? null;
       const isBlocked = blockedByKey.has(id);
-      const isAvailable = !isBlocked && !blockedByBookingKey.has(id);
+      const isAvailable =
+        hasBirthdayPartyBookingLeadTime(slotDate) &&
+        !isBlocked &&
+        !blockedByBookingKey.has(id);
 
       return {
         id,

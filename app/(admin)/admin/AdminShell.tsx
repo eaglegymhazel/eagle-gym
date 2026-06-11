@@ -27,6 +27,8 @@ type AdminTabKey =
   | "missed-payments"
   | "birthday-parties";
 
+type StudentDirectoryView = "current" | "archived";
+
 type NavItem = {
   key: AdminTabKey;
   label: string;
@@ -131,8 +133,14 @@ export default function AdminShell({
     }
     return "students";
   }, [searchParams]);
+  const initialStudentDirectoryView = useMemo<StudentDirectoryView>(
+    () => (searchParams.get("studentView") === "archived" ? "archived" : "current"),
+    [searchParams]
+  );
 
   const [tab, setTab] = useState<AdminTabKey>(initialTab);
+  const [studentDirectoryView, setStudentDirectoryView] =
+    useState<StudentDirectoryView>(initialStudentDirectoryView);
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const [waitlistRowsState, setWaitlistRowsState] = useState<WaitingRow[]>(initialWaitlistRows);
   const [waitlistQuery, setWaitlistQuery] = useState("");
@@ -172,6 +180,10 @@ export default function AdminShell({
   }, [initialTab]);
 
   useEffect(() => {
+    setStudentDirectoryView(initialStudentDirectoryView);
+  }, [initialStudentDirectoryView]);
+
+  useEffect(() => {
     setWaitlistRowsState(initialWaitlistRows);
   }, [initialWaitlistRows]);
 
@@ -192,13 +204,37 @@ export default function AdminShell({
     });
   };
   const isTabLoading = isTabTransitionPending && pendingTab === tab;
+  const visibleChildrenData = useMemo(
+    () =>
+      childrenData.filter((child) =>
+        studentDirectoryView === "archived"
+          ? child.isArchived
+          : !child.isArchived
+      ),
+    [childrenData, studentDirectoryView]
+  );
 
   const childPickerProps = {
-    children: childrenData,
-    recentChildren: childrenData.slice(0, 6).map((child) => child.id),
+    children: visibleChildrenData,
+    recentChildren: visibleChildrenData.slice(0, 6).map((child) => child.id),
+    listHeading:
+      studentDirectoryView === "archived" ? "Archived Students" : "Current Students",
+    emptyMessage:
+      studentDirectoryView === "archived"
+        ? "No archived students found."
+        : "No current students found.",
     onSelect: (child: Child) => {
       router.push(`/admin/students/${encodeURIComponent(child.id)}`);
     },
+  };
+
+  const changeStudentDirectoryView = (nextView: StudentDirectoryView) => {
+    setStudentDirectoryView(nextView);
+    router.replace(
+      nextView === "archived"
+        ? "/admin?tab=students&studentView=archived"
+        : "/admin?tab=students"
+    );
   };
 
   const cardTitle = useMemo(() => {
@@ -577,6 +613,40 @@ export default function AdminShell({
               <>
             {tab === "students" ? (
               <div className="space-y-4">
+                <div className="flex flex-wrap items-center gap-2 border-b border-[#e6e0ee] pb-3">
+                  <button
+                    type="button"
+                    onClick={() => changeStudentDirectoryView("current")}
+                    aria-pressed={studentDirectoryView === "current"}
+                    className={[
+                      "inline-flex min-h-10 items-center justify-center border px-4 text-sm font-semibold transition",
+                      studentDirectoryView === "current"
+                        ? "border-[#6e2ac0] bg-[#f3ecfc] text-[#4f2b80]"
+                        : "border-[#ddd4ea] bg-white text-[#6f6384] hover:bg-[#f8f5fc]",
+                    ].join(" ")}
+                  >
+                    Current Students
+                    <span className="ml-2 text-xs opacity-70">
+                      {childrenData.filter((child) => !child.isArchived).length}
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => changeStudentDirectoryView("archived")}
+                    aria-pressed={studentDirectoryView === "archived"}
+                    className={[
+                      "inline-flex min-h-10 items-center justify-center border px-4 text-sm font-semibold transition",
+                      studentDirectoryView === "archived"
+                        ? "border-[#6e2ac0] bg-[#f3ecfc] text-[#4f2b80]"
+                        : "border-[#ddd4ea] bg-white text-[#6f6384] hover:bg-[#f8f5fc]",
+                    ].join(" ")}
+                  >
+                    Archived Students
+                    <span className="ml-2 text-xs opacity-70">
+                      {childrenData.filter((child) => child.isArchived).length}
+                    </span>
+                  </button>
+                </div>
                 {childrenLoadError ? (
                   <div className={styles.errorBanner} role="alert">
                     <span>{childrenLoadError}</span>

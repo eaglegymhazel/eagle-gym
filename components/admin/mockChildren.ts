@@ -12,6 +12,8 @@ export type Child = {
   lastAttended: string;
   lastAttendedClass?: string;
   status: ChildStatus;
+  isArchived: boolean;
+  archivedAt: string | null;
 };
 
 const FIRST_NAMES = [
@@ -116,6 +118,8 @@ export function generateMockChildren(count = 300): Child[] {
       lastAttended,
       lastAttendedClass: group,
       status,
+      isArchived: false,
+      archivedAt: null,
     };
   });
 }
