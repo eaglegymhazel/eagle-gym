@@ -127,7 +127,7 @@ export default function TermsAcceptance({
                     </h4>
                     <p
                       className={[
-                        "text-sm leading-relaxed",
+                        "whitespace-pre-line text-sm leading-relaxed",
                         warning ? "text-[#6e5110]" : "text-[#2E2A33]",
                       ].join(" ")}
                     >

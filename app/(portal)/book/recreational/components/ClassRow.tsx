@@ -20,6 +20,11 @@ export default function ClassRow({
 }: ClassRowProps) {
   const blocked = item.isFull;
   const isDisplayClass = item.name.toLowerCase().includes("display");
+  const isParentAndToddler =
+    item.minAge != null &&
+    item.maxAge != null &&
+    Math.abs(item.minAge - 1.5) < 0.001 &&
+    Math.abs(item.maxAge - 3) < 0.001;
   const selectionKey = item.selectionKey ?? item.id;
   const classId = item.classId ?? item.id;
   const checkboxId = `class-toggle-${selectionKey}`;
@@ -61,6 +66,9 @@ export default function ClassRow({
   const specialBadgeClass = selected
     ? "border-white/50 bg-white/20 text-white"
     : "border-[#f4d978] bg-[#fff8dc] text-[#6a4a00]";
+  const parentAndToddlerBadgeClass = selected
+    ? "border-white/50 bg-white/20 text-white"
+    : "border-[#e7aeca] bg-[#fff0f7] text-[#a62d68]";
 
   return (
     <div
@@ -81,8 +89,10 @@ export default function ClassRow({
           ? "cursor-not-allowed border-[#ece7f4] bg-[#f5f4f8] opacity-92"
           : selected
           ? "cursor-pointer border-transparent bg-white shadow-[0_12px_28px_-18px_rgba(58,32,96,0.4)]"
+          : isParentAndToddler
+          ? "cursor-pointer border-[#e7bfd3] bg-[linear-gradient(135deg,#fff_0%,#fff_72%,#fff2f8_100%)] hover:-translate-y-[1px] hover:border-[#dc9fbd] hover:shadow-[0_14px_30px_-18px_rgba(166,45,104,0.3)] focus-visible:ring-2 focus-visible:ring-[#d84f91]/30"
           : "cursor-pointer hover:-translate-y-[1px] hover:border-[#d4c5ea] hover:bg-[#fcfbff] hover:shadow-[0_14px_30px_-18px_rgba(46,28,76,0.38)] focus-visible:ring-2 focus-visible:ring-[#6c35c3]/30"
-      } ${isDisplayClass ? "min-h-[114px] lg:min-h-[100px]" : ""}`}
+      } ${isDisplayClass || isParentAndToddler ? "min-h-[114px] lg:min-h-[100px]" : ""}`}
     >
       {isDisplayClass ? (
         <span
@@ -97,6 +107,23 @@ export default function ClassRow({
         >
           Display class • Special pricing
         </span>
+      ) : null}
+      {isParentAndToddler ? (
+        <>
+          <span
+            aria-hidden="true"
+            className="pointer-events-none absolute -right-7 top-2 z-[1] h-2.5 w-20 rotate-45 bg-[#d84f91]"
+          />
+          <span
+            aria-hidden="true"
+            className="pointer-events-none absolute -right-7 top-5 z-[1] h-1 w-20 rotate-45 bg-[#f2a8c9]"
+          />
+          <span
+            className={`pointer-events-none absolute left-4 top-2 z-20 inline-flex items-center whitespace-nowrap rounded-md border px-1.5 py-0.5 text-[9px] font-bold uppercase leading-none tracking-[0.03em] ${parentAndToddlerBadgeClass}`}
+          >
+            Parent &amp; Toddler
+          </span>
+        </>
       ) : null}
 
       <span
@@ -121,7 +148,7 @@ export default function ClassRow({
       </span>
 
       <div className={`relative z-10 row-start-1 col-start-1 flex h-full min-w-0 items-center pr-1 text-left tabular-nums transition-colors duration-300 lg:row-span-1 lg:pr-6 ${
-        isDisplayClass ? "pt-5 lg:pt-3" : ""
+        isDisplayClass || isParentAndToddler ? "pt-5 lg:pt-3" : ""
       }`}>
         <p className={`flex items-baseline gap-1.5 leading-none transition-colors duration-300 ${timeTextClass}`}>
           <span className="inline-flex items-baseline">

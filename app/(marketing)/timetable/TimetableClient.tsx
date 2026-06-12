@@ -112,22 +112,49 @@ function SessionRow({ session }: { session: TimetableSession }) {
   const styles = typeStyles[type];
   const label = getClassLabel(type);
   const ageLabel = type === "recreational" ? normalizeAgeLabel(session.age) : null;
+  const isParentAndToddler = ageLabel === "Preschool";
 
   return (
-    <article className="relative overflow-hidden rounded-xl border border-[#ddd3eb] bg-white px-3 py-2.5 shadow-[0_12px_28px_-26px_rgba(41,22,67,0.6)]">
+    <article
+      className={[
+        "relative overflow-hidden rounded-xl border px-3 py-2.5 shadow-[0_12px_28px_-26px_rgba(41,22,67,0.6)]",
+        isParentAndToddler
+          ? "border-[#e7bfd3] bg-[linear-gradient(135deg,#fff_0%,#fff_68%,#fff2f8_100%)]"
+          : "border-[#ddd3eb] bg-white",
+      ].join(" ")}
+    >
       <span aria-hidden="true" className={`absolute inset-y-0 left-0 w-[4px] ${styles.rail}`} />
-      <div className="flex items-start justify-between gap-3 pl-2">
+      {isParentAndToddler ? (
+        <>
+          <span
+            aria-hidden="true"
+            className="absolute -right-7 top-2 h-2.5 w-20 rotate-45 bg-[#d84f91]"
+          />
+          <span
+            aria-hidden="true"
+            className="absolute -right-7 top-5 h-1 w-20 rotate-45 bg-[#f2a8c9]"
+          />
+        </>
+      ) : null}
+      <div className="relative z-10 flex items-start justify-between gap-3 pl-2">
         <div className="min-w-0 flex-1">
           <p className="text-[18px] font-extrabold leading-none tracking-[-0.01em] text-[#251341]">
             {session.startTime}
           </p>
           <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px] font-semibold text-[#2a0c4f]/72">
-            <span
-              className={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.08em] ${styles.badge}`}
-            >
-              {type === "special" ? specialIcon : <span aria-hidden="true" className={`h-1.5 w-1.5 rounded-full ${styles.dot}`} />}
-              {label}
-            </span>
+            {!isParentAndToddler ? (
+              <span
+                className={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.08em] ${styles.badge}`}
+              >
+                {type === "special" ? specialIcon : <span aria-hidden="true" className={`h-1.5 w-1.5 rounded-full ${styles.dot}`} />}
+                {label}
+              </span>
+            ) : null}
+            {isParentAndToddler ? (
+              <span className="inline-flex shrink-0 items-center whitespace-nowrap rounded-md border border-[#e7aeca] bg-[#fff0f7] px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.03em] text-[#a62d68]">
+                Parent &amp; Toddler
+              </span>
+            ) : null}
             <span>{session.duration}</span>
             {ageLabel ? <span>{ageLabel}</span> : null}
           </div>

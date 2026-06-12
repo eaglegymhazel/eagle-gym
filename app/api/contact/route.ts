@@ -25,6 +25,7 @@ export async function POST(req: Request) {
   const resendApiKey = process.env.RESEND_API_KEY;
   const from = process.env.CONTACT_FROM_EMAIL;
   const to = process.env.CONTACT_TO_EMAIL;
+  const cc = process.env.CONTACT_CC_EMAIL;
 
   if (!resendApiKey || !from || !to) {
     return Response.json(
@@ -60,6 +61,7 @@ export async function POST(req: Request) {
     body: JSON.stringify({
       from,
       to: [to],
+      ...(cc ? { cc: [cc] } : {}),
       reply_to: email,
       subject,
       text,

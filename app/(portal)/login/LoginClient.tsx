@@ -34,17 +34,20 @@ export default function LoginClient({
 
   useEffect(() => {
     if (resendCooldownUntil == null) return
-    if (resendCooldownUntil <= now) {
-      setResendCooldownUntil(null)
-      return
-    }
 
     const timer = window.setInterval(() => {
       setNow(Date.now())
     }, 1000)
+    const cooldownTimer = window.setTimeout(() => {
+      setNow(Date.now())
+      setResendCooldownUntil(null)
+    }, Math.max(0, resendCooldownUntil - Date.now()))
 
-    return () => window.clearInterval(timer)
-  }, [now, resendCooldownUntil])
+    return () => {
+      window.clearInterval(timer)
+      window.clearTimeout(cooldownTimer)
+    }
+  }, [resendCooldownUntil])
 
   useEffect(() => {
     if (loading) return
@@ -79,12 +82,6 @@ export default function LoginClient({
     }
   }
 
-  const onLogout = async () => {
-    setMsg(null)
-    await supabase.auth.signOut()
-    setMsg('Logged out.')
-  }
-
   const onResendConfirmation = async () => {
     if (!email || resendSecondsRemaining > 0 || resending) return
 
@@ -108,6 +105,7 @@ export default function LoginClient({
 
     setMsg(`A new confirmation email has been sent to ${email}.`)
     setMsgType('success')
+    setNow(Date.now())
     setResendCooldownUntil(Date.now() + RESEND_COOLDOWN_SECONDS * 1000)
     setResending(false)
   }
