@@ -3,7 +3,6 @@ import { redirect } from "next/navigation";
 import { CalendarDays, CheckCircle2, Clock3, CreditCard, UserRound } from "lucide-react";
 import { supabaseAdmin } from "@/lib/admin";
 import { getBookingContext } from "@/lib/server/bookingContext";
-import { getCompetitionPricing } from "@/lib/server/classes";
 
 type SearchParams = {
   type?: string;
@@ -258,32 +257,12 @@ export default async function BookingSuccessPage({
       status: item.status,
     };
   });
-  const competitionPricingRows = bookingType === "competition" ? await getCompetitionPricing() : [];
-  const totalCompetitionHours = Number(
-    (
-      classDetails.reduce((sum, item) => sum + (item.durationMinutes ?? 0), 0) / 60
-    ).toFixed(2)
-  );
-  const matchedCompetitionPrice = competitionPricingRows
-    .map((row) => ({
-      hoursPerWeek: toNullableNumber(row.hoursPerWeek),
-      monthlyPrice: toNullableNumber(row.monthlyPrice),
-    }))
-    .find(
-      (row) =>
-        row.hoursPerWeek != null &&
-        row.monthlyPrice != null &&
-        Math.abs(row.hoursPerWeek - totalCompetitionHours) < 0.001
-    )?.monthlyPrice ?? null;
   const recreationalMonthlyTotal = classDetails.reduce((sum, item) => sum + (item.price ?? 0), 0);
   const hasPriceForEveryClass =
     bookingType === "competition"
-      ? matchedCompetitionPrice != null
+      ? false
       : classDetails.every((item) => item.price != null);
-  const monthlyTotal =
-    bookingType === "competition"
-      ? matchedCompetitionPrice ?? 0
-      : recreationalMonthlyTotal;
+  const monthlyTotal = recreationalMonthlyTotal;
   const isPaid = group.status === "paid";
   const programmeLabel = bookingType === "competition" ? "Competition classes" : "Recreational classes";
 

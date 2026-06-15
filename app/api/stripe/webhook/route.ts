@@ -12,7 +12,11 @@ import {
 
 export const runtime = "nodejs";
 
-const stripeKey = process.env.STRIPE_SECRET_KEY || process.env.COMP_STRIPE_SECRET_KEY;
+const stripeKey =
+  process.env.LIVE_REC_STRIPE_SECRET_KEY ||
+  process.env.LIVE_COMP_STRIPE_SECRET_KEY ||
+  process.env.TEST_REC_STRIPE_SECRET_KEY ||
+  process.env.TEST_COMP_STRIPE_SECRET_KEY;
 const stripe = new Stripe(stripeKey!, {
   apiVersion: "2026-01-28.clover",
 });
@@ -223,36 +227,7 @@ async function sendClassBookingConfirmationEmail({
     };
   });
   let monthlyTotal: number | null = null;
-  if (bookingType === "competition") {
-    const totalHours = Number(
-      (
-        emailClasses.reduce((sum, item) => sum + (item.durationMinutes ?? 0), 0) / 60
-      ).toFixed(2)
-    );
-    const { data: pricingData, error: pricingError } = await supabaseAdmin
-      .from("CompetitionPricing")
-      .select("hoursPerWeek,monthlyPrice");
-
-    if (pricingError) {
-      console.error("[stripe-webhook] Failed to load competition pricing for confirmation email", {
-        bookingGroupId: group.id,
-        error: pricingError.message,
-      });
-    } else {
-      monthlyTotal =
-        (pricingData ?? [])
-          .map((row) => ({
-            hoursPerWeek: toNullableNumber(row.hoursPerWeek),
-            monthlyPrice: toNullableNumber(row.monthlyPrice),
-          }))
-          .find(
-            (row) =>
-              row.hoursPerWeek != null &&
-              row.monthlyPrice != null &&
-              Math.abs(row.hoursPerWeek - totalHours) < 0.001
-          )?.monthlyPrice ?? null;
-    }
-  } else {
+  if (bookingType === "recreational") {
     const monthlyPrices = emailClasses.map((item) => item.monthlyPrice);
     monthlyTotal = monthlyPrices.every((price) => price != null)
       ? monthlyPrices.reduce((sum, price) => sum + (price ?? 0), 0)
@@ -575,8 +550,10 @@ export async function POST(req: Request) {
   const buf = Buffer.from(await req.arrayBuffer());
 
   const webhookSecrets = [
-    process.env.STRIPE_WEBHOOK_SECRET,
-    process.env.COMP_STRIPE_WEBHOOK_SECRET,
+    process.env.TEST_REC_STRIPE_WEBHOOK_SECRET,
+    process.env.TEST_COMP_STRIPE_WEBHOOK_SECRET,
+    process.env.LIVE_REC_STRIPE_WEBHOOK_SECRET,
+    process.env.LIVE_COMP_STRIPE_WEBHOOK_SECRET,
   ].filter((value): value is string => typeof value === "string" && value.trim().length > 0);
 
   if (webhookSecrets.length === 0) {

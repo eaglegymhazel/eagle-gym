@@ -67,44 +67,40 @@ export async function getSummerCampSessions(slug: string): Promise<SummerCampSes
   return getSummerCampSessionsCached(slug);
 }
 
-const getSummerCampActiveBookingCountsCached = unstable_cache(
-  async (slug: string, datesKey: string): Promise<Record<string, number>> => {
-    if (!slug || !datesKey) return {};
-
-    const serviceRole = getServiceRoleClient();
-    const dates = datesKey.split(",").filter(Boolean);
-    if (dates.length === 0) return {};
-
-    const { data, error } = await serviceRole
-      .from("SummerCampBookings")
-      .select('campDate:"campDate"')
-      .eq("slug", slug)
-      .in("campDate", dates)
-      .in("status", ["pending", "active"]);
-
-    if (error) {
-      throw new Error(error.message);
-    }
-
-    const counts: Record<string, number> = {};
-    (data ?? []).forEach((row: { campDate: string | null }) => {
-      if (!row.campDate) return;
-      counts[row.campDate] = (counts[row.campDate] ?? 0) + 1;
-    });
-
-    return counts;
-  },
-  ["summer-camp-booking-counts-by-date"],
-  { revalidate: 15 }
-);
-
 export async function getSummerCampActiveBookingCountsByDate(
   slug: string,
   campDates: string[]
 ): Promise<Map<string, number>> {
-  const datesKey = campDates.slice().sort().join(",");
-  const counts = await getSummerCampActiveBookingCountsCached(slug, datesKey);
-  return new Map(Object.entries(counts));
+  if (!slug || campDates.length === 0) return new Map();
+
+  const serviceRole = getServiceRoleClient();
+  const { data, error } = await serviceRole
+    .from("SummerCampBookings")
+    .select(
+      'campDate:"campDate",status,SummerCampBookingGroups!inner(status,holdExpiresAt:"holdExpiresAt")'
+    )
+    .eq("slug", slug)
+    .in("campDate", campDates)
+    .in("status", ["pending", "active"]);
+
+  if (error) throw new Error(error.message);
+
+  const nowIso = new Date().toISOString();
+  const counts = new Map<string, number>();
+  (data ?? []).forEach((row) => {
+    const group = Array.isArray(row.SummerCampBookingGroups)
+      ? row.SummerCampBookingGroups[0]
+      : row.SummerCampBookingGroups;
+    const isLive =
+      row.status === "active" ||
+      (row.status === "pending" &&
+        group?.status === "pending" &&
+        !!group.holdExpiresAt &&
+        group.holdExpiresAt > nowIso);
+    if (!isLive || !row.campDate) return;
+    counts.set(row.campDate, (counts.get(row.campDate) ?? 0) + 1);
+  });
+  return counts;
 }
 
 export async function getSummerCampRegisterStudents(params: {

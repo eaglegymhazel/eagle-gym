@@ -4,6 +4,11 @@ import {
   getServerAuthRequestKey,
   logAuthValidation,
 } from "@/lib/authValidationDebug";
+import {
+  SITE_GATE_COOKIE,
+  isSiteGateEnabled,
+  isValidSiteGateToken,
+} from "@/lib/siteGate";
 
 function hasSupabaseAuthCookie(
   cookies: Array<{ name: string; value: string }>
@@ -40,6 +45,27 @@ export async function proxy(request: NextRequest) {
 
   if (isStaticAssetRequest) {
     return response;
+  }
+
+  const bypassesSiteGate =
+    pathname === "/site-access" ||
+    pathname.startsWith("/api/site-gate/") ||
+    pathname === "/api/stripe/webhook" ||
+    pathname === "/api/sanity/revalidate" ||
+    pathname.startsWith("/auth/");
+
+  if (isSiteGateEnabled() && !bypassesSiteGate) {
+    const accessCookie = request.cookies.get(SITE_GATE_COOKIE)?.value;
+    if (!(await isValidSiteGateToken(accessCookie))) {
+      const accessUrl = request.nextUrl.clone();
+      accessUrl.pathname = "/site-access";
+      accessUrl.search = "";
+      accessUrl.searchParams.set(
+        "next",
+        `${request.nextUrl.pathname}${request.nextUrl.search}`
+      );
+      return NextResponse.redirect(accessUrl);
+    }
   }
 
   const isPublicRoute =

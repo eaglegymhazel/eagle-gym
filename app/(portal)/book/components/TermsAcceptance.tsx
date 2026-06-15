@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { CalendarDays } from "lucide-react";
 
 type TermsSection = {
   title: string;
@@ -37,12 +38,62 @@ const defaultSections: TermsSection[] = [
   },
 ];
 
+const gymHolidayDates = [
+  {
+    year: "2026/2027",
+    breaks: [
+      { name: "Spring holiday", dates: "5 Apr - 18 Apr" },
+      { name: "Summer holiday", dates: "27 Jun - 8 Aug" },
+      { name: "Winter holiday", dates: "21 Dec - 4 Jan" },
+    ],
+  },
+];
+
+function GymHolidaySchedule() {
+  return (
+    <div className="space-y-4">
+      <p className="text-sm leading-relaxed text-[#2E2A33]">
+        The gym is closed and no classes take place during these dates.
+      </p>
+      <div>
+        {gymHolidayDates.map((holidayYear) => (
+          <div
+            key={holidayYear.year}
+            className="overflow-hidden rounded-xl border border-[#ded2ef] bg-white"
+          >
+            <div className="flex items-center gap-2 bg-[#f1eafb] px-3.5 py-2.5 text-[#522497]">
+              <CalendarDays className="h-4 w-4" aria-hidden="true" />
+              <p className="text-sm font-black">Membership year {holidayYear.year}</p>
+            </div>
+            <dl className="divide-y divide-[#eee7f6] px-3.5">
+              {holidayYear.breaks.map((holiday) => (
+                <div
+                  key={holiday.name}
+                  className="flex items-center justify-between gap-3 py-3"
+                >
+                  <dt className="text-xs font-semibold text-[#5c506c]">
+                    {holiday.name}
+                  </dt>
+                  <dd className="text-right text-sm font-black text-[#2a0c4f]">
+                    {holiday.dates}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function TermsAcceptance({
   accepted,
   onAccept,
   title = "Subscription Cancellation Policy",
   intro = "Please review the key membership terms below before confirming your booking.",
-  warningText = "You must provide 1 full month's written notice before membership can end.",
+  warningText =
+    "One full month's written notice is required to end a membership. Your child's class place remains reserved throughout the notice period, and they can continue attending classes until the membership and payments end.",
   sections = defaultSections,
   acceptLabel = "I agree to the terms",
 }: TermsAcceptanceProps) {
@@ -125,14 +176,19 @@ export default function TermsAcceptance({
                     >
                       {section.title}
                     </h4>
-                    <p
-                      className={[
-                        "whitespace-pre-line text-sm leading-relaxed",
-                        warning ? "text-[#6e5110]" : "text-[#2E2A33]",
-                      ].join(" ")}
-                    >
-                      {section.body}
-                    </p>
+                    {sections === defaultSections &&
+                    section.title === "Gym Holiday Dates" ? (
+                      <GymHolidaySchedule />
+                    ) : (
+                      <p
+                        className={[
+                          "whitespace-pre-line text-sm leading-relaxed",
+                          warning ? "text-[#6e5110]" : "text-[#2E2A33]",
+                        ].join(" ")}
+                      >
+                        {section.body}
+                      </p>
+                    )}
                   </section>
                 );
               })}

@@ -14,10 +14,11 @@ import {
   getSummerCampActiveBookingCountsByDate,
   getSummerCampSessions,
 } from "@/lib/server/summerCampBookings";
+import { recoverSummerCampCheckout } from "@/lib/server/resumableSummerCampCheckout";
 
 export const runtime = "nodejs";
 
-const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+const stripeSecretKey = process.env.LIVE_REC_STRIPE_SECRET_KEY;
 
 function getAppUrl(req: Request): string {
   return process.env.APP_URL?.trim() || new URL(req.url).origin;
@@ -94,6 +95,24 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Invalid summer camp total" }, { status: 400 });
     }
 
+    const stripe = new Stripe(stripeSecretKey, { apiVersion: "2026-01-28.clover" });
+    const recovery = await recoverSummerCampCheckout({
+      stripe,
+      accountId: bookingContext.accountId,
+      childId,
+      slug: SUMMER_CAMP_2026.slug,
+      selectedDates: selectedDayIds,
+    });
+    if (recovery.status === "open") {
+      return NextResponse.json({ url: recovery.url, resumed: true });
+    }
+    if (recovery.status === "processing") {
+      return NextResponse.json(
+        { error: "Your payment is being processed. Please wait a moment and check your bookings." },
+        { status: 409 }
+      );
+    }
+
     const sessions = await getSummerCampSessions(SUMMER_CAMP_2026.slug);
     const sessionByDate = new Map(sessions.map((session) => [session.campDate, session]));
     const selectedSessions = selectedDayIds.map((dayId) => sessionByDate.get(dayId) ?? null);
@@ -128,7 +147,7 @@ export async function POST(req: Request) {
       }
     }
 
-    const holdExpiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+    const holdExpiresAt = new Date(Date.now() + 31 * 60 * 1000).toISOString();
 
     const { data: bookingGroup, error: bookingGroupError } = await supabaseAdmin
       .from("SummerCampBookingGroups")
@@ -177,7 +196,6 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: message }, { status: 409 });
     }
 
-    const stripe = new Stripe(stripeSecretKey, { apiVersion: "2026-01-28.clover" });
     const checkoutEmail = bookingContext.email?.trim() || "";
     if (!checkoutEmail) {
       return NextResponse.json({ error: "Account email not found." }, { status: 400 });
@@ -208,6 +226,7 @@ export async function POST(req: Request) {
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
       customer: stripeCustomerId,
+      payment_method_types: ["card"],
       line_items: [
         {
           price_data: {
@@ -221,6 +240,7 @@ export async function POST(req: Request) {
           quantity: 1,
         },
       ],
+      expires_at: Math.floor(Date.parse(holdExpiresAt) / 1000),
       success_url: `${appUrl}/summer-camps/2026/success?bookingGroupId=${encodeURIComponent(bookingGroup.id)}`,
       cancel_url: `${appUrl}/summer-camps/2026/summary?childId=${encodeURIComponent(childId)}&days=${encodeURIComponent(selectedDayIds.join(","))}`,
       metadata: {

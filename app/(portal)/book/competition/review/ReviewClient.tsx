@@ -24,7 +24,7 @@ export type ReviewClassItem = {
 
 export type CompetitionPricingOption = {
   hoursPerWeek: number;
-  monthlyPrice: number;
+  hasStripePrice: true;
 };
 
 type ReviewClientProps = {
@@ -101,14 +101,14 @@ export default function ReviewClient({
       return typeof bookedDuration !== "number" || bookedDuration <= 0;
     }).length;
     const totalHours = Number((totalMinutes / 60).toFixed(2));
-    const matchedPrice = pricingOptions.find(
+    const hasMatchingPrice = pricingOptions.some(
       (option) => Math.abs(option.hoursPerWeek - totalHours) < 0.001
-    )?.monthlyPrice;
+    );
 
     return {
       totalHours,
       missingDurationCount,
-      matchedPrice: matchedPrice ?? null,
+      hasMatchingPrice,
     };
   }, [items, pricingOptions]);
   const backHref = useMemo(() => {
@@ -180,12 +180,6 @@ export default function ReviewClient({
       setIsSubmitting(false);
     }
   };
-
-  const formatCurrency = (value: number) =>
-    new Intl.NumberFormat("en-GB", {
-      style: "currency",
-      currency: "GBP",
-    }).format(value);
 
   return (
     <section className="relative w-full overflow-hidden bg-[#faf7fb] px-4 pb-12 pt-4 sm:px-6 sm:pt-6">
@@ -349,16 +343,16 @@ export default function ReviewClient({
                       </div>
                       <div className="mt-2 h-px w-full bg-[#d9c8f1]" />
                       <div className="flex items-center justify-between">
-                        <p className="font-semibold text-[#2E2A33]">Total per month</p>
+                        <p className="font-semibold text-[#2E2A33]">Subscription price</p>
                         <p className="font-bold text-[#2E2A33]">
-                          {pricingBreakdown.matchedPrice != null
-                            ? formatCurrency(pricingBreakdown.matchedPrice)
+                          {pricingBreakdown.hasMatchingPrice
+                            ? "Shown in Stripe checkout"
                             : "Pricing unavailable"}
                         </p>
                       </div>
                     </div>
                   )}
-                  {selectedCount > 0 && pricingBreakdown.matchedPrice == null ? (
+                  {selectedCount > 0 && !pricingBreakdown.hasMatchingPrice ? (
                     <p className="mt-2 text-[11px] text-[#7a2334]">
                       No matching entry found in competition pricing for{" "}
                       {pricingBreakdown.totalHours}h per week.

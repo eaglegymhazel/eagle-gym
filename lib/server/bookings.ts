@@ -161,7 +161,7 @@ const getBillingSummariesForSubscriptionsCached = unstable_cache(
   ): Promise<AccountBillingSummary[]> => {
     if (!subscriptionPairsKey) return []
 
-    const recreationalSecret = process.env.LIVE_STRIPE_SECRET_KEY?.trim() || null
+    const recreationalSecret = process.env.LIVE_REC_STRIPE_SECRET_KEY?.trim() || null
     const competitionSecret = process.env.LIVE_COMP_STRIPE_SECRET_KEY?.trim() || null
 
     const pairs = subscriptionPairsKey

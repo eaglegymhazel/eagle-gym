@@ -143,7 +143,7 @@ export async function getAdminMissedPayments(): Promise<AdminMissedPaymentRow[]>
   const [recreationalRows, competitionRows] = await Promise.all([
     listLateSubscriptionsForProgramme({
       programme: "Recreational",
-      secretKey: process.env.LIVE_STRIPE_SECRET_KEY,
+      secretKey: process.env.LIVE_REC_STRIPE_SECRET_KEY,
     }),
     listLateSubscriptionsForProgramme({
       programme: "Competition",

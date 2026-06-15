@@ -25,30 +25,36 @@ export async function getOrCreateStripeCheckoutCustomer({
   const trimmedName = fullName?.trim() || undefined;
 
   if (existingCustomerId) {
-    const existingCustomer = await stripe.customers.retrieve(existingCustomerId);
-    if (!("deleted" in existingCustomer) || existingCustomer.deleted !== true) {
-      const currentEmail = existingCustomer.email
-        ? normalizeEmail(existingCustomer.email)
-        : null;
-      const currentName = existingCustomer.name?.trim() || null;
-      const currentAccountId = existingCustomer.metadata?.accountId ?? null;
+    try {
+      const existingCustomer = await stripe.customers.retrieve(existingCustomerId);
+      if (!("deleted" in existingCustomer) || existingCustomer.deleted !== true) {
+        const currentEmail = existingCustomer.email
+          ? normalizeEmail(existingCustomer.email)
+          : null;
+        const currentName = existingCustomer.name?.trim() || null;
+        const currentAccountId = existingCustomer.metadata?.accountId ?? null;
 
-      if (
-        currentEmail !== normalizedEmail ||
-        currentName !== (trimmedName ?? null) ||
-        currentAccountId !== accountId
-      ) {
-        await stripe.customers.update(existingCustomer.id, {
-          email,
-          name: trimmedName,
-          metadata: {
-            ...existingCustomer.metadata,
-            accountId,
-          },
-        });
+        if (
+          currentEmail !== normalizedEmail ||
+          currentName !== (trimmedName ?? null) ||
+          currentAccountId !== accountId
+        ) {
+          await stripe.customers.update(existingCustomer.id, {
+            email,
+            name: trimmedName,
+            metadata: {
+              ...existingCustomer.metadata,
+              accountId,
+            },
+          });
+        }
+
+        return existingCustomer.id;
       }
-
-      return existingCustomer.id;
+    } catch (error) {
+      if (!(error instanceof Stripe.errors.StripeInvalidRequestError) || error.code !== "resource_missing") {
+        throw error;
+      }
     }
   }
 

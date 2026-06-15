@@ -192,11 +192,11 @@ export default async function CompetitionReviewPage({
   const competitionPricing = competitionPricingRows
     .map((row) => ({
       hoursPerWeek: toNullableNumber(row.hoursPerWeek),
-      monthlyPrice: toNullableNumber(row.monthlyPrice),
+      hasStripePrice: !!row.stripePriceId?.trim(),
     }))
     .filter(
-      (row): row is { hoursPerWeek: number; monthlyPrice: number } =>
-        row.hoursPerWeek != null && row.monthlyPrice != null
+      (row): row is { hoursPerWeek: number; hasStripePrice: true } =>
+        row.hoursPerWeek != null && row.hasStripePrice
     );
 
   if (!draftId) {

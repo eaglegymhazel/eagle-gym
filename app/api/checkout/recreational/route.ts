@@ -3,19 +3,46 @@ import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/admin";
 import { getBookingContext } from "@/lib/server/bookingContext";
 import { getOrCreateStripeCheckoutCustomer } from "@/lib/server/stripeCheckoutCustomer";
+import {
+  expireStaleClassCheckouts,
+  findResumableClassCheckout,
+} from "@/lib/server/resumableClassCheckout";
 
 export const runtime = "nodejs";
 
-const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
-const HOLD_MINUTES = 15;
+const stripeSecretKey = process.env.LIVE_REC_STRIPE_SECRET_KEY;
+const HOLD_MINUTES = 31;
+const PRESCHOOL_MIN_AGE = 1.5;
+const PRESCHOOL_MAX_AGE = 3;
 
 type ClassRow = {
   id: string;
   isCompetitionClass: boolean | null;
+  minAge: number | string | null;
+  maxAge: number | string | null;
 };
 
 function getAppUrl(req: Request): string {
   return process.env.APP_URL?.trim() || new URL(req.url).origin;
+}
+
+function toNullableNumber(value: number | string | null): number | null {
+  if (typeof value === "number") return Number.isFinite(value) ? value : null;
+  if (typeof value === "string") {
+    const parsed = Number.parseFloat(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+}
+
+function isPreschoolClass(row: ClassRow): boolean {
+  const minAge = toNullableNumber(row.minAge);
+  const maxAge = toNullableNumber(row.maxAge);
+  if (minAge == null || maxAge == null) return false;
+  return (
+    Math.abs(minAge - PRESCHOOL_MIN_AGE) < 0.001 &&
+    Math.abs(maxAge - PRESCHOOL_MAX_AGE) < 0.001
+  );
 }
 
 export async function POST(req: Request) {
@@ -25,8 +52,13 @@ export async function POST(req: Request) {
     if (!stripeSecretKey) {
       return NextResponse.json({ error: "Stripe is not configured" }, { status: 500 });
     }
-    if (!process.env.REC_PRICE_ID) {
-      return NextResponse.json({ error: "Recreational Stripe price is not configured" }, { status: 500 });
+    const standardPriceId = process.env.LIVE_REC_STRIPE_STANDARD_PRICE_ID?.trim();
+    const preschoolPriceId = process.env.LIVE_REC_STRIPE_PRESCHOOL_PRICE_ID?.trim();
+    if (!standardPriceId || !preschoolPriceId) {
+      return NextResponse.json(
+        { error: "Live recreational Stripe prices are not configured" },
+        { status: 500 }
+      );
     }
 
     const body = await req.json();
@@ -61,7 +93,7 @@ export async function POST(req: Request) {
     const uniqueClassIds = [...new Set(normalizedClassIds)];
     const { data: classes, error: classError } = await supabaseAdmin
       .from("Classes")
-      .select("id,isCompetitionClass")
+      .select("id,isCompetitionClass,minAge:ageMin,maxAge:ageMax")
       .in("id", uniqueClassIds);
 
     if (classError) {
@@ -83,7 +115,52 @@ export async function POST(req: Request) {
       );
     }
 
-    const quantity = normalizedClassIds.length;
+    const preschoolClassCount = classRows.filter(isPreschoolClass).length;
+    const hasPreschoolClass = preschoolClassCount > 0;
+    const hasStandardClass = preschoolClassCount < classRows.length;
+    if (hasPreschoolClass && hasStandardClass) {
+      return NextResponse.json(
+        { error: "Preschool classes cannot be booked with other recreational classes" },
+        { status: 400 }
+      );
+    }
+
+    const priceId = hasPreschoolClass ? preschoolPriceId : standardPriceId;
+    const pricingTier = hasPreschoolClass ? "preschool" : "standard";
+    const quantity = uniqueClassIds.length;
+    const stripe = new Stripe(stripeSecretKey, { apiVersion: "2026-01-28.clover" });
+    const staleCheckoutStatus = await expireStaleClassCheckouts({
+      stripe,
+      accountId: bookingContext.accountId,
+      childId,
+      bookingType: "recreational",
+    });
+    if (staleCheckoutStatus === "processing") {
+      return NextResponse.json(
+        { error: "Your payment is being processed. Please wait a moment and check your bookings." },
+        { status: 409 }
+      );
+    }
+    const resumableCheckout = await findResumableClassCheckout({
+      stripe,
+      accountId: bookingContext.accountId,
+      childId,
+      bookingType: "recreational",
+      selections: uniqueClassIds.map((classId) => ({
+        classId,
+        bookedDurationMinutes: null,
+      })),
+    });
+    if (resumableCheckout.status === "open") {
+      return NextResponse.json({ url: resumableCheckout.url, resumed: true });
+    }
+    if (resumableCheckout.status === "processing") {
+      return NextResponse.json(
+        { error: "Your payment is being processed. Please wait a moment and check your bookings." },
+        { status: 409 }
+      );
+    }
+
     const { data: holdRows, error: holdError } = await supabaseAdmin.rpc(
       "create_recreational_class_booking_hold",
       {
@@ -110,13 +187,19 @@ export async function POST(req: Request) {
     if (!bookingGroupId) {
       return NextResponse.json({ error: "Unable to create booking hold" }, { status: 500 });
     }
+    const holdExpiresAt =
+      hold && typeof hold.hold_expires_at === "string"
+        ? Date.parse(hold.hold_expires_at)
+        : Number.NaN;
+    if (!Number.isFinite(holdExpiresAt)) {
+      throw new Error("Booking hold expiry was not returned");
+    }
 
     const checkoutEmail = bookingContext.email?.trim() || "";
     if (!checkoutEmail) {
       return NextResponse.json({ error: "Account email not found." }, { status: 400 });
     }
 
-    const stripe = new Stripe(stripeSecretKey, { apiVersion: "2026-01-28.clover" });
     const { data: existingCustomerRow } = await supabaseAdmin
       .from("Bookings")
       .select('"stripeCustomerId"')
@@ -142,9 +225,11 @@ export async function POST(req: Request) {
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
       customer: stripeCustomerId,
-      line_items: [{ price: process.env.REC_PRICE_ID!, quantity }],
+      payment_method_types: ["card"],
+      line_items: [{ price: priceId, quantity }],
+      expires_at: Math.floor(holdExpiresAt / 1000),
       success_url: `${appUrl}/booking/success?type=recreational&bookingGroupId=${encodeURIComponent(bookingGroupId)}`,
-      cancel_url: `${appUrl}/booking/cancel`,
+      cancel_url: `${appUrl}/book/recreational/review?childId=${encodeURIComponent(childId)}&classIds=${encodeURIComponent(uniqueClassIds.join(","))}`,
       metadata: {
         bookingType: "recreational",
         bookingGroupId,
@@ -152,6 +237,7 @@ export async function POST(req: Request) {
         accountId: bookingContext.accountId,
         classCount: String(quantity),
         classIds: uniqueClassIds.join(","),
+        pricingTier,
       },
     });
 

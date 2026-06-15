@@ -19,7 +19,6 @@ export type RecreationalClassRow = {
 
 export type CompetitionPricingRow = {
   hoursPerWeek: number | string | null;
-  monthlyPrice: number | string | null;
   stripePriceId: string | null;
 };
 
@@ -118,7 +117,7 @@ const getCompetitionPricingCached = unstable_cache(
 
     const { data, error } = await serviceRole
       .from("CompetitionPricing")
-      .select("hoursPerWeek,monthlyPrice,stripePriceId")
+      .select("hoursPerWeek,stripePriceId")
       .order("hoursPerWeek", { ascending: true });
 
     if (error) {

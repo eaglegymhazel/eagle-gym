@@ -4,17 +4,31 @@ import { supabaseAdmin } from "@/lib/admin";
 import { getBookingContext } from "@/lib/server/bookingContext";
 import { getCompetitionBookingDraftById } from "@/lib/server/competitionBookingDrafts";
 import { getOrCreateStripeCheckoutCustomer } from "@/lib/server/stripeCheckoutCustomer";
+import { getCompetitionPricing } from "@/lib/server/classes";
+import {
+  expireStaleClassCheckouts,
+  findResumableClassCheckout,
+} from "@/lib/server/resumableClassCheckout";
 import {
   type CompetitionBookingSelection,
 } from "@/lib/competitionBookingSelection";
 
 export const runtime = "nodejs";
 
-const stripeSecretKey = process.env.COMP_STRIPE_SECRET_KEY;
-const HOLD_MINUTES = 15;
+const stripeSecretKey = process.env.LIVE_COMP_STRIPE_SECRET_KEY;
+const HOLD_MINUTES = 31;
 
 function getAppUrl(req: Request): string {
   return process.env.APP_URL?.trim() || new URL(req.url).origin;
+}
+
+function toNullableNumber(value: number | string | null): number | null {
+  if (typeof value === "number") return Number.isFinite(value) ? value : null;
+  if (typeof value === "string") {
+    const parsed = Number.parseFloat(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
 }
 
 export async function POST(req: Request) {
@@ -158,12 +172,54 @@ export async function POST(req: Request) {
     }
 
     const totalHours = Number((totalMinutes / 60).toFixed(2));
-    const priceId = process.env.COMP_PRICE_ID?.trim() || null;
+    const competitionPricing = await getCompetitionPricing();
+    const priceId =
+      competitionPricing.find((row) => {
+        const hoursPerWeek = toNullableNumber(row.hoursPerWeek);
+        return (
+          hoursPerWeek != null &&
+          Math.abs(hoursPerWeek - totalHours) < 0.001 &&
+          !!row.stripePriceId?.trim()
+        );
+      })?.stripePriceId?.trim() || null;
 
     if (!priceId) {
       return NextResponse.json(
-        { error: "No competition Stripe price is configured for checkout" },
-        { status: 500 }
+        { error: `No competition subscription price is configured for ${totalHours} hours per week` },
+        { status: 400 }
+      );
+    }
+
+    const stripe = new Stripe(stripeSecretKey, { apiVersion: "2026-01-28.clover" });
+    const staleCheckoutStatus = await expireStaleClassCheckouts({
+      stripe,
+      accountId: bookingContext.accountId,
+      childId: draftRecord.childId,
+      bookingType: "competition",
+    });
+    if (staleCheckoutStatus === "processing") {
+      return NextResponse.json(
+        { error: "Your payment is being processed. Please wait a moment and check your bookings." },
+        { status: 409 }
+      );
+    }
+    const resumableCheckout = await findResumableClassCheckout({
+      stripe,
+      accountId: bookingContext.accountId,
+      childId: draftRecord.childId,
+      bookingType: "competition",
+      selections: selections.map((selection) => ({
+        classId: selection.classId,
+        bookedDurationMinutes: selection.bookedDurationMinutes,
+      })),
+    });
+    if (resumableCheckout.status === "open") {
+      return NextResponse.json({ url: resumableCheckout.url, resumed: true });
+    }
+    if (resumableCheckout.status === "processing") {
+      return NextResponse.json(
+        { error: "Your payment is being processed. Please wait a moment and check your bookings." },
+        { status: 409 }
       );
     }
 
@@ -193,13 +249,19 @@ export async function POST(req: Request) {
     if (!bookingGroupId) {
       return NextResponse.json({ error: "Unable to create booking hold" }, { status: 500 });
     }
+    const holdExpiresAt =
+      hold && typeof hold.hold_expires_at === "string"
+        ? Date.parse(hold.hold_expires_at)
+        : Number.NaN;
+    if (!Number.isFinite(holdExpiresAt)) {
+      throw new Error("Booking hold expiry was not returned");
+    }
 
     const checkoutEmail = bookingContext.email?.trim() || "";
     if (!checkoutEmail) {
       return NextResponse.json({ error: "Account email not found." }, { status: 400 });
     }
 
-    const stripe = new Stripe(stripeSecretKey, { apiVersion: "2026-01-28.clover" });
     const { data: existingCustomerRow } = await supabaseAdmin
       .from("Bookings")
       .select('"stripeCustomerId"')
@@ -225,9 +287,11 @@ export async function POST(req: Request) {
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
       customer: stripeCustomerId,
+      payment_method_types: ["card"],
       line_items: [{ price: priceId, quantity: 1 }],
+      expires_at: Math.floor(holdExpiresAt / 1000),
       success_url: `${appUrl}/booking/success?type=competition&bookingGroupId=${encodeURIComponent(bookingGroupId)}`,
-      cancel_url: `${appUrl}/booking/cancel`,
+      cancel_url: `${appUrl}/book/competition/review?childId=${encodeURIComponent(draftRecord.childId)}&draftId=${encodeURIComponent(draftId)}`,
       metadata: {
         bookingType: "competition",
         bookingGroupId,
@@ -235,6 +299,7 @@ export async function POST(req: Request) {
         accountId: bookingContext.accountId,
         classCount: String(selections.length),
         totalHours: String(totalHours),
+        stripePriceId: priceId,
         draftId: draftId || "",
       },
     });

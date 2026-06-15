@@ -29,6 +29,21 @@ type FieldErrors = {
   specialRequirements?: string;
 };
 
+const MONTHS = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+] as const;
+
 function formatCurrency(amountPence: number): string {
   return new Intl.NumberFormat("en-GB", {
     style: "currency",
@@ -49,6 +64,19 @@ function calculatePreview(partySize: number) {
   };
 }
 
+function parseDateParts(value: string): { year: string; month: string; day: string } {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (!match) return { year: "", month: "", day: "" };
+  return { year: match[1], month: match[2], day: match[3] };
+}
+
+function getDaysInMonth(year: string, month: string): number {
+  const numericYear = Number.parseInt(year, 10);
+  const numericMonth = Number.parseInt(month, 10);
+  if (!Number.isFinite(numericYear) || !Number.isFinite(numericMonth)) return 31;
+  return new Date(Date.UTC(numericYear, numericMonth, 0)).getUTCDate();
+}
+
 export default function BirthdayPartyDetailsClient({
   accountName,
   slotId,
@@ -59,7 +87,9 @@ export default function BirthdayPartyDetailsClient({
   const [partySizeInput, setPartySizeInput] = useState("");
   const [birthdayChildFirstName, setBirthdayChildFirstName] = useState("");
   const [birthdayChildLastName, setBirthdayChildLastName] = useState("");
-  const [birthdayChildDateOfBirth, setBirthdayChildDateOfBirth] = useState("");
+  const [birthdayChildBirthDay, setBirthdayChildBirthDay] = useState("");
+  const [birthdayChildBirthMonth, setBirthdayChildBirthMonth] = useState("");
+  const [birthdayChildBirthYear, setBirthdayChildBirthYear] = useState("");
   const [healthNotes, setHealthNotes] = useState("");
   const [specialRequirements, setSpecialRequirements] = useState("");
   const [additionalNotes, setAdditionalNotes] = useState("");
@@ -69,16 +99,23 @@ export default function BirthdayPartyDetailsClient({
     const savedDraft = loadBirthdayPartyDraft();
     if (!savedDraft || savedDraft.slotId !== slotId) return;
 
-    const savedPartySize = parseBirthdayPartySize(savedDraft.partySize);
-    if (savedPartySize !== null) {
-      setPartySizeInput(String(savedPartySize));
-    }
-    setBirthdayChildFirstName(savedDraft.birthdayChildFirstName ?? "");
-    setBirthdayChildLastName(savedDraft.birthdayChildLastName ?? "");
-    setBirthdayChildDateOfBirth(savedDraft.birthdayChildDateOfBirth ?? "");
-    setHealthNotes(savedDraft.healthNotes ?? "");
-    setSpecialRequirements(savedDraft.specialRequirements ?? "");
-    setAdditionalNotes(savedDraft.additionalNotes ?? "");
+    const frame = window.requestAnimationFrame(() => {
+      const savedPartySize = parseBirthdayPartySize(savedDraft.partySize);
+      if (savedPartySize !== null) {
+        setPartySizeInput(String(savedPartySize));
+      }
+      setBirthdayChildFirstName(savedDraft.birthdayChildFirstName ?? "");
+      setBirthdayChildLastName(savedDraft.birthdayChildLastName ?? "");
+      const savedBirthDate = parseDateParts(savedDraft.birthdayChildDateOfBirth ?? "");
+      setBirthdayChildBirthDay(savedBirthDate.day);
+      setBirthdayChildBirthMonth(savedBirthDate.month);
+      setBirthdayChildBirthYear(savedBirthDate.year);
+      setHealthNotes(savedDraft.healthNotes ?? "");
+      setSpecialRequirements(savedDraft.specialRequirements ?? "");
+      setAdditionalNotes(savedDraft.additionalNotes ?? "");
+    });
+
+    return () => window.cancelAnimationFrame(frame);
   }, [slotId]);
 
   const parsedPartySize = useMemo(
@@ -86,7 +123,51 @@ export default function BirthdayPartyDetailsClient({
     [partySizeInput]
   );
   const birthdayChildMaxDate = useMemo(() => getBirthdayChildMaxDate(), []);
+  const maxBirthDateParts = useMemo(
+    () => parseDateParts(birthdayChildMaxDate),
+    [birthdayChildMaxDate]
+  );
+  const birthYears = useMemo(() => {
+    const latestYear = Number.parseInt(maxBirthDateParts.year, 10);
+    return Array.from({ length: 100 }, (_, index) => String(latestYear - index));
+  }, [maxBirthDateParts.year]);
+  const availableBirthMonths = useMemo(() => {
+    const latestMonth =
+      birthdayChildBirthYear === maxBirthDateParts.year
+        ? Number.parseInt(maxBirthDateParts.month, 10)
+        : 12;
+    return MONTHS.slice(0, latestMonth);
+  }, [birthdayChildBirthYear, maxBirthDateParts.month, maxBirthDateParts.year]);
+  const availableBirthDays = useMemo(() => {
+    let lastDay = getDaysInMonth(birthdayChildBirthYear, birthdayChildBirthMonth);
+    if (
+      birthdayChildBirthYear === maxBirthDateParts.year &&
+      birthdayChildBirthMonth === maxBirthDateParts.month
+    ) {
+      lastDay = Math.min(lastDay, Number.parseInt(maxBirthDateParts.day, 10));
+    }
+    return Array.from({ length: lastDay }, (_, index) => String(index + 1));
+  }, [
+    birthdayChildBirthMonth,
+    birthdayChildBirthYear,
+    maxBirthDateParts.day,
+    maxBirthDateParts.month,
+    maxBirthDateParts.year,
+  ]);
+  const birthdayChildDateOfBirth = useMemo(() => {
+    if (!birthdayChildBirthYear || !birthdayChildBirthMonth || !birthdayChildBirthDay) {
+      return "";
+    }
+    return `${birthdayChildBirthYear}-${birthdayChildBirthMonth.padStart(2, "0")}-${birthdayChildBirthDay.padStart(2, "0")}`;
+  }, [birthdayChildBirthDay, birthdayChildBirthMonth, birthdayChildBirthYear]);
   const pricing = useMemo(() => calculatePreview(parsedPartySize ?? 12), [parsedPartySize]);
+
+  const clearBirthDateError = () => {
+    setFieldErrors((current) => ({
+      ...current,
+      birthdayChildDateOfBirth: undefined,
+    }));
+  };
 
   const handleContinue = () => {
     const nextFieldErrors: FieldErrors = {};
@@ -220,7 +301,7 @@ export default function BirthdayPartyDetailsClient({
               </label>
 
               <label className="space-y-2">
-                <span className="text-sm font-semibold text-[#2E2A33]">Birthday child's first name</span>
+                <span className="text-sm font-semibold text-[#2E2A33]">Birthday child&apos;s first name</span>
                 <input
                   type="text"
                   value={birthdayChildFirstName}
@@ -241,7 +322,7 @@ export default function BirthdayPartyDetailsClient({
               </label>
 
               <label className="space-y-2">
-                <span className="text-sm font-semibold text-[#2E2A33]">Birthday child's last name</span>
+                <span className="text-sm font-semibold text-[#2E2A33]">Birthday child&apos;s last name</span>
                 <input
                   type="text"
                   value={birthdayChildLastName}
@@ -262,20 +343,90 @@ export default function BirthdayPartyDetailsClient({
               </label>
 
               <label className="space-y-2">
-                <span className="text-sm font-semibold text-[#2E2A33]">Birthday child's date of birth</span>
-                <input
-                  type="date"
-                  value={birthdayChildDateOfBirth}
-                  onChange={(event) => {
-                    setBirthdayChildDateOfBirth(event.target.value);
-                    setFieldErrors((current) => ({
-                      ...current,
-                      birthdayChildDateOfBirth: undefined,
-                    }));
-                  }}
-                  max={birthdayChildMaxDate}
-                  className="h-11 w-full rounded-xl border border-[#d7c7ef] bg-white px-3 text-sm text-[#2a203c] outline-none ring-[#6e2ac0]/25 transition focus:ring-2"
-                />
+                <span className="text-sm font-semibold text-[#2E2A33]">Birthday child&apos;s date of birth</span>
+                <span className="grid grid-cols-[0.8fr_1.35fr_1fr] gap-2">
+                  <select
+                    aria-label="Birth day"
+                    value={birthdayChildBirthDay}
+                    onChange={(event) => {
+                      setBirthdayChildBirthDay(event.target.value);
+                      clearBirthDateError();
+                    }}
+                    className="h-11 min-w-0 rounded-xl border border-[#d7c7ef] bg-white px-3 text-sm text-[#2a203c] outline-none ring-[#6e2ac0]/25 transition focus:ring-2"
+                  >
+                    <option value="">Day</option>
+                    {availableBirthDays.map((day) => (
+                      <option key={day} value={day.padStart(2, "0")}>
+                        {day}
+                      </option>
+                    ))}
+                  </select>
+                  <select
+                    aria-label="Birth month"
+                    value={birthdayChildBirthMonth}
+                    onChange={(event) => {
+                      const month = event.target.value;
+                      setBirthdayChildBirthMonth(month);
+                      let maxDay = getDaysInMonth(birthdayChildBirthYear, month);
+                      if (
+                        birthdayChildBirthYear === maxBirthDateParts.year &&
+                        month === maxBirthDateParts.month
+                      ) {
+                        maxDay = Math.min(
+                          maxDay,
+                          Number.parseInt(maxBirthDateParts.day, 10)
+                        );
+                      }
+                      if (Number.parseInt(birthdayChildBirthDay, 10) > maxDay) {
+                        setBirthdayChildBirthDay(String(maxDay).padStart(2, "0"));
+                      }
+                      clearBirthDateError();
+                    }}
+                    className="h-11 min-w-0 rounded-xl border border-[#d7c7ef] bg-white px-3 text-sm text-[#2a203c] outline-none ring-[#6e2ac0]/25 transition focus:ring-2"
+                  >
+                    <option value="">Month</option>
+                    {availableBirthMonths.map((month, index) => (
+                      <option key={month} value={String(index + 1).padStart(2, "0")}>
+                        {month}
+                      </option>
+                    ))}
+                  </select>
+                  <select
+                    aria-label="Birth year"
+                    value={birthdayChildBirthYear}
+                    onChange={(event) => {
+                      const year = event.target.value;
+                      setBirthdayChildBirthYear(year);
+                      if (
+                        year === maxBirthDateParts.year &&
+                        Number.parseInt(birthdayChildBirthMonth, 10) >
+                          Number.parseInt(maxBirthDateParts.month, 10)
+                      ) {
+                        setBirthdayChildBirthMonth(maxBirthDateParts.month);
+                        const maxDay = Number.parseInt(maxBirthDateParts.day, 10);
+                        if (Number.parseInt(birthdayChildBirthDay, 10) > maxDay) {
+                          setBirthdayChildBirthDay(maxBirthDateParts.day);
+                        }
+                      } else if (
+                        year === maxBirthDateParts.year &&
+                        birthdayChildBirthMonth === maxBirthDateParts.month &&
+                        Number.parseInt(birthdayChildBirthDay, 10) >
+                          Number.parseInt(maxBirthDateParts.day, 10)
+                      ) {
+                        setBirthdayChildBirthDay(maxBirthDateParts.day);
+                      }
+                      clearBirthDateError();
+                    }}
+                    className="h-11 min-w-0 rounded-xl border border-[#d7c7ef] bg-white px-3 text-sm text-[#2a203c] outline-none ring-[#6e2ac0]/25 transition focus:ring-2"
+                  >
+                    <option value="">Year</option>
+                    {birthYears.map((year) => (
+                      <option key={year} value={year}>
+                        {year}
+                      </option>
+                    ))}
+                  </select>
+                </span>
                 {fieldErrors.birthdayChildDateOfBirth ? (
                   <p className="text-sm font-semibold text-[#b42348]">
                     {fieldErrors.birthdayChildDateOfBirth}

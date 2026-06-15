@@ -18,7 +18,7 @@ import { getOrCreateStripeCheckoutCustomer } from "@/lib/server/stripeCheckoutCu
 
 export const runtime = "nodejs";
 
-const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+const stripeSecretKey = process.env.LIVE_REC_STRIPE_SECRET_KEY;
 const stripe = stripeSecretKey
   ? new Stripe(stripeSecretKey, { apiVersion: "2026-01-28.clover" })
   : null;
