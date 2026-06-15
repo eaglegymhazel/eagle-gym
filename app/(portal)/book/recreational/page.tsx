@@ -5,6 +5,10 @@ import { getActiveBookingCountsForClassIds } from "@/lib/server/availability";
 import RecreationalClassesClient, {
   type WeekdayGroup,
 } from "./RecreationalClassesClient";
+import {
+  DISPLAY_CLASS_MONTHLY_PRICE,
+  isDisplayClass,
+} from "@/lib/recreationalClassPricing";
 
 type SearchParams = {
   childId?: string;
@@ -175,7 +179,9 @@ export default async function RecreationalBookingPage({
         typeof item.durationMinutes === "number" ? item.durationMinutes : null,
       minAge: toNullableNumber(item.minAge),
       maxAge: toNullableNumber(item.maxAge),
-      price: toNullableNumber(item.price),
+      price: isDisplayClass(item)
+        ? DISPLAY_CLASS_MONTHLY_PRICE
+        : toNullableNumber(item.price),
       capacity: typeof item.capacity === "number" ? item.capacity : null,
       spotsTaken: bookingCountsByClassId.get(item.id) ?? 0,
       spotsLeft:

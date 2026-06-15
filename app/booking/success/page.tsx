@@ -2,6 +2,10 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { CalendarDays, CheckCircle2, Clock3, CreditCard, UserRound } from "lucide-react";
 import { supabaseAdmin } from "@/lib/admin";
+import {
+  DISPLAY_CLASS_MONTHLY_PRICE,
+  isDisplayClass,
+} from "@/lib/recreationalClassPricing";
 import { getBookingContext } from "@/lib/server/bookingContext";
 
 type SearchParams = {
@@ -253,7 +257,12 @@ export default async function BookingSuccessPage({
       weekday: normalizeWeekday(classRow?.weekday ?? null),
       time: formatTimeRange(classRow?.startTime ?? null, classRow?.endTime ?? null),
       durationMinutes: item.bookedDurationMinutes ?? classRow?.durationMinutes ?? null,
-      price: bookingType === "recreational" ? toNullableNumber(classRow?.price ?? null) : null,
+      price:
+        bookingType !== "recreational"
+          ? null
+          : classRow && isDisplayClass(classRow)
+            ? DISPLAY_CLASS_MONTHLY_PRICE
+            : toNullableNumber(classRow?.price ?? null),
       status: item.status,
     };
   });

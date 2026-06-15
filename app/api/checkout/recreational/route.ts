@@ -7,6 +7,11 @@ import {
   expireStaleClassCheckouts,
   findResumableClassCheckout,
 } from "@/lib/server/resumableClassCheckout";
+import {
+  DISPLAY_CLASS_STRIPE_PRICE_ID,
+  hasMixedDisplayClassSelection,
+  isDisplayClass,
+} from "@/lib/recreationalClassPricing";
 
 export const runtime = "nodejs";
 
@@ -17,6 +22,10 @@ const PRESCHOOL_MAX_AGE = 3;
 
 type ClassRow = {
   id: string;
+  name: string | null;
+  weekday: string | number | null;
+  startTime: string | null;
+  endTime: string | null;
   isCompetitionClass: boolean | null;
   minAge: number | string | null;
   maxAge: number | string | null;
@@ -93,7 +102,9 @@ export async function POST(req: Request) {
     const uniqueClassIds = [...new Set(normalizedClassIds)];
     const { data: classes, error: classError } = await supabaseAdmin
       .from("Classes")
-      .select("id,isCompetitionClass,minAge:ageMin,maxAge:ageMax")
+      .select(
+        "id,name:className,weekday,startTime,endTime,isCompetitionClass,minAge:ageMin,maxAge:ageMax"
+      )
       .in("id", uniqueClassIds);
 
     if (classError) {
@@ -115,6 +126,16 @@ export async function POST(req: Request) {
       );
     }
 
+    if (hasMixedDisplayClassSelection(classRows)) {
+      return NextResponse.json(
+        {
+          error:
+            "The Display Group class cannot be booked with another recreational class. Please complete these as two separate transactions.",
+        },
+        { status: 400 }
+      );
+    }
+
     const preschoolClassCount = classRows.filter(isPreschoolClass).length;
     const hasPreschoolClass = preschoolClassCount > 0;
     const hasStandardClass = preschoolClassCount < classRows.length;
@@ -125,8 +146,17 @@ export async function POST(req: Request) {
       );
     }
 
-    const priceId = hasPreschoolClass ? preschoolPriceId : standardPriceId;
-    const pricingTier = hasPreschoolClass ? "preschool" : "standard";
+    const hasDisplayClass = classRows.some(isDisplayClass);
+    const priceId = hasDisplayClass
+      ? DISPLAY_CLASS_STRIPE_PRICE_ID
+      : hasPreschoolClass
+        ? preschoolPriceId
+        : standardPriceId;
+    const pricingTier = hasDisplayClass
+      ? "display"
+      : hasPreschoolClass
+        ? "preschool"
+        : "standard";
     const quantity = uniqueClassIds.length;
     const stripe = new Stripe(stripeSecretKey, { apiVersion: "2026-01-28.clover" });
     const staleCheckoutStatus = await expireStaleClassCheckouts({

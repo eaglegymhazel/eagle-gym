@@ -8,7 +8,12 @@ type BirthdayPartyAvailabilityManagerProps = {
   initialSlots: BirthdayPartyCalendarSlotSummary[];
 };
 
-type AvailabilityState = "available" | "blocked" | "booked";
+type AvailabilityState =
+  | "available"
+  | "blocked"
+  | "payment-hold"
+  | "booked"
+  | "unavailable";
 
 const WEEKDAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
@@ -50,10 +55,27 @@ function formatTimeRange(startTime: string, endTime: string): string {
   return `${formatOne(startTime)}-${formatOne(endTime)}`;
 }
 
-function getAvailabilityState(slot: BirthdayPartyCalendarSlotSummary): AvailabilityState {
+function getAvailabilityState(
+  slot: BirthdayPartyCalendarSlotSummary,
+  nowIso: string
+): AvailabilityState {
   if (slot.isBlocked) return "blocked";
+  if (
+    slot.bookingState === "payment-hold" &&
+    slot.holdExpiresAt &&
+    slot.holdExpiresAt > nowIso
+  ) {
+    return "payment-hold";
+  }
+  if (slot.bookingState === "booked") return "booked";
+  if (
+    slot.bookingState === "payment-hold" &&
+    (!slot.holdExpiresAt || slot.holdExpiresAt <= nowIso)
+  ) {
+    return "available";
+  }
   if (slot.isAvailable) return "available";
-  return "booked";
+  return "unavailable";
 }
 
 export default function BirthdayPartyAvailabilityManager({
@@ -65,6 +87,14 @@ export default function BirthdayPartyAvailabilityManager({
   const [isSaving, setIsSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [nowIso, setNowIso] = useState(() => new Date().toISOString());
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setNowIso(new Date().toISOString());
+    }, 15_000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   const calendarMonths = useMemo(() => {
     if (slots.length === 0) return [];
@@ -215,7 +245,15 @@ export default function BirthdayPartyAvailabilityManager({
         </div>
         <div className="inline-flex items-center gap-2">
           <span className="h-3 w-3 rounded-full bg-[#c58f00]" />
-          Already booked
+          Payment in progress
+        </div>
+        <div className="inline-flex items-center gap-2">
+          <span className="h-3 w-3 rounded-full bg-[#7c5db5]" />
+          Booked
+        </div>
+        <div className="inline-flex items-center gap-2">
+          <span className="h-3 w-3 rounded-full bg-[#9a91a8]" />
+          Unavailable
         </div>
       </div>
 
@@ -273,14 +311,18 @@ export default function BirthdayPartyAvailabilityManager({
                   <div key={`${activeMonth.key}-week-${weekIndex}`} className="grid grid-cols-7 gap-2">
                     {week.map((day) => {
                       const isSelected = day.slot?.id === selectedSlotId;
-                      const state = day.slot ? getAvailabilityState(day.slot) : null;
+                      const state = day.slot
+                        ? getAvailabilityState(day.slot, nowIso)
+                        : null;
                       const tintClasses =
                         state === "available"
                           ? "border-[#b6dfc1] bg-[#f3fff7] text-[#17623a]"
                           : state === "blocked"
                             ? "border-[#f2c1cb] bg-[#fff4f6] text-[#9c2440]"
                             : state === "booked"
-                              ? "border-[#f1dc9f] bg-[#fff9e8] text-[#8b6200]"
+                              ? "border-[#d8ccef] bg-[#f7f3fd] text-[#5b3f8d]"
+                              : state === "payment-hold"
+                                ? "border-[#f1dc9f] bg-[#fff9e8] text-[#8b6200]"
                               : "border-[#ece6f4] bg-white text-[#b0a5c4]";
 
                       return day.slot ? (
@@ -300,7 +342,9 @@ export default function BirthdayPartyAvailabilityManager({
                         >
                           <span className="block text-sm font-black">{day.dayNumber}</span>
                           <span className="mt-2 block text-[11px] font-semibold uppercase tracking-[0.08em]">
-                            {state}
+                            {state === "payment-hold"
+                              ? "Payment hold"
+                              : state}
                           </span>
                         </button>
                       ) : (
@@ -338,13 +382,23 @@ export default function BirthdayPartyAvailabilityManager({
                   {formatTimeRange(selectedSlot.startTime, selectedSlot.endTime)}
                 </p>
                 <p className="mt-2 text-xs font-semibold uppercase tracking-[0.1em] text-[#6f6287]">
-                  {getAvailabilityState(selectedSlot)}
+                  {getAvailabilityState(selectedSlot, nowIso) === "payment-hold"
+                    ? "Payment in progress"
+                    : getAvailabilityState(selectedSlot, nowIso)}
                 </p>
               </div>
 
-              {getAvailabilityState(selectedSlot) === "booked" ? (
+              {getAvailabilityState(selectedSlot, nowIso) === "payment-hold" ? (
                 <div className="rounded-xl border border-[#f1dc9f] bg-[#fff9e8] p-3 text-sm text-[#8b6200]">
-                  This date already has a booking or an active payment hold and cannot be blocked here.
+                  A customer is currently completing payment for this slot. The hold will release automatically if payment is not completed.
+                </div>
+              ) : getAvailabilityState(selectedSlot, nowIso) === "booked" ? (
+                <div className="rounded-xl border border-[#d8ccef] bg-[#f7f3fd] p-3 text-sm text-[#5b3f8d]">
+                  This date has a confirmed booking and cannot be blocked here.
+                </div>
+              ) : getAvailabilityState(selectedSlot, nowIso) === "unavailable" ? (
+                <div className="rounded-xl border border-[#e3dee9] bg-[#f7f5f9] p-3 text-sm text-[#6b6275]">
+                  This date is currently unavailable to customers, for example because it falls inside the booking notice period.
                 </div>
               ) : (
                 <>

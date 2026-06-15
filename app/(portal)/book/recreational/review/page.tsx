@@ -2,6 +2,10 @@ import { getBookingContext } from "@/lib/server/bookingContext";
 import { getRecreationalClasses } from "@/lib/server/classes";
 import { getActiveBookingCountsForClassIds } from "@/lib/server/availability";
 import ReviewClient, { type ReviewClassItem } from "./ReviewClient";
+import {
+  DISPLAY_CLASS_MONTHLY_PRICE,
+  isDisplayClass,
+} from "@/lib/recreationalClassPricing";
 
 type SearchParams = {
   childId?: string;
@@ -233,6 +237,7 @@ export default async function RecreationalReviewPage({
           monthlyPrice: null,
           spotsLeft: 0,
           isCompetitionClass: false,
+          isDisplayClass: false,
           isUnavailable: true,
           ageInvalid: false,
         } satisfies ReviewClassItem;
@@ -248,6 +253,7 @@ export default async function RecreationalReviewPage({
           ? !(minAge <= childAge && childAge <= maxAge)
           : false;
 
+      const displayClass = isDisplayClass(row);
       return {
         id: row.id,
         name: row.name ?? "Unnamed class",
@@ -258,9 +264,12 @@ export default async function RecreationalReviewPage({
           typeof row.durationMinutes === "number" ? row.durationMinutes : null,
         minAge,
         maxAge,
-        monthlyPrice: toNullableNumber(row.price),
+        monthlyPrice: displayClass
+          ? DISPLAY_CLASS_MONTHLY_PRICE
+          : toNullableNumber(row.price),
         spotsLeft,
         isCompetitionClass: !!row.isCompetitionClass,
+        isDisplayClass: displayClass,
         isUnavailable: spotsLeft != null && spotsLeft <= 0,
         ageInvalid,
       } satisfies ReviewClassItem;

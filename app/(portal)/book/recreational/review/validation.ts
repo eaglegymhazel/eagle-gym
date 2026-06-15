@@ -3,6 +3,7 @@ export type ReviewValidationItem = {
   isUnavailable: boolean;
   isCompetitionClass: boolean;
   ageInvalid: boolean;
+  isDisplayClass: boolean;
 };
 
 export function getReviewValidation(input: {
@@ -46,6 +47,17 @@ export function getReviewValidation(input: {
     );
   }
 
+  const displayClassCount = input.selectedItems.filter(
+    (item) => item.isDisplayClass
+  ).length;
+  const hasMixedDisplayClassSelection =
+    displayClassCount > 0 && displayClassCount < input.selectedItems.length;
+  if (hasMixedDisplayClassSelection) {
+    errors.push(
+      "The Display Group class cannot be booked with another recreational class. Please complete these as two separate transactions."
+    );
+  }
+
   const ageInvalidCount = input.selectedItems.filter(
     (item) => item.ageInvalid
   ).length;
@@ -64,6 +76,7 @@ export function getReviewValidation(input: {
       input.selectedItems.length > 0 &&
       unavailableCount === 0 &&
       competitionCount === 0 &&
+      !hasMixedDisplayClassSelection &&
       ageInvalidCount === 0,
   };
 }

@@ -18,6 +18,7 @@ export type ReviewClassItem = {
   monthlyPrice: number | null;
   spotsLeft: number | null;
   isCompetitionClass: boolean;
+  isDisplayClass: boolean;
   isUnavailable: boolean;
   ageInvalid: boolean;
 };
@@ -44,17 +45,13 @@ function badgeStyles(spotsLeft: number | null, unavailable: boolean): string {
   return "bg-[#e9f7ec] text-[#256a38] border-[#b8e2c1]";
 }
 
-function isDisplayGroupClass(item: ReviewClassItem): boolean {
-  return item.name.trim().toLowerCase() === "display group";
-}
-
 function isPreschoolClass(item: ReviewClassItem): boolean {
   if (item.minAge == null || item.maxAge == null) return false;
   return Math.abs(item.minAge - 1.5) < 0.001 && Math.abs(item.maxAge - 3) < 0.001;
 }
 
 function getRecreationalClassLabel(item: ReviewClassItem): string {
-  if (isDisplayGroupClass(item)) return "Display Group Class";
+  if (item.isDisplayClass) return "Display Group Class";
   if (isPreschoolClass(item)) return "Preschool Class";
   return "Recreational Class";
 }
@@ -88,6 +85,7 @@ export default function ReviewClient({
           isUnavailable: item.isUnavailable,
           isCompetitionClass: item.isCompetitionClass,
           ageInvalid: item.ageInvalid,
+          isDisplayClass: item.isDisplayClass,
         })),
       }),
     [childId, hasDuplicateSelections, items]
@@ -285,7 +283,7 @@ export default function ReviewClient({
                   item.isUnavailable || item.spotsLeft === 0
                     ? "No longer available"
                     : availability.label;
-                const isDisplayClass = item.name.toLowerCase().includes("display");
+                const displayClass = item.isDisplayClass;
                 const classLabel = getRecreationalClassLabel(item);
 
                 return (
@@ -293,7 +291,7 @@ export default function ReviewClient({
                     key={item.id}
                     className="relative rounded-2xl border border-[#e7e1f1] bg-white p-4 shadow-[0_10px_24px_-20px_rgba(34,24,56,0.36)] transition-[border-color,box-shadow,transform] duration-200 hover:-translate-y-[1px] hover:border-[#d4c5ea] hover:shadow-[0_14px_30px_-18px_rgba(46,28,76,0.38)] sm:p-5"
                   >
-                    {isDisplayClass ? (
+                    {displayClass ? (
                       <span
                         aria-hidden="true"
                         className="pointer-events-none absolute left-0 top-0 h-8 w-8 bg-[#facc15] [clip-path:polygon(0_0,100%_0,0_100%)]"

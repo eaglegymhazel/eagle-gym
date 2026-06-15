@@ -5,7 +5,7 @@ import { supabaseAdmin } from "@/lib/admin";
 const LONDON_TZ = "Europe/London";
 const SLOT_GENERATION_DAYS = 730;
 const MINIMUM_BOOKING_LEAD_DAYS = 6;
-const HOLD_MINUTES = 30;
+const HOLD_MINUTES = 31;
 const BASE_PRICE_PENCE = 15000;
 const INCLUDED_CHILDREN = 12;
 const EXTRA_CHILD_PRICE_PENCE = 1000;
@@ -58,6 +58,8 @@ export type BirthdayPartySlotSummary = {
 export type BirthdayPartyCalendarSlotSummary = BirthdayPartySlotSummary & {
   id: string;
   isAvailable: boolean;
+  bookingState: "payment-hold" | "booked" | null;
+  holdExpiresAt: string | null;
 };
 
 export type BirthdayPartyAccountSummary = {
@@ -245,21 +247,48 @@ function buildCandidateSlots(
     ])
   );
   const nowIso = new Date().toISOString();
-  const blockedByBookingKey = new Set(
-    bookings
-      .filter((booking) => isBookingBlockingSlot(booking, nowIso))
-      .map((booking) => toSlotId(booking.slot_date, booking.start_time, booking.end_time))
-  );
+  const bookingStateByKey = new Map<
+    string,
+    { bookingState: "payment-hold" | "booked"; holdExpiresAt: string | null }
+  >();
+  bookings
+    .filter((booking) => isBookingBlockingSlot(booking, nowIso))
+    .forEach((booking) => {
+      const key = toSlotId(booking.slot_date, booking.start_time, booking.end_time);
+      const existing = bookingStateByKey.get(key);
+      const isConfirmedBooking =
+        booking.status === "paid" || booking.status === "confirmed";
+
+      if (isConfirmedBooking) {
+        bookingStateByKey.set(key, {
+          bookingState: "booked",
+          holdExpiresAt: null,
+        });
+        return;
+      }
+
+      if (existing?.bookingState === "booked") return;
+      if (
+        !existing?.holdExpiresAt ||
+        (booking.holdExpiresAt && booking.holdExpiresAt > existing.holdExpiresAt)
+      ) {
+        bookingStateByKey.set(key, {
+          bookingState: "payment-hold",
+          holdExpiresAt: booking.holdExpiresAt,
+        });
+      }
+    });
 
   const slots = rules.flatMap((rule) =>
     calculateRuleDates(rule, daysAhead).map((slotDate) => {
       const id = toSlotId(slotDate, rule.start_time, rule.end_time);
       const blockedReason = blockedByKey.get(id) ?? null;
       const isBlocked = blockedByKey.has(id);
+      const bookingState = bookingStateByKey.get(id) ?? null;
       const isAvailable =
         hasBirthdayPartyBookingLeadTime(slotDate) &&
         !isBlocked &&
-        !blockedByBookingKey.has(id);
+        !bookingState;
 
       return {
         id,
@@ -269,6 +298,8 @@ function buildCandidateSlots(
         isBlocked,
         blockedReason,
         isAvailable,
+        bookingState: bookingState?.bookingState ?? null,
+        holdExpiresAt: bookingState?.holdExpiresAt ?? null,
       };
     })
   );

@@ -252,6 +252,7 @@ export async function POST(req: Request) {
 
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
+      expires_at: Math.floor(Date.parse(holdExpiresAt) / 1000),
       success_url: `${appUrl}/birthday-party/book/success?bookingId=${encodeURIComponent(bookingId)}`,
       cancel_url: `${appUrl}/birthday-party/book/review?slotId=${encodeURIComponent(slotId)}&partySize=${encodeURIComponent(String(price.partySize))}`,
       customer: stripeCustomerId,

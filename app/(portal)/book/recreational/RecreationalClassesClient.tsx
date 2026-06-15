@@ -7,6 +7,7 @@ import { ArrowLeft, ArrowRight } from "lucide-react";
 import DaySection from "./components/DaySection";
 import type { ClassCardItem, SelectedClassDetail, WeekdayGroup } from "./types";
 import { parseTimeToMinutes, WEEKDAY_ORDER } from "./utils";
+import { isDisplayClass } from "@/lib/recreationalClassPricing";
 
 type RecreationalClassesClientProps = {
   childId: string;
@@ -62,6 +63,7 @@ export default function RecreationalClassesClient({
     Record<string, "idle" | "saving" | "added">
   >({});
   const [waitlistMessage, setWaitlistMessage] = useState<string | null>(null);
+  const [selectionMessage, setSelectionMessage] = useState<string | null>(null);
 
   useEffect(() => {
     let isActive = true;
@@ -149,6 +151,28 @@ export default function RecreationalClassesClient({
     const isSelected = selectedSet.has(item.id);
     if (item.isFull && !isSelected) return;
 
+    if (!isSelected) {
+      const selectedClasses = selectedClassIds
+        .map((id) => classById.get(id))
+        .filter(
+          (selected): selected is ClassCardItem & { weekday: string } => !!selected
+        );
+      const addingDisplayClass = isDisplayClass(item);
+      const hasDisplayClass = selectedClasses.some(isDisplayClass);
+
+      if (
+        selectedClasses.length > 0 &&
+        (addingDisplayClass || hasDisplayClass) &&
+        addingDisplayClass !== hasDisplayClass
+      ) {
+        setSelectionMessage(
+          "The Display Group class cannot be booked with another recreational class. Please complete these as two separate transactions."
+        );
+        return;
+      }
+    }
+
+    setSelectionMessage(null);
     setSelectedClassIds((prev) => {
       if (prev.includes(item.id)) {
         return prev.filter((id) => id !== item.id);
@@ -266,6 +290,11 @@ export default function RecreationalClassesClient({
           </div>
           {waitlistMessage ? (
             <p className="pl-4 text-sm font-semibold text-[#2a203c]">{waitlistMessage}</p>
+          ) : null}
+          {selectionMessage ? (
+            <div className="ml-4 rounded-2xl border border-[#f2c7cf] bg-[#fff4f6] px-4 py-3 text-sm font-semibold text-[#7a2334]">
+              {selectionMessage}
+            </div>
           ) : null}
         </header>
 

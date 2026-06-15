@@ -1,4 +1,8 @@
 import Stripe from "stripe";
+import {
+  DISPLAY_CLASS_MONTHLY_PRICE,
+  isDisplayClass,
+} from "@/lib/recreationalClassPricing";
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/admin";
 import {
@@ -223,7 +227,12 @@ async function sendClassBookingConfirmationEmail({
       startTime: classRow?.startTime ?? null,
       endTime: classRow?.endTime ?? null,
       durationMinutes: item.bookedDurationMinutes ?? classRow?.durationMinutes ?? null,
-      monthlyPrice: bookingType === "recreational" ? toNullableNumber(classRow?.price ?? null) : null,
+      monthlyPrice:
+        bookingType !== "recreational"
+          ? null
+          : classRow && isDisplayClass(classRow)
+            ? DISPLAY_CLASS_MONTHLY_PRICE
+            : toNullableNumber(classRow?.price ?? null),
     };
   });
   let monthlyTotal: number | null = null;
