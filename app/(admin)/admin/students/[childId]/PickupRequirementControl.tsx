@@ -4,8 +4,8 @@ import { useState } from "react";
 
 type PickupSetting = "Yes" | "No";
 
-function pickupSummary(pickedUp: PickupSetting): string {
-  return pickedUp === "Yes" ? "Must be collected" : "May leave unattended";
+function normalizePickupSetting(value: string | null | undefined): PickupSetting {
+  return value?.trim().toLowerCase() === "no" ? "No" : "Yes";
 }
 
 export default function PickupRequirementControl({
@@ -15,8 +15,8 @@ export default function PickupRequirementControl({
   childId: string;
   initialPickedUp: string | null;
 }) {
-  const [pickedUp, setPickedUp] = useState<PickupSetting>(
-    initialPickedUp === "No" ? "No" : "Yes"
+  const [pickedUp, setPickedUp] = useState<PickupSetting>(() =>
+    normalizePickupSetting(initialPickedUp)
   );
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -43,7 +43,7 @@ export default function PickupRequirementControl({
         throw new Error(payload.error ?? "Collection setting could not be updated.");
       }
 
-      setPickedUp(payload.child?.pickedUp === "No" ? "No" : "Yes");
+      setPickedUp(normalizePickupSetting(payload.child?.pickedUp));
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Collection setting could not be updated."
@@ -55,9 +55,6 @@ export default function PickupRequirementControl({
 
   return (
     <div className="mt-1 flex flex-col gap-2">
-      <span className="text-sm font-medium text-[#221833]">
-        {pickupSummary(pickedUp)}
-      </span>
       <div className="flex flex-wrap gap-2">
         {[
           { value: "Yes" as const, label: "Must be collected" },

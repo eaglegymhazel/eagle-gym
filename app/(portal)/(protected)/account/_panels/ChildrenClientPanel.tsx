@@ -127,6 +127,10 @@ function categoryLabel(category: string | null) {
   return category?.trim() || 'Badge'
 }
 
+function mayLeaveUnattended(pickedUp: string | null | undefined) {
+  return pickedUp?.trim().toLowerCase() !== 'yes'
+}
+
 export default function ChildrenClientPanel({
   childSummaries,
   medicalByChildId,
@@ -240,7 +244,7 @@ export default function ChildrenClientPanel({
       lastName: (selectedChild.lastName ?? '').trim(),
       dateOfBirth: selectedChild.dateOfBirth ?? '',
       photoConsent: selectedChild.photoConsent === true,
-      mayLeaveUnattended: (selectedChild.pickedUp ?? 'No') !== 'Yes',
+      mayLeaveUnattended: mayLeaveUnattended(selectedChild.pickedUp),
     })
     setMedicalForm({
       medicalConditions: toInputValue(medical?.medicalConditions),
