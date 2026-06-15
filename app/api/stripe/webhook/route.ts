@@ -544,6 +544,37 @@ async function finalizeClassBooking(
   });
 }
 
+async function cancelBookingsForSubscription(subscription: Stripe.Subscription) {
+  const subscriptionId = subscription.id?.trim();
+  if (!subscriptionId) {
+    console.warn("[stripe-webhook] Subscription cancellation event has no subscription id");
+    return;
+  }
+
+  const cancelledAt = new Date().toISOString();
+  const { data: cancelledBookings, error: cancellationError } = await supabaseAdmin
+    .from("Bookings")
+    .update({
+      status: "cancelled",
+      cancelledAt,
+      cancelReason: "stripe subscription cancelled",
+      autoRenew: false,
+      updatedAt: cancelledAt,
+    })
+    .eq("stripeSubscriptionId", subscriptionId)
+    .eq("status", "active")
+    .select("id");
+
+  if (cancellationError) {
+    throw new Error(cancellationError.message);
+  }
+
+  console.log("[stripe-webhook] Subscription bookings cancelled", {
+    subscriptionId,
+    cancelledBookings: cancelledBookings?.length ?? 0,
+  });
+}
+
 export async function POST(req: Request) {
   if (!stripeKey) {
     console.error("[stripe-webhook] Stripe is not configured");
@@ -593,7 +624,27 @@ export async function POST(req: Request) {
     id: event.id,
   });
 
-  if (event.type === "checkout.session.completed") {
+  if (event.type === "customer.subscription.deleted") {
+    const subscription = event.data.object as Stripe.Subscription;
+
+    try {
+      await cancelBookingsForSubscription(subscription);
+    } catch (error) {
+      console.error("[stripe-webhook] Failed to cancel subscription bookings", {
+        subscriptionId: subscription.id,
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+      return NextResponse.json(
+        {
+          error:
+            error instanceof Error
+              ? error.message
+              : "Unable to cancel subscription bookings",
+        },
+        { status: 500 }
+      );
+    }
+  } else if (event.type === "checkout.session.completed") {
     const session = event.data.object as Stripe.Checkout.Session;
     const bookingType = typeof session.metadata?.bookingType === "string"
       ? session.metadata.bookingType
