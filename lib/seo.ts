@@ -1,14 +1,4 @@
-const rawSiteUrl =
-  process.env.NEXT_PUBLIC_SITE_URL?.trim() ||
-  process.env.APP_URL?.trim() ||
-  "https://www.eaglegymnasticsacademy.co.uk";
-
-function normalizeSiteUrl(value: string): string {
-  const withScheme = /^https?:\/\//i.test(value) ? value : `https://${value}`;
-  return withScheme.endsWith("/") ? withScheme.slice(0, -1) : withScheme;
-}
-
-export const siteUrl = normalizeSiteUrl(rawSiteUrl);
+export const siteUrl = "https://www.eaglegymnastics.co.uk";
 
 export const siteName = "Eagle Gymnastics Academy";
 export const defaultTitle = "Eagle Gymnastics Academy";
