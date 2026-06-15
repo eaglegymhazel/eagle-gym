@@ -130,6 +130,8 @@ export default async function BirthdayPartySuccessPage({
   const birthdayChildName =
     `${booking.birthdayChildFirstName?.trim() ?? ""} ${booking.birthdayChildLastName?.trim() ?? ""}`.trim() ||
     "Not provided";
+  const isConfirmed =
+    booking.status === "confirmed" || booking.status === "paid";
 
   return (
     <section className="w-full bg-[#faf7fb] px-4 pb-12 pt-8 sm:px-6 sm:pt-10">
@@ -140,10 +142,12 @@ export default async function BirthdayPartySuccessPage({
               <div className="space-y-3">
                 <p className="text-sm font-semibold uppercase tracking-[0.16em] text-[#b42348]">Birthday Party Booking</p>
                 <h1 className="text-3xl font-black tracking-tight text-[#143271] sm:text-4xl">
-                  Payment received
+                  {isConfirmed ? "Payment received" : "Payment processing"}
                 </h1>
                 <p className="max-w-2xl text-sm text-[#5f4a82] sm:text-base">
-                  Your birthday party booking has been confirmed. You can use the details below to check the party date and who the booking was made for.
+                  {isConfirmed
+                    ? "Your birthday party booking has been confirmed. You can use the details below to check the party date and who the booking was made for."
+                    : "Stripe checkout is complete. We are waiting for payment confirmation before adding this birthday party to your account."}
                 </p>
               </div>
 
@@ -168,7 +172,7 @@ export default async function BirthdayPartySuccessPage({
                     {formatCurrency(booking.totalAmountPence)}
                   </p>
                   <p className="mt-1 text-sm text-[#5f4a82]">
-                    Status: {booking.status === "confirmed" ? "Confirmed" : booking.status}
+                    Status: {isConfirmed ? "Confirmed" : "Processing"}
                   </p>
                 </div>
               </div>

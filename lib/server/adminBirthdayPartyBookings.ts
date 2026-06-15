@@ -142,7 +142,7 @@ export async function getAdminBirthdayPartyBookings(): Promise<AdminBirthdayPart
       'id,"accountId",slot_date,start_time,end_time,status,"partySize","totalAmountPence","birthdayChildFirstName","birthdayChildLastName","birthdayChildDateOfBirth",created_at,paid_at'
     )
     .gte("slot_date", todayKey)
-    .in("status", ["pending", "paid", "confirmed"])
+    .in("status", ["paid", "confirmed"])
     .order("slot_date", { ascending: true })
     .order("start_time", { ascending: true });
 
@@ -181,6 +181,7 @@ export async function getAdminBirthdayPartyBookingById(
       'id,"accountId",slot_date,start_time,end_time,status,"partySize","totalAmountPence","birthdayChildFirstName","birthdayChildLastName","birthdayChildDateOfBirth","healthNotes","specialRequirements","additionalNotes","stripeCheckoutSessionId","stripePaymentIntentId",created_at,paid_at'
     )
     .eq("id", bookingId)
+    .in("status", ["paid", "confirmed"])
     .maybeSingle();
 
   if (bookingError) {

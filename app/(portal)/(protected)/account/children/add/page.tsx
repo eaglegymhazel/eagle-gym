@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { FormEvent, useEffect, useRef, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { PolicyModal } from "@/components/legal/PolicyModal";
 import {
   photoConsentContent,
@@ -22,6 +22,28 @@ type FormErrors = {
   waiverAccepted?: string;
   leaveUnattended?: string;
 };
+
+const MONTHS = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+] as const;
+
+function getDaysInMonth(year: string, month: string): number {
+  const numericYear = Number.parseInt(year, 10);
+  const numericMonth = Number.parseInt(month, 10);
+  if (!Number.isFinite(numericYear) || !Number.isFinite(numericMonth)) return 31;
+  return new Date(Date.UTC(numericYear, numericMonth, 0)).getUTCDate();
+}
 
 function ConsentIndicator({
   state,
@@ -71,7 +93,9 @@ export default function AddChildPage() {
   const [lastName, setLastName] = useState("");
   const [firstNameInvalid, setFirstNameInvalid] = useState(false);
   const [lastNameInvalid, setLastNameInvalid] = useState(false);
-  const [dob, setDob] = useState("");
+  const [birthDay, setBirthDay] = useState("");
+  const [birthMonth, setBirthMonth] = useState("");
+  const [birthYear, setBirthYear] = useState("");
   const [photoConsentDecision, setPhotoConsentDecision] =
     useState<PhotoConsentDecision>(null);
   const [waiverAccepted, setWaiverAccepted] = useState(false);
@@ -102,6 +126,45 @@ export default function AddChildPage() {
   const textareaClass =
     "w-full rounded-xl border border-[#cfc6de] bg-white px-4 py-3 text-sm text-[#2E2A33] placeholder:text-[#2E2A33]/55 transition duration-200 focus:border-[#6c35c3]/60 focus:outline-none focus:ring-2 focus:ring-[#6c35c3]/25";
   const invalidClass = "border-rose-500 focus:border-rose-500 focus:ring-rose-200";
+  const today = useMemo(() => {
+    const value = new Date();
+    value.setHours(0, 0, 0, 0);
+    return value;
+  }, []);
+  const birthYears = useMemo(
+    () =>
+      Array.from({ length: 100 }, (_, index) =>
+        String(today.getFullYear() - index)
+      ),
+    [today]
+  );
+  const availableBirthMonths = useMemo(() => {
+    const latestMonth =
+      birthYear === String(today.getFullYear()) ? today.getMonth() + 1 : 12;
+    return MONTHS.slice(0, latestMonth);
+  }, [birthYear, today]);
+  const availableBirthDays = useMemo(() => {
+    let lastDay = getDaysInMonth(birthYear, birthMonth);
+    if (
+      birthYear === String(today.getFullYear()) &&
+      birthMonth === String(today.getMonth() + 1).padStart(2, "0")
+    ) {
+      lastDay = Math.min(lastDay, today.getDate() - 1);
+    }
+    return Array.from(
+      { length: Math.max(0, lastDay) },
+      (_, index) => String(index + 1)
+    );
+  }, [birthMonth, birthYear, today]);
+  const dob = useMemo(() => {
+    if (!birthYear || !birthMonth || !birthDay) return "";
+    return `${birthYear}-${birthMonth.padStart(2, "0")}-${birthDay.padStart(2, "0")}`;
+  }, [birthDay, birthMonth, birthYear]);
+
+  const clearDobError = () => {
+    setErrors((current) => ({ ...current, dob: undefined }));
+  };
+
   useEffect(() => {
     if (openDoc !== null) return;
     if (lastTriggerRef.current) {
@@ -297,37 +360,105 @@ export default function AddChildPage() {
 
                 <div className="md:col-span-2">
                   <label>Date of birth</label>
-                  <input
-                    type="date"
-                    className={[inputBaseClass, errors.dob ? invalidClass : ""].join(" ")}
-                    value={dob}
-                    onChange={(event) => {
-                      const nextValue = event.target.value;
-                      setDob(nextValue);
-                      setErrors((prev) => {
-                        const nextErrors = { ...prev };
-                        if (!nextValue) {
-                          delete nextErrors.dob;
-                          return nextErrors;
-                        }
-
-                        const selected = new Date(nextValue);
-                        const now = new Date();
-                        now.setHours(0, 0, 0, 0);
-
+                  <div className="grid grid-cols-[0.8fr_1.35fr_1fr] gap-2">
+                    <select
+                      aria-label="Birth day"
+                      value={birthDay}
+                      onChange={(event) => {
+                        setBirthDay(event.target.value);
+                        clearDobError();
+                      }}
+                      className={[
+                        inputBaseClass,
+                        "min-w-0",
+                        errors.dob ? invalidClass : "",
+                      ].join(" ")}
+                    >
+                      <option value="">Day</option>
+                      {availableBirthDays.map((day) => (
+                        <option key={day} value={day.padStart(2, "0")}>
+                          {day}
+                        </option>
+                      ))}
+                    </select>
+                    <select
+                      aria-label="Birth month"
+                      value={birthMonth}
+                      onChange={(event) => {
+                        const month = event.target.value;
+                        setBirthMonth(month);
+                        let maxDay = getDaysInMonth(birthYear, month);
                         if (
-                          Number.isNaN(selected.getTime()) ||
-                          selected >= now
+                          birthYear === String(today.getFullYear()) &&
+                          month === String(today.getMonth() + 1).padStart(2, "0")
                         ) {
-                          nextErrors.dob = "Date of birth must be in the past.";
-                        } else {
-                          delete nextErrors.dob;
+                          maxDay = Math.min(maxDay, today.getDate() - 1);
                         }
-
-                        return nextErrors;
-                      });
-                    }}
-                  />
+                        if (Number.parseInt(birthDay, 10) > maxDay) {
+                          setBirthDay(
+                            maxDay > 0 ? String(maxDay).padStart(2, "0") : ""
+                          );
+                        }
+                        clearDobError();
+                      }}
+                      className={[
+                        inputBaseClass,
+                        "min-w-0",
+                        errors.dob ? invalidClass : "",
+                      ].join(" ")}
+                    >
+                      <option value="">Month</option>
+                      {availableBirthMonths.map((month, index) => (
+                        <option
+                          key={month}
+                          value={String(index + 1).padStart(2, "0")}
+                        >
+                          {month}
+                        </option>
+                      ))}
+                    </select>
+                    <select
+                      aria-label="Birth year"
+                      value={birthYear}
+                      onChange={(event) => {
+                        const year = event.target.value;
+                        setBirthYear(year);
+                        if (
+                          year === String(today.getFullYear()) &&
+                          Number.parseInt(birthMonth, 10) > today.getMonth() + 1
+                        ) {
+                          setBirthMonth(
+                            String(today.getMonth() + 1).padStart(2, "0")
+                          );
+                          setBirthDay("");
+                        } else if (
+                          year === String(today.getFullYear()) &&
+                          birthMonth ===
+                            String(today.getMonth() + 1).padStart(2, "0") &&
+                          Number.parseInt(birthDay, 10) >= today.getDate()
+                        ) {
+                          setBirthDay(
+                            today.getDate() > 1
+                              ? String(today.getDate() - 1).padStart(2, "0")
+                              : ""
+                          );
+                        }
+                        clearDobError();
+                      }}
+                      className={[
+                        inputBaseClass,
+                        "min-w-0",
+                        errors.dob ? invalidClass : "",
+                      ].join(" ")}
+                    >
+                      <option value="">Year</option>
+                      {birthYears.map((year) => (
+                        <option key={year} value={year}>
+                          {year}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                   {errors.dob ? (
                     <p className="mt-1 text-xs leading-4 text-rose-600">{errors.dob}</p>
                   ) : null}

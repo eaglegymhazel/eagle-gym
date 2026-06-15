@@ -442,7 +442,7 @@ async function getActiveBookingsForAccountFresh(
       'status,created_at,slot_date,start_time,end_time,partySize,totalAmountPence,birthdayChildFirstName,birthdayChildLastName,birthdayChildDateOfBirth'
     )
     .eq('accountId', accountId)
-    .in('status', ['pending', 'paid', 'confirmed'])
+    .in('status', ['paid', 'confirmed'])
 
   if (birthdayPartyError) {
     throw new Error(birthdayPartyError.message)
