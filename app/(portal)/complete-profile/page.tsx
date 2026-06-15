@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { CheckCircle2, Search } from "lucide-react";
 
 const schema = z.object({
   accFirstName: z.string().min(1, { message: "First name is required." }),
@@ -64,13 +63,6 @@ export default function CompleteProfilePage() {
   const [lastNameInvalid, setLastNameInvalid] = useState(false);
   const [submitAttempted, setSubmitAttempted] = useState(false);
   const [submitError, setSubmitError] = useState(false);
-  const [isLookingUpPostcode, setIsLookingUpPostcode] = useState(false);
-  const [postcodeLookupError, setPostcodeLookupError] = useState<string | null>(
-    null
-  );
-  const [postcodeLookupMessage, setPostcodeLookupMessage] = useState<
-    string | null
-  >(null);
   const {
     register,
     handleSubmit,
@@ -177,52 +169,6 @@ export default function CompleteProfilePage() {
   };
 
   const onSubmit = handleSubmit(onValidSubmit, onInvalidSubmit);
-
-  const handlePostcodeLookup = async () => {
-    const postcode = accPostCode.trim();
-    setPostcodeLookupError(null);
-    setPostcodeLookupMessage(null);
-
-    if (!postcode) {
-      setPostcodeLookupError("Enter your postcode first.");
-      return;
-    }
-
-    setIsLookingUpPostcode(true);
-    try {
-      const response = await fetch(
-        `/api/postcode-lookup?postcode=${encodeURIComponent(postcode)}`,
-        { cache: "no-store" }
-      );
-      const data = await response.json().catch(() => null);
-      if (!response.ok || typeof data?.postcode !== "string") {
-        throw new Error(
-          typeof data?.error === "string"
-            ? data.error
-            : "We couldn't find that postcode."
-        );
-      }
-
-      setValue("accPostCode", data.postcode, {
-        shouldValidate: true,
-        shouldDirty: true,
-        shouldTouch: true,
-      });
-      setPostcodeLookupMessage(
-        typeof data.area === "string" && data.area
-          ? `Postcode confirmed in ${data.area}. Please add your house, street and town.`
-          : "Postcode confirmed. Please add your house, street and town."
-      );
-    } catch (error) {
-      setPostcodeLookupError(
-        error instanceof Error
-          ? error.message
-          : "Postcode lookup is temporarily unavailable."
-      );
-    } finally {
-      setIsLookingUpPostcode(false);
-    }
-  };
 
   const phoneInputClass =
     "w-full rounded-xl border border-[#cfc6de] bg-white px-4 py-3.5 text-sm text-[#2E2A33] placeholder:text-[#2E2A33]/55 transition duration-200 focus:border-[#6c35c3]/60 focus:outline-none focus:ring-2 focus:ring-[#6c35c3]/25";
@@ -408,53 +354,7 @@ export default function CompleteProfilePage() {
                   ) : null}
                 </div>
 
-                <div className="md:col-span-2 mt-2 rounded-2xl border border-[#e7ddf3] bg-[#faf8fd] p-4">
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-                    <div className="flex-1">
-                      <label htmlFor="postcode-lookup">Find your postcode</label>
-                      <input
-                        id="postcode-lookup"
-                        className={inputClass(
-                          (submitAttempted && !accPostCode) ||
-                            !!errors.accPostCode
-                        )}
-                        {...register("accPostCode", {
-                          onChange: () => {
-                            setPostcodeLookupError(null);
-                            setPostcodeLookupMessage(null);
-                          },
-                        })}
-                        placeholder="PA1 2QJ"
-                        autoComplete="postal-code"
-                      />
-                    </div>
-                    <button
-                      type="button"
-                      onClick={handlePostcodeLookup}
-                      disabled={isLookingUpPostcode}
-                      className="inline-flex h-12 cursor-pointer items-center justify-center gap-2 rounded-xl bg-[#6c35c3] px-5 text-sm font-semibold text-white transition hover:bg-[#5b2ca7] disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                      <Search className="h-4 w-4" aria-hidden="true" />
-                      {isLookingUpPostcode ? "Checking..." : "Find postcode"}
-                    </button>
-                  </div>
-                  {postcodeLookupError ? (
-                    <p className="mt-2 text-xs font-semibold leading-5 text-rose-600">
-                      {postcodeLookupError} You can enter your address manually below.
-                    </p>
-                  ) : null}
-                  {postcodeLookupMessage ? (
-                    <p className="mt-2 flex items-start gap-2 text-xs font-semibold leading-5 text-[#356a43]">
-                      <CheckCircle2
-                        className="mt-0.5 h-4 w-4 shrink-0"
-                        aria-hidden="true"
-                      />
-                      {postcodeLookupMessage}
-                    </p>
-                  ) : null}
-                </div>
-
-                <div className="md:col-span-2">
+                <div className="md:col-span-2 mt-2">
                   <label>Address Line 1 (House number + Street)</label>
                   <input
                     className={inputClass(
@@ -505,9 +405,14 @@ export default function CompleteProfilePage() {
 
                 <div className="md:col-span-1">
                   <label>Post Code</label>
-                  <div className="flex h-[50px] items-center rounded-xl border border-[#d9d1e5] bg-[#f6f3f9] px-4 text-sm font-semibold uppercase text-[#51475f]">
-                    {accPostCode || "Enter postcode above"}
-                  </div>
+                  <input
+                    className={inputClass(
+                      (submitAttempted && !accPostCode) || !!errors.accPostCode
+                    )}
+                    {...register("accPostCode")}
+                    placeholder="PA1 2QJ"
+                    autoComplete="postal-code"
+                  />
                   {errors.accPostCode?.message &&
                   !errors.accPostCode.message.toLowerCase().includes("required") ? (
                     <p className="mt-1 text-xs leading-4 text-rose-600">
