@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -18,12 +18,6 @@ export default function LoginBadge() {
   const isLoggedIn = !!user?.email;
   const href = isLoggedIn ? "/account" : "/login";
   const label = isLoggedIn ? user?.email ?? "Account" : "Login";
-  const truncatedLabel = useMemo(() => {
-    if (!label) return "Account";
-    const [prefix, domain] = label.split("@");
-    if (!domain) return label;
-    return `${prefix}@${domain}`;
-  }, [label]);
 
   const menuItemClass =
     "relative flex min-h-[40px] items-center gap-3 overflow-hidden px-4 py-2.5 text-sm font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6c35c3]/35 before:absolute before:inset-0 before:bg-[#6c35c3]/8 before:origin-left before:scale-x-0 before:transition-transform before:duration-200 after:absolute after:left-0 after:top-2 after:bottom-2 after:w-[3px] after:rounded-full after:bg-[#6e2ac0] after:opacity-0 after:transition-opacity after:duration-200 hover:before:scale-x-100 hover:after:opacity-100 focus-visible:before:scale-x-100 focus-visible:after:opacity-100 [&>*]:relative [&>*]:z-10";
@@ -103,19 +97,39 @@ export default function LoginBadge() {
     >
       <button
         type="button"
-        className="inline-flex h-9 max-w-[170px] items-center gap-2 rounded-full border border-[#d4c7e6] bg-white px-3 text-sm font-semibold text-[#2f2442] shadow-[0_6px_14px_-12px_rgba(33,24,50,0.45)] transition hover:border-[#c6b7dd] hover:bg-[#faf8fd] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6c35c3]/35 sm:max-w-[220px]"
+        className="group inline-flex h-12 w-[126px] items-center gap-2 rounded-full border border-[#d8cbea] bg-white/95 px-2 pr-2.5 text-[#2f2442] shadow-[0_8px_22px_-16px_rgba(46,24,78,0.6)] transition duration-200 hover:-translate-y-px hover:border-[#c5b2df] hover:bg-white hover:shadow-[0_12px_26px_-16px_rgba(46,24,78,0.55)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6c35c3]/35 sm:w-[180px] sm:gap-2.5 sm:px-2.5 sm:pr-3 xl:w-[190px]"
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={() => setOpen((prev) => !prev)}
       >
-        <span className="flex-1 truncate text-left">
-          {loading ? "Account" : truncatedLabel}
+        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#f0e8fb] text-[#6630b5] transition group-hover:bg-[#e9dcf9] sm:h-8 sm:w-8">
+          <svg
+            aria-hidden="true"
+            viewBox="0 0 24 24"
+            className="h-3.5 w-3.5 sm:h-4 sm:w-4"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+            <circle cx="12" cy="7" r="4" />
+          </svg>
+        </span>
+        <span className="min-w-0 flex-1 text-left">
+          <span className="block text-[12px] font-bold leading-[15px] text-[#2a0c4f]">
+            My account
+          </span>
+          <span className="block truncate text-[10px] font-medium leading-[14px] text-[#77698b]">
+            {loading ? "Loading..." : label}
+          </span>
         </span>
         <svg
           aria-hidden="true"
           viewBox="0 0 24 24"
           className={[
-            "h-4 w-4 text-[#6a5a86] transition-transform duration-150",
+            "h-3.5 w-3.5 shrink-0 text-[#7a6a91] transition-transform duration-150 group-hover:text-[#5e3c87]",
             open ? "rotate-180" : "rotate-0",
           ].join(" ")}
           fill="none"
@@ -151,7 +165,7 @@ export default function LoginBadge() {
           <div className="px-4 pt-3 pb-2 text-xs text-[#7a6b93]">
             <div>Signed in as</div>
             <div className="truncate text-sm font-semibold text-[#241b35]">
-              {truncatedLabel}
+              {label}
             </div>
           </div>
           <ul className="flex flex-col">

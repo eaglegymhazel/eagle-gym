@@ -204,7 +204,7 @@ export default function Nav({
           }}
         >
           <div
-            className="hidden items-center justify-center lg:flex"
+            className="hidden items-center justify-center xl:flex"
             style={{ columnGap: "clamp(16px, 2vw, 32px)" }}
           >
             {resolvedNavItems.map((item) => {
@@ -338,7 +338,7 @@ export default function Nav({
           mobileRightLink ? (
             <Link
               href={mobileRightLink.href}
-              className="absolute right-4 inline-flex h-9 items-center rounded-md border border-[#d9cdef] bg-white px-3 text-[11px] font-semibold uppercase tracking-[0.04em] text-[#4d2d79] transition hover:bg-[#f8f3ff] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6c35c3]/40 lg:hidden"
+              className="absolute right-4 inline-flex h-9 items-center rounded-md border border-[#d9cdef] bg-white px-3 text-[11px] font-semibold uppercase tracking-[0.04em] text-[#4d2d79] transition hover:bg-[#f8f3ff] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6c35c3]/40 xl:hidden"
             >
               {mobileRightLink.label}
             </Link>
@@ -354,9 +354,11 @@ export default function Nav({
               setIsMobileUpdatesOpen(false);
               setIsOpen((prev) => !prev);
             }}
-            className="absolute right-4 inline-flex h-11 w-11 items-center justify-center rounded-xl border border-black/10 bg-white text-[#2f2442] shadow-sm transition hover:bg-[#f7f4fb] active:bg-[#f1edf8] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6c35c3]/40 lg:hidden"
+            className="absolute right-3 inline-flex h-11 min-w-[82px] items-center justify-center gap-1.5 rounded-xl border border-black/10 bg-white px-3 text-[#2f2442] shadow-sm transition hover:border-[#cfc2df] hover:bg-[#f7f4fb] active:bg-[#f1edf8] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6c35c3]/40 sm:right-4 sm:min-w-[92px] sm:gap-2 sm:px-4 xl:hidden"
           >
-            <span className="sr-only">Menu</span>
+            <span className="text-xs font-bold sm:text-sm">
+              {isOpen ? "Close" : "Menu"}
+            </span>
             <svg
               viewBox="0 0 24 24"
               className="h-5 w-5"
@@ -387,7 +389,7 @@ export default function Nav({
         ? createPortal(
             <AnimatePresence>
               {isOpen ? (
-                <div className="fixed inset-0 z-[90] lg:hidden" aria-hidden={false}>
+                <div className="fixed inset-0 z-[90] xl:hidden" aria-hidden={false}>
                   <motion.button
                     type="button"
                     onClick={closeMobileMenu}

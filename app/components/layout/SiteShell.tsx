@@ -25,34 +25,34 @@ export default function SiteShell({
     >
       <div className="sticky top-0 z-50 bg-[#faf7fb]/95 backdrop-blur">
         <div className="mx-auto w-full max-w-6xl px-3 sm:px-4 lg:px-6">
-          <div className="relative flex w-full items-center gap-2 py-2 sm:gap-4 lg:min-h-[96px]">
-            <div className="shrink-0 lg:justify-self-start">
+          <div className="relative flex w-full items-center gap-2 py-2 sm:gap-4 xl:min-h-[96px]">
+            <div className="shrink-0 xl:justify-self-start">
               <Link href="/" aria-label="Eagle Gymnastics Academy home">
                 <Image
                   src="/brand/new_logo1.png"
                   alt="Eagle Gymnastics Academy"
                   width={180}
                   height={184}
-                  className="w-[5rem] max-w-none object-contain drop-shadow-[0_10px_14px_rgba(0,0,0,0.22)] transition-transform duration-200 hover:scale-105 sm:w-[5.8rem] lg:w-[6.4rem]"
+                  className="w-[5rem] max-w-none object-contain drop-shadow-[0_10px_14px_rgba(0,0,0,0.22)] transition-transform duration-200 hover:scale-105 sm:w-[5.8rem] xl:w-[6.4rem]"
                   priority
                 />
               </Link>
             </div>
-            <div className="min-w-0 flex-1 lg:absolute lg:left-1/2 lg:top-1/2 lg:min-w-fit lg:flex-none lg:-translate-x-1/2 lg:-translate-y-1/2">
+            <div className="min-w-0 flex-1 xl:absolute xl:left-1/2 xl:top-1/2 xl:min-w-fit xl:flex-none xl:-translate-x-1/2 xl:-translate-y-1/2">
               <Nav
                 disableMobileMenu={disableMobileNavMenu}
                 mobileRightLink={disableMobileNavMenu ? undefined : mobileRightLink}
               />
             </div>
-            <div className="absolute right-16 top-1/2 -translate-y-1/2 lg:hidden">
+            <div className="absolute right-[6.25rem] top-1/2 -translate-y-1/2 sm:right-[7.75rem] xl:hidden">
               <LoginBadge />
             </div>
-            <div className="hidden lg:absolute lg:-right-2 lg:top-1/2 lg:block lg:-translate-y-1/2">
+            <div className="hidden xl:absolute xl:-right-2 xl:top-1/2 xl:block xl:-translate-y-1/2">
               <LoginBadge />
             </div>
           </div>
           {disableMobileNavMenu && mobileRightLink ? (
-            <div className="flex justify-end pb-2 lg:hidden">
+            <div className="flex justify-end pb-2 xl:hidden">
               <Link
                 href={mobileRightLink.href}
                 className="inline-flex h-9 items-center rounded-md border border-[#d9cdef] bg-white px-3 text-[11px] font-semibold uppercase tracking-[0.04em] text-[#4d2d79] transition hover:bg-[#f8f3ff] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6c35c3]/40"
