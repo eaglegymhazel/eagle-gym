@@ -18,7 +18,7 @@ function isUuid(value: string): boolean {
 }
 
 function toRequiresPickup(pickedUp: string | null | undefined): boolean {
-  return (pickedUp ?? "").trim().toLowerCase() !== "yes";
+  return (pickedUp ?? "").trim().toLowerCase() === "yes";
 }
 
 export async function POST(request: NextRequest) {

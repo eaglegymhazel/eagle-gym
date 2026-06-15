@@ -64,8 +64,8 @@ function formatRegisterDate(value: string): string {
 
 function toRequiresPickup(pickedUp: string | null | undefined): boolean {
   const normalized = (pickedUp ?? "").trim().toLowerCase();
-  if (normalized === "yes") return false;
-  if (normalized === "no") return true;
+  if (normalized === "yes") return true;
+  if (normalized === "no") return false;
   return true;
 }
 

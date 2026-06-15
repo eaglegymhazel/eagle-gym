@@ -10,6 +10,7 @@ import StudentProfileTabs from "./StudentProfileTabs";
 import CompetitionEligibilityControl from "./CompetitionEligibilityControl";
 import AdminStudentClassActions from "./AdminStudentClassActions";
 import ArchiveStudentButton from "./ArchiveStudentButton";
+import PickupRequirementControl from "./PickupRequirementControl";
 
 type StudentProfilePageProps = {
   params: Promise<{ childId: string }>;
@@ -105,12 +106,6 @@ function normalizeMedicalValue(value: string | null | undefined): string | null 
   if (!normalized) return null;
   if (normalized.toLowerCase() === "not provided") return null;
   return normalized;
-}
-
-function pickupSummary(pickedUp: string | null | undefined): string {
-  return (pickedUp ?? "").trim().toLowerCase() === "yes"
-    ? "May leave unaccompanied"
-    : "Must be collected";
 }
 
 function photoConsentSummary(photoConsent: boolean | null | undefined): string {
@@ -346,8 +341,11 @@ export default async function StudentProfilePage({ params }: StudentProfilePageP
                 <dt className="text-xs font-semibold uppercase tracking-[0.06em] text-[#74688a]">
                   End of class
                 </dt>
-                <dd className="mt-1 text-sm font-medium text-[#221833]">
-                  {pickupSummary(child.pickedUp)}
+                <dd>
+                  <PickupRequirementControl
+                    childId={child.id}
+                    initialPickedUp={child.pickedUp}
+                  />
                 </dd>
               </div>
             </dl>
