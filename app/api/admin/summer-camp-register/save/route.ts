@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { supabaseAdmin } from "@/lib/admin";
 import { isBeforeSaveWindow, isRegisterLocked, shouldBypassSaveWindow } from "@/lib/server/registerLock";
-import { getWebAccountRoleForUser, isAdminRole } from "@/lib/server/webAccountRole";
+import { getWebAccountAccessForUser, isAdminRole } from "@/lib/server/webAccountRole";
 
 type SaveEntryInput = {
   childId: string;
@@ -70,10 +70,6 @@ export async function POST(request: NextRequest) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(campDate)) {
       return NextResponse.json({ error: "Invalid campDate" }, { status: 400 });
     }
-    if (entries.length < 1) {
-      return NextResponse.json({ error: "entries must be non-empty" }, { status: 400 });
-    }
-
     const parsedEntries: SaveEntryInput[] = [];
     const childIdSet = new Set<string>();
     for (const row of entries) {
@@ -102,11 +98,17 @@ export async function POST(request: NextRequest) {
       parsedEntries.push({ childId, isPresent, isCollected });
     }
 
-    const role = await getWebAccountRoleForUser({
+    const access = await getWebAccountAccessForUser({
       authUserId: authData.user.id,
     });
-    if (!isAdminRole(role)) {
+    if (!isAdminRole(access.role)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    if (!access.accountId || !isUuid(access.accountId)) {
+      return NextResponse.json(
+        { error: "No linked Accounts row for this user" },
+        { status: 400 }
+      );
     }
 
     const { data: sessionRow, error: sessionError } = await supabaseAdmin
@@ -152,65 +154,48 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const accountEmail = authData.user.email?.trim() || "";
-    if (!accountEmail) {
-      return NextResponse.json({ error: "Missing account email for user" }, { status: 400 });
-    }
-
-    const { data: accountRow, error: accountError } = await supabaseAdmin
-      .from("Accounts")
-      .select("id")
-      .eq("email", accountEmail)
-      .maybeSingle();
-
-    if (accountError) {
-      return NextResponse.json({ error: accountError.message }, { status: 500 });
-    }
-
-    const takenByAccountId =
-      accountRow && typeof accountRow.id === "string" ? accountRow.id.trim() : "";
-    if (!isUuid(takenByAccountId)) {
-      return NextResponse.json({ error: "No linked Accounts row for this user" }, { status: 400 });
-    }
+    const takenByAccountId = access.accountId;
 
     const childIds = parsedEntries.map((entry) => entry.childId);
-    const { data: activeBookingRows, error: activeBookingError } = await supabaseAdmin
-      .from("SummerCampBookings")
-      .select('childId:"childId"')
-      .eq("slug", slug)
-      .eq("campDate", campDate)
-      .eq("status", "active")
-      .in("childId", childIds);
-
-    if (activeBookingError) {
-      return NextResponse.json({ error: activeBookingError.message }, { status: 500 });
-    }
-
-    const activeChildIds = new Set(
-      ((activeBookingRows ?? []) as Array<{ childId: string }>).map((row) => row.childId)
-    );
-    if (activeChildIds.size !== childIds.length) {
-      return NextResponse.json(
-        { error: "One or more students are not actively booked for this camp date." },
-        { status: 400 }
-      );
-    }
-
-    const { data: childRows, error: childError } = await supabaseAdmin
-      .from("Children")
-      .select("id,pickedUp")
-      .in("id", childIds);
-
-    if (childError) {
-      return NextResponse.json({ error: childError.message }, { status: 500 });
-    }
-
     const pickupByChildId = new Map<string, boolean>();
-    (childRows ?? []).forEach((row: { id: string; pickedUp: string | null }) => {
-      pickupByChildId.set(row.id, toRequiresPickup(row.pickedUp));
-    });
-    if (pickupByChildId.size !== childIds.length) {
-      return NextResponse.json({ error: "One or more childIds were not found" }, { status: 400 });
+    if (childIds.length > 0) {
+      const { data: activeBookingRows, error: activeBookingError } = await supabaseAdmin
+        .from("SummerCampBookings")
+        .select('childId:"childId"')
+        .eq("slug", slug)
+        .eq("campDate", campDate)
+        .eq("status", "active")
+        .in("childId", childIds);
+
+      if (activeBookingError) {
+        return NextResponse.json({ error: activeBookingError.message }, { status: 500 });
+      }
+
+      const activeChildIds = new Set(
+        ((activeBookingRows ?? []) as Array<{ childId: string }>).map((row) => row.childId)
+      );
+      if (activeChildIds.size !== childIds.length) {
+        return NextResponse.json(
+          { error: "One or more students are not actively booked for this camp date." },
+          { status: 400 }
+        );
+      }
+
+      const { data: childRows, error: childError } = await supabaseAdmin
+        .from("Children")
+        .select("id,pickedUp")
+        .in("id", childIds);
+
+      if (childError) {
+        return NextResponse.json({ error: childError.message }, { status: 500 });
+      }
+
+      (childRows ?? []).forEach((row: { id: string; pickedUp: string | null }) => {
+        pickupByChildId.set(row.id, toRequiresPickup(row.pickedUp));
+      });
+      if (pickupByChildId.size !== childIds.length) {
+        return NextResponse.json({ error: "One or more childIds were not found" }, { status: 400 });
+      }
     }
 
     const presentCount = parsedEntries.filter((entry) => entry.isPresent).length;

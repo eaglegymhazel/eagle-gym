@@ -409,6 +409,7 @@ export default async function RegisterDetailPage({
       initialCollected={initialCollected}
       isLocked={isLocked}
       isBeforeSaveWindow={beforeSaveWindow}
+      allowPartialSave
     />
   );
 }

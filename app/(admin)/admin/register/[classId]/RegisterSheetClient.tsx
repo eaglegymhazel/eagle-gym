@@ -55,6 +55,7 @@ type RegisterSheetClientProps = {
   backLabel?: string;
   saveEndpoint?: string;
   savePayload?: Record<string, unknown>;
+  allowPartialSave?: boolean;
 };
 
 type FilterState = "all" | AttendanceState;
@@ -102,6 +103,7 @@ export default function RegisterSheetClient({
   backLabel = "Back to classes",
   saveEndpoint = "/api/admin/register/save",
   savePayload,
+  allowPartialSave = false,
 }: RegisterSheetClientProps) {
   const [statuses, setStatuses] = useState<Record<string, AttendanceState>>(initialStatuses);
   const [collected, setCollected] = useState<Record<string, boolean>>(initialCollected);
@@ -163,6 +165,7 @@ export default function RegisterSheetClient({
 
   const totalStudents = students.length;
   const isComplete = markedCount === totalStudents && totalStudents > 0;
+  const canSaveProgress = allowPartialSave || isComplete;
   const getStripeCustomerUrl = (customerId: string) =>
     `https://dashboard.stripe.com/customers/${encodeURIComponent(customerId)}`;
   const progressPercent =
@@ -237,15 +240,17 @@ export default function RegisterSheetClient({
   };
 
   const handleSave = async () => {
-    if (!isComplete || saveState === "saving" || isReadOnly || isBeforeSaveWindow) return;
+    if (!canSaveProgress || saveState === "saving" || isReadOnly || isBeforeSaveWindow) return;
     setSaveState("saving");
     setSaveMessage(null);
 
-    const entries = students.map((student) => ({
-      childId: student.id,
-      isPresent: (statuses[student.id] ?? "unmarked") === "present",
-      isCollected: collected[student.id] === true ? true : null,
-    }));
+    const entries = students
+      .filter((student) => (statuses[student.id] ?? "unmarked") !== "unmarked")
+      .map((student) => ({
+        childId: student.id,
+        isPresent: statuses[student.id] === "present",
+        isCollected: collected[student.id] === true ? true : null,
+      }));
 
     try {
       const response = await fetch(saveEndpoint, {
@@ -279,7 +284,7 @@ export default function RegisterSheetClient({
       }
 
       setSaveState("saved");
-      setSaveMessage("Register saved.");
+      setSaveMessage(isComplete ? "Register saved." : "Register progress saved.");
       setLastSavedSignature(currentSignature);
     } catch (error) {
       setSaveState("error");
@@ -518,7 +523,9 @@ export default function RegisterSheetClient({
                           <button
                             key={`${student.id}-${action.key}`}
                             type="button"
-                            onClick={() => setStatus(student.id, action.key)}
+                            onClick={() =>
+                              setStatus(student.id, isActive ? "unmarked" : action.key)
+                            }
                             disabled={isReadOnly}
                             className={[
                               "relative h-8 w-full overflow-hidden px-3 text-xs font-semibold transition-colors duration-200",
@@ -758,7 +765,7 @@ export default function RegisterSheetClient({
                 type="button"
                 onClick={handleSave}
                 disabled={
-                  !isComplete ||
+                  !canSaveProgress ||
                   saveState === "saving" ||
                   isReadOnly ||
                   isBeforeSaveWindow ||
@@ -769,7 +776,7 @@ export default function RegisterSheetClient({
                   saveState === "saved" && !hasUnsavedChanges
                     ? "cursor-not-allowed bg-[#1f8f4d]"
                     : "",
-                  isComplete &&
+                  canSaveProgress &&
                   saveState !== "saving" &&
                   !isReadOnly &&
                   !isBeforeSaveWindow &&
@@ -787,7 +794,9 @@ export default function RegisterSheetClient({
                       ? "Saving..."
                       : saveState === "saved" && !hasUnsavedChanges
                         ? "Saved"
-                      : "Save register"}
+                      : allowPartialSave && !isComplete
+                        ? "Save progress"
+                        : "Save register"}
               </button>
             </div>
           </div>

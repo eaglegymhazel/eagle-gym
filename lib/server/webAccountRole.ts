@@ -6,6 +6,7 @@ import { supabaseAdmin } from "@/lib/admin";
 
 type WebAccountRoleRow = {
   role: string | null;
+  account_id: string | null;
 };
 
 function normalizeRole(role: string | null | undefined): string | null {
@@ -13,18 +14,26 @@ function normalizeRole(role: string | null | undefined): string | null {
   return normalized || null;
 }
 
+function normalizeAccountId(accountId: string | null | undefined): string | null {
+  const normalized = typeof accountId === "string" ? accountId.trim() : "";
+  return normalized || null;
+}
+
 export function isAdminRole(role: string | null | undefined): boolean {
   return normalizeRole(role) === "admin";
 }
 
-export async function getWebAccountRoleForUser(params: {
+export async function getWebAccountAccessForUser(params: {
   authUserId: string;
-}): Promise<string | null> {
+}): Promise<{
+  role: string | null;
+  accountId: string | null;
+}> {
   const { authUserId } = params;
 
   const { data: byAuthUser, error: byAuthUserError } = await supabaseAdmin
     .from("web_accounts")
-    .select("role")
+    .select("role,account_id")
     .eq("auth_user_id", authUserId)
     .maybeSingle();
 
@@ -32,7 +41,18 @@ export async function getWebAccountRoleForUser(params: {
     throw new Error(byAuthUserError.message);
   }
 
-  return normalizeRole((byAuthUser as WebAccountRoleRow | null)?.role);
+  const row = byAuthUser as WebAccountRoleRow | null;
+  return {
+    role: normalizeRole(row?.role),
+    accountId: normalizeAccountId(row?.account_id),
+  };
+}
+
+export async function getWebAccountRoleForUser(params: {
+  authUserId: string;
+}): Promise<string | null> {
+  const access = await getWebAccountAccessForUser(params);
+  return access.role;
 }
 
 export async function getCurrentUserWebAccountRole(): Promise<{

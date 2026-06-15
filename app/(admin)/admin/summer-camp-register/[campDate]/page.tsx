@@ -197,6 +197,7 @@ export default async function SummerCampRegisterDetailPage({
       initialCollected={initialCollected}
       isLocked={isLocked}
       isBeforeSaveWindow={beforeSaveWindow}
+      allowPartialSave
       sectionLabel="Summer camp register"
       backHref="/admin?tab=summer-camp-register"
       backLabel="Back to summer camp register"

@@ -1,5 +1,22 @@
--- Run this in Supabase SQL editor before using /api/admin/register/save
--- It ensures header + entries are saved atomically in a single DB transaction.
+-- Run this in Supabase SQL editor before using /api/admin/register/save.
+-- It keeps one editable register per class/date and replaces its saved draft atomically.
+
+do $$
+begin
+  if exists (
+    select 1
+    from public."ClassRegisters"
+    group by "classId", "sessionDate"
+    having count(*) > 1
+  ) then
+    raise exception
+      'Duplicate ClassRegisters rows exist for the same classId/sessionDate. Resolve them before applying this migration.';
+  end if;
+end;
+$$;
+
+create unique index if not exists "ClassRegisters_classId_sessionDate_key"
+  on public."ClassRegisters" ("classId", "sessionDate");
 
 create or replace function public.save_class_register_atomic(
   p_class_id uuid,
@@ -39,7 +56,16 @@ begin
     p_present_count,
     p_absent_count
   )
+  on conflict ("classId", "sessionDate")
+  do update set
+    "takenByAccountId" = excluded."takenByAccountId",
+    "presentCount" = excluded."presentCount",
+    "absentCount" = excluded."absentCount",
+    "takenAt" = now()
   returning id into v_register_id;
+
+  delete from public."ClassRegisterEntries"
+  where "registerId" = v_register_id;
 
   insert into public."ClassRegisterEntries" (
     "registerId",
@@ -53,7 +79,7 @@ begin
     (entry->>'childId')::uuid,
     (entry->>'isPresent')::boolean,
     coalesce((entry->>'requiresPickup')::boolean, true),
-    (entry->>'isCollected')::boolean
+    nullif(entry->>'isCollected', '')::boolean
   from jsonb_array_elements(p_entries) as entry;
 
   return query
