@@ -19,6 +19,10 @@ import {
   getBirthdayPartyCalendarSlots,
   type BirthdayPartyCalendarSlotSummary,
 } from "@/lib/server/birthdayPartyBookings";
+import {
+  getAdminCalendarEvents,
+  type AdminCalendarEventRow,
+} from "@/lib/server/adminCalendarEvents";
 import type { Child } from "@/components/admin/mockChildren";
 import type { Session } from "@/components/admin/mockSessions";
 import type { RegisterClassTemplate } from "@/components/admin/sessionBuild";
@@ -29,7 +33,8 @@ type AdminTabKey =
   | "summer-camp-register"
   | "waiting"
   | "missed-payments"
-  | "birthday-parties";
+  | "birthday-parties"
+  | "calendar-events";
 
 function resolveAdminTab(tab: string | undefined): AdminTabKey {
   if (
@@ -38,7 +43,8 @@ function resolveAdminTab(tab: string | undefined): AdminTabKey {
     tab === "summer-camp-register" ||
     tab === "waiting" ||
     tab === "missed-payments" ||
-    tab === "birthday-parties"
+    tab === "birthday-parties" ||
+    tab === "calendar-events"
   ) {
     return tab;
   }
@@ -61,6 +67,7 @@ export default async function AdminPage({
   let missedPaymentsRows: AdminMissedPaymentRow[] = [];
   let birthdayPartyBookingsRows: AdminBirthdayPartyBookingRow[] = [];
   let birthdayPartyCalendarSlots: BirthdayPartyCalendarSlotSummary[] = [];
+  let calendarEventsRows: AdminCalendarEventRow[] = [];
   let childrenLoadError: string | null = null;
   let registerClassesError: string | null = null;
   let summerCampRegisterSessionsError: string | null = null;
@@ -68,6 +75,7 @@ export default async function AdminPage({
   let missedPaymentsLoadError: string | null = null;
   let birthdayPartyBookingsLoadError: string | null = null;
   let birthdayPartyAvailabilityLoadError: string | null = null;
+  let calendarEventsLoadError: string | null = null;
 
   if (activeTab === "students") {
     try {
@@ -126,6 +134,15 @@ export default async function AdminPage({
     }
   }
 
+  if (activeTab === "calendar-events") {
+    try {
+      calendarEventsRows = await getAdminCalendarEvents();
+    } catch (error) {
+      calendarEventsLoadError =
+        error instanceof Error ? error.message : "Unable to load calendar events.";
+    }
+  }
+
   return (
     <Suspense fallback={null}>
       <AdminShell
@@ -137,6 +154,7 @@ export default async function AdminPage({
         initialMissedPaymentsRows={missedPaymentsRows}
         initialBirthdayPartyBookingsRows={birthdayPartyBookingsRows}
         initialBirthdayPartyCalendarSlots={birthdayPartyCalendarSlots}
+        initialCalendarEventsRows={calendarEventsRows}
         initialChildrenLoadError={childrenLoadError}
         initialRegisterClassesError={registerClassesError}
         initialSummerCampRegisterSessionsError={summerCampRegisterSessionsError}
@@ -144,6 +162,7 @@ export default async function AdminPage({
         initialMissedPaymentsLoadError={missedPaymentsLoadError}
         initialBirthdayPartyBookingsLoadError={birthdayPartyBookingsLoadError}
         initialBirthdayPartyAvailabilityLoadError={birthdayPartyAvailabilityLoadError}
+        initialCalendarEventsLoadError={calendarEventsLoadError}
       />
     </Suspense>
   );

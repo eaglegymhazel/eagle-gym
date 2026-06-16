@@ -51,7 +51,7 @@ function createCalendarEventsFetcher(
       return (data ?? []) as CalendarEventRow[];
     },
     [cacheKey],
-    { revalidate: 300 }
+    { revalidate: 300, tags: [cacheKey] }
   );
 }
 

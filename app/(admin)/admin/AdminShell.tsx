@@ -5,19 +5,21 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { createPortal } from "react-dom";
 import * as Dialog from "@radix-ui/react-dialog";
-import { ClipboardList, Clock3, Gift, Users } from "lucide-react";
+import { CalendarDays, ClipboardList, Clock3, Gift, Users } from "lucide-react";
 import styles from "@/app/(portal)/(protected)/account/account.module.css";
 import ChildPicker from "@/components/admin/ChildPicker";
 import type { Child } from "@/components/admin/mockChildren";
 import type { Session } from "@/components/admin/mockSessions";
 import ClassRegisterPicker from "@/components/admin/ClassRegisterPicker";
 import BirthdayPartyAvailabilityManager from "@/components/admin/BirthdayPartyAvailabilityManager";
+import CalendarEventsManager from "@/components/admin/CalendarEventsManager";
 import { buildUpcomingSessions, type RegisterClassTemplate } from "@/components/admin/sessionBuild";
 import AdminNavItem from "@/components/admin/AdminNavItem";
 import type { AdminWaitlistRow } from "@/lib/server/adminDashboard";
 import type { AdminMissedPaymentRow } from "@/lib/server/adminMissedPayments";
 import type { AdminBirthdayPartyBookingRow } from "@/lib/server/adminBirthdayPartyBookings";
 import type { BirthdayPartyCalendarSlotSummary } from "@/lib/server/birthdayPartyBookings";
+import type { AdminCalendarEventRow } from "@/lib/server/adminCalendarEvents";
 
 type AdminTabKey =
   | "students"
@@ -25,7 +27,8 @@ type AdminTabKey =
   | "summer-camp-register"
   | "waiting"
   | "missed-payments"
-  | "birthday-parties";
+  | "birthday-parties"
+  | "calendar-events";
 
 type StudentDirectoryView = "current" | "archived";
 
@@ -52,6 +55,7 @@ const navItems: NavItem[] = [
   { key: "waiting", label: "Waiting List", icon: Clock3 },
   { key: "missed-payments", label: "Missed Payments", icon: Clock3 },
   { key: "birthday-parties", label: "Birthday Parties", icon: Gift },
+  { key: "calendar-events", label: "Calendar Events", icon: CalendarDays },
 ];
 
 function AdminPanelSkeleton() {
@@ -88,6 +92,7 @@ export default function AdminShell({
   initialMissedPaymentsRows,
   initialBirthdayPartyBookingsRows,
   initialBirthdayPartyCalendarSlots,
+  initialCalendarEventsRows,
   initialChildrenLoadError,
   initialRegisterClassesError,
   initialSummerCampRegisterSessionsError,
@@ -95,6 +100,7 @@ export default function AdminShell({
   initialMissedPaymentsLoadError,
   initialBirthdayPartyBookingsLoadError,
   initialBirthdayPartyAvailabilityLoadError,
+  initialCalendarEventsLoadError,
 }: {
   referenceNowIso: string;
   initialChildrenData: Child[];
@@ -104,6 +110,7 @@ export default function AdminShell({
   initialMissedPaymentsRows: AdminMissedPaymentRow[];
   initialBirthdayPartyBookingsRows: AdminBirthdayPartyBookingRow[];
   initialBirthdayPartyCalendarSlots: BirthdayPartyCalendarSlotSummary[];
+  initialCalendarEventsRows: AdminCalendarEventRow[];
   initialChildrenLoadError: string | null;
   initialRegisterClassesError: string | null;
   initialSummerCampRegisterSessionsError: string | null;
@@ -111,6 +118,7 @@ export default function AdminShell({
   initialMissedPaymentsLoadError: string | null;
   initialBirthdayPartyBookingsLoadError: string | null;
   initialBirthdayPartyAvailabilityLoadError: string | null;
+  initialCalendarEventsLoadError: string | null;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -127,7 +135,8 @@ export default function AdminShell({
       tabParam === "summer-camp-register" ||
       tabParam === "waiting" ||
       tabParam === "missed-payments" ||
-      tabParam === "birthday-parties"
+      tabParam === "birthday-parties" ||
+      tabParam === "calendar-events"
     ) {
       return tabParam;
     }
@@ -173,6 +182,8 @@ export default function AdminShell({
   const birthdayPartyBookingsLoadError = initialBirthdayPartyBookingsLoadError;
   const birthdayPartyCalendarSlots = initialBirthdayPartyCalendarSlots;
   const birthdayPartyAvailabilityLoadError = initialBirthdayPartyAvailabilityLoadError;
+  const calendarEventsRows = initialCalendarEventsRows;
+  const calendarEventsLoadError = initialCalendarEventsLoadError;
 
   useEffect(() => {
     setTab(initialTab);
@@ -243,6 +254,7 @@ export default function AdminShell({
     if (tab === "summer-camp-register") return "Summer Camp Register";
     if (tab === "missed-payments") return "Missed Payments";
     if (tab === "birthday-parties") return "Birthday Parties";
+    if (tab === "calendar-events") return "Calendar Events";
     return "Waiting List";
   }, [tab]);
   const isStudentTab = tab === "students";
@@ -250,12 +262,14 @@ export default function AdminShell({
   const isSummerCampRegisterTab = tab === "summer-camp-register";
   const isMissedPaymentsTab = tab === "missed-payments";
   const isBirthdayPartiesTab = tab === "birthday-parties";
+  const isCalendarEventsTab = tab === "calendar-events";
   const isFlatContentTab =
     isStudentTab ||
     isRegisterTab ||
     isSummerCampRegisterTab ||
     isMissedPaymentsTab ||
     isBirthdayPartiesTab ||
+    isCalendarEventsTab ||
     tab === "waiting";
 
   const formatWaitlistDate = (value: string) => {
@@ -1198,6 +1212,16 @@ export default function AdminShell({
                   </div>
                 ) : null}
               </div>
+            ) : null}
+
+            {tab === "calendar-events" ? (
+              calendarEventsLoadError ? (
+                <div className={styles.errorBanner} role="alert">
+                  <span>{calendarEventsLoadError}</span>
+                </div>
+              ) : (
+                <CalendarEventsManager initialEvents={calendarEventsRows} />
+              )
             ) : null}
               </>
             )}
