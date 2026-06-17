@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Check } from "lucide-react";
 
 type PickupSetting = "Yes" | "No";
 
@@ -55,7 +56,7 @@ export default function PickupRequirementControl({
 
   return (
     <div className="mt-1 flex flex-col gap-2">
-      <div className="flex flex-wrap gap-2">
+      <div className="grid w-full max-w-md grid-cols-2 gap-2">
         {[
           { value: "Yes" as const, label: "Must be collected" },
           { value: "No" as const, label: "May leave unattended" },
@@ -68,15 +69,21 @@ export default function PickupRequirementControl({
               onClick={() => {
                 void updatePickupSetting(option.value);
               }}
-              disabled={isSaving}
+              disabled={isSaving || isSelected}
+              aria-pressed={isSelected}
               className={[
-                "min-h-8 border px-2.5 text-xs font-semibold transition",
+                "inline-flex min-h-9 items-center justify-center gap-1.5 border px-2 text-center text-xs font-semibold transition sm:px-3",
                 isSelected
-                  ? "border-[#6e2ac0] bg-[#f1e8ff] text-[#4f2390]"
-                  : "border-[#d9cfee] bg-white text-[#655779] hover:bg-[#f8f5fc]",
-                isSaving ? "cursor-not-allowed opacity-60" : "cursor-pointer",
+                  ? "border-[#4f2390] bg-[#4f2390] text-white shadow-[0_1px_0_rgba(255,255,255,0.18)_inset]"
+                  : "border-[#d9cfee] bg-white text-[#655779] hover:border-[#c7b4e5] hover:bg-[#f8f5fc] hover:text-[#4f2390]",
+                isSaving
+                  ? "cursor-not-allowed opacity-60"
+                  : isSelected
+                    ? "cursor-default"
+                    : "cursor-pointer",
               ].join(" ")}
             >
+              {isSelected ? <Check className="h-3.5 w-3.5" aria-hidden="true" /> : null}
               {option.label}
             </button>
           );

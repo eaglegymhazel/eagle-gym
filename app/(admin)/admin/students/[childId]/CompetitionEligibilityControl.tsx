@@ -1,10 +1,14 @@
 "use client";
 
 import { useState } from "react";
+import { Check } from "lucide-react";
 
-function competitionSummary(competitionEligible: boolean): string {
-  return competitionEligible ? "Eligible" : "Not eligible";
-}
+type CompetitionEligibilitySetting = "eligible" | "not-eligible";
+
+const competitionOptions = [
+  { value: "eligible" as const, label: "Eligible" },
+  { value: "not-eligible" as const, label: "Not eligible" },
+];
 
 export default function CompetitionEligibilityControl({
   childId,
@@ -17,10 +21,10 @@ export default function CompetitionEligibilityControl({
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const toggleEligibility = async () => {
-    if (isSaving) return;
+  const updateEligibility = async (nextSetting: CompetitionEligibilitySetting) => {
+    const nextValue = nextSetting === "eligible";
+    if (isSaving || nextValue === competitionEligible) return;
 
-    const nextValue = !competitionEligible;
     setIsSaving(true);
     setError(null);
 
@@ -58,30 +62,40 @@ export default function CompetitionEligibilityControl({
 
   return (
     <div className="mt-1 flex flex-col gap-2">
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="text-sm font-medium text-[#221833]">
-          {competitionSummary(competitionEligible)}
-        </span>
-        <button
-          type="button"
-          onClick={() => {
-            void toggleEligibility();
-          }}
-          disabled={isSaving}
-          className={[
-            "h-8 border px-2.5 text-xs font-semibold transition",
-            !isSaving
-              ? "cursor-pointer border-[#c7b4e5] bg-[#f7f2ff] text-[#4f2390] hover:border-[#b398dd] hover:bg-[#f1e8ff]"
-              : "cursor-not-allowed border-[#e9e4f0] bg-[#f8f6fb] text-[#a095b0]",
-          ].join(" ")}
-        >
-          {isSaving
-            ? "Saving..."
-            : competitionEligible
-              ? "Mark not eligible"
-              : "Mark eligible"}
-        </button>
+      <div className="grid w-full max-w-md grid-cols-2 gap-2">
+        {competitionOptions.map((option) => {
+          const isSelected =
+            (option.value === "eligible" && competitionEligible) ||
+            (option.value === "not-eligible" && !competitionEligible);
+
+          return (
+            <button
+              key={option.value}
+              type="button"
+              onClick={() => {
+                void updateEligibility(option.value);
+              }}
+              disabled={isSaving || isSelected}
+              aria-pressed={isSelected}
+              className={[
+                "inline-flex min-h-9 items-center justify-center gap-1.5 border px-2 text-center text-xs font-semibold transition sm:px-3",
+                isSelected
+                  ? "border-[#4f2390] bg-[#4f2390] text-white shadow-[0_1px_0_rgba(255,255,255,0.18)_inset]"
+                  : "border-[#d9cfee] bg-white text-[#655779] hover:border-[#c7b4e5] hover:bg-[#f8f5fc] hover:text-[#4f2390]",
+                isSaving
+                  ? "cursor-not-allowed opacity-60"
+                  : isSelected
+                    ? "cursor-default"
+                    : "cursor-pointer",
+              ].join(" ")}
+            >
+              {isSelected ? <Check className="h-3.5 w-3.5" aria-hidden="true" /> : null}
+              {option.label}
+            </button>
+          );
+        })}
       </div>
+      {isSaving ? <p className="text-xs text-[#6f6287]">Saving...</p> : null}
       {error ? <p className="text-xs font-medium text-[#a72020]">{error}</p> : null}
     </div>
   );
