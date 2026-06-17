@@ -3,11 +3,13 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type FormEvent } from "react";
+import { useAuth } from "@/app/components/auth/AuthProvider";
 import PasswordField from "@/app/components/auth/PasswordField";
 import { validatePassword } from "@/lib/passwordPolicy";
 import { supabase } from "@/lib/supabaseClient";
 
 export default function ResetPasswordPage() {
+  const { user, loading } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -17,6 +19,12 @@ export default function ResetPasswordPage() {
   const [passwordValid, setPasswordValid] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const router = useRouter();
+
+  useEffect(() => {
+    if (loading || !user || hasSession) return;
+    if (typeof window !== "undefined" && window.location.hash) return;
+    router.replace("/account");
+  }, [hasSession, loading, router, user]);
 
   useEffect(() => {
     let active = true;

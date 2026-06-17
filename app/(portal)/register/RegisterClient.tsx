@@ -1,13 +1,17 @@
 'use client'
 
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { useEffect, useState, type FormEvent } from 'react'
+import { useAuth } from '@/app/components/auth/AuthProvider'
 import PasswordField from '@/app/components/auth/PasswordField'
 import { validatePassword } from '@/lib/passwordPolicy'
 
 const RESEND_COOLDOWN_SECONDS = 120
 
 export default function RegisterClient() {
+  const { user, loading } = useAuth()
+  const router = useRouter()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -25,6 +29,11 @@ export default function RegisterClient() {
     resendCooldownUntil == null
       ? 0
       : Math.max(0, Math.ceil((resendCooldownUntil - now) / 1000))
+
+  useEffect(() => {
+    if (loading || !user) return
+    router.replace('/account')
+  }, [loading, router, user])
 
   useEffect(() => {
     if (resendCooldownUntil == null) return
