@@ -47,6 +47,12 @@ export default function SiteShell({
             <div className="absolute right-[6.25rem] top-1/2 -translate-y-1/2 sm:right-[7.75rem] xl:hidden">
               <LoginBadge />
             </div>
+            {disableMobileNavMenu ? (
+              <div
+                id="admin-mobile-nav-slot"
+                className="absolute right-3 top-1/2 z-[60] -translate-y-1/2 sm:right-4 xl:hidden"
+              />
+            ) : null}
             <div className="hidden xl:absolute xl:-right-2 xl:top-1/2 xl:block xl:-translate-y-1/2">
               <LoginBadge />
             </div>

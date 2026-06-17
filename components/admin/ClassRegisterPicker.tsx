@@ -66,13 +66,6 @@ function formatStoredTime(value: string | null | undefined): string | null {
   return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
 }
 
-function getTimeRangeParts(startIso: string, endIso: string): { start: string; end: string } {
-  return getTimeRangePartsFromSession({
-    startAt: startIso,
-    endAt: endIso,
-  } as Session);
-}
-
 function getTimeRangePartsFromSession(session: Session): { start: string; end: string } {
   const storedStart = formatStoredTime(session.displayStartTime);
   const storedEnd = formatStoredTime(session.displayEndTime);

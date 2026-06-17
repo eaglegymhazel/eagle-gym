@@ -1,27 +1,27 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import dynamic from "next/dynamic";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { createPortal } from "react-dom";
-import * as Dialog from "@radix-ui/react-dialog";
-import { CalendarDays, ClipboardList, Clock3, Gift, Users } from "lucide-react";
+import { CalendarDays, ClipboardList, Clock3, Gift, LayoutDashboard, Users } from "lucide-react";
 import styles from "@/app/(portal)/(protected)/account/account.module.css";
-import ChildPicker from "@/components/admin/ChildPicker";
 import type { Child } from "@/components/admin/mockChildren";
 import type { Session } from "@/components/admin/mockSessions";
-import ClassRegisterPicker from "@/components/admin/ClassRegisterPicker";
-import BirthdayPartyAvailabilityManager from "@/components/admin/BirthdayPartyAvailabilityManager";
-import CalendarEventsManager from "@/components/admin/CalendarEventsManager";
-import { buildUpcomingSessions, type RegisterClassTemplate } from "@/components/admin/sessionBuild";
+import type { RegisterClassTemplate } from "@/components/admin/sessionBuild";
 import AdminNavItem from "@/components/admin/AdminNavItem";
 import type { AdminWaitlistRow } from "@/lib/server/adminDashboard";
 import type { AdminMissedPaymentRow } from "@/lib/server/adminMissedPayments";
 import type { AdminBirthdayPartyBookingRow } from "@/lib/server/adminBirthdayPartyBookings";
 import type { BirthdayPartyCalendarSlotSummary } from "@/lib/server/birthdayPartyBookings";
-import type { AdminCalendarEventRow } from "@/lib/server/adminCalendarEvents";
+import type {
+  AdminCalendarEventFilterOptions,
+  AdminCalendarEventRow,
+} from "@/lib/server/adminCalendarEvents";
 
 type AdminTabKey =
+  | "home"
   | "students"
   | "register"
   | "summer-camp-register"
@@ -38,17 +38,8 @@ type NavItem = {
   icon: typeof Users;
 };
 
-type WaitingRow = {
-  childId: string;
-  classId: string;
-  childName: string;
-  className: string;
-  accountEmail: string;
-  accountTelNo: string;
-  requestedOn: string;
-};
-
 const navItems: NavItem[] = [
+  { key: "home", label: "Admin Home", icon: LayoutDashboard },
   { key: "students", label: "Student Management", icon: Users },
   { key: "register", label: "Class Register", icon: ClipboardList },
   { key: "summer-camp-register", label: "Summer Camp Register", icon: ClipboardList },
@@ -57,6 +48,28 @@ const navItems: NavItem[] = [
   { key: "birthday-parties", label: "Birthday Parties", icon: Gift },
   { key: "calendar-events", label: "Calendar Events", icon: CalendarDays },
 ];
+
+const CalendarEventsPanel = dynamic(() => import("./CalendarEventsPanel"), {
+  loading: () => <AdminPanelSkeleton />,
+});
+const BirthdayPartiesPanel = dynamic(() => import("./BirthdayPartiesPanel"), {
+  loading: () => <AdminPanelSkeleton />,
+});
+const StudentsPanel = dynamic(() => import("./StudentsPanel"), {
+  loading: () => <AdminPanelSkeleton />,
+});
+const RegisterPanel = dynamic(() => import("./RegisterPanel"), {
+  loading: () => <AdminPanelSkeleton />,
+});
+const SummerCampRegisterPanel = dynamic(() => import("./SummerCampRegisterPanel"), {
+  loading: () => <AdminPanelSkeleton />,
+});
+const MissedPaymentsPanel = dynamic(() => import("./MissedPaymentsPanel"), {
+  loading: () => <AdminPanelSkeleton />,
+});
+const WaitlistPanel = dynamic(() => import("./WaitlistPanel"), {
+  loading: () => <AdminPanelSkeleton />,
+});
 
 function AdminPanelSkeleton() {
   return (
@@ -93,6 +106,9 @@ export default function AdminShell({
   initialBirthdayPartyBookingsRows,
   initialBirthdayPartyCalendarSlots,
   initialCalendarEventsRows,
+  initialCalendarEventsHasMore,
+  initialCalendarEventsNextOffset,
+  initialCalendarEventsFilterOptions,
   initialChildrenLoadError,
   initialRegisterClassesError,
   initialSummerCampRegisterSessionsError,
@@ -111,6 +127,9 @@ export default function AdminShell({
   initialBirthdayPartyBookingsRows: AdminBirthdayPartyBookingRow[];
   initialBirthdayPartyCalendarSlots: BirthdayPartyCalendarSlotSummary[];
   initialCalendarEventsRows: AdminCalendarEventRow[];
+  initialCalendarEventsHasMore: boolean;
+  initialCalendarEventsNextOffset: number;
+  initialCalendarEventsFilterOptions: AdminCalendarEventFilterOptions;
   initialChildrenLoadError: string | null;
   initialRegisterClassesError: string | null;
   initialSummerCampRegisterSessionsError: string | null;
@@ -127,6 +146,7 @@ export default function AdminShell({
   const closeButtonRef = useRef<HTMLButtonElement | null>(null);
   const restoreFocusRef = useRef<HTMLElement | null>(null);
   const drawerRef = useRef<HTMLElement | null>(null);
+  const [mobileNavSlot, setMobileNavSlot] = useState<HTMLElement | null>(null);
   const initialTab = useMemo<AdminTabKey>(() => {
     const tabParam = searchParams.get("tab");
     if (
@@ -136,11 +156,12 @@ export default function AdminShell({
       tabParam === "waiting" ||
       tabParam === "missed-payments" ||
       tabParam === "birthday-parties" ||
-      tabParam === "calendar-events"
+      tabParam === "calendar-events" ||
+      tabParam === "home"
     ) {
       return tabParam;
     }
-    return "students";
+    return "home";
   }, [searchParams]);
   const initialStudentDirectoryView = useMemo<StudentDirectoryView>(
     () => (searchParams.get("studentView") === "archived" ? "archived" : "current"),
@@ -151,24 +172,8 @@ export default function AdminShell({
   const [studentDirectoryView, setStudentDirectoryView] =
     useState<StudentDirectoryView>(initialStudentDirectoryView);
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
-  const [waitlistRowsState, setWaitlistRowsState] = useState<WaitingRow[]>(initialWaitlistRows);
-  const [waitlistQuery, setWaitlistQuery] = useState("");
-  const [waitlistClassFilter, setWaitlistClassFilter] = useState("all");
-  const [waitlistSort, setWaitlistSort] = useState<"oldest" | "newest">("oldest");
-  const [missedPaymentsQuery, setMissedPaymentsQuery] = useState("");
-  const [missedPaymentsProgrammeFilter, setMissedPaymentsProgrammeFilter] = useState<
-    "all" | "Recreational" | "Competition"
-  >("all");
-  const [missedPaymentsStatusFilter, setMissedPaymentsStatusFilter] = useState<
-    "all" | "past_due" | "unpaid"
-  >("all");
-  const [missedPaymentsSort, setMissedPaymentsSort] = useState<"newest" | "oldest">("newest");
   const [isTabTransitionPending, startTabTransition] = useTransition();
   const [pendingTab, setPendingTab] = useState<AdminTabKey | null>(null);
-  const [waitlistActionError, setWaitlistActionError] = useState<string | null>(null);
-  const [waitlistActionMessage, setWaitlistActionMessage] = useState<string | null>(null);
-  const [waitlistRemovingKey, setWaitlistRemovingKey] = useState<string | null>(null);
-  const [waitlistDeleteCandidate, setWaitlistDeleteCandidate] = useState<WaitingRow | null>(null);
   const childrenData = initialChildrenData;
   const childrenLoadError = initialChildrenLoadError;
   const registerClasses = initialRegisterClasses;
@@ -195,13 +200,8 @@ export default function AdminShell({
   }, [initialStudentDirectoryView]);
 
   useEffect(() => {
-    setWaitlistRowsState(initialWaitlistRows);
-  }, [initialWaitlistRows]);
-
-  const registerSessions = useMemo(
-    () => buildUpcomingSessions(registerClasses, 14, new Date(referenceNowIso)),
-    [referenceNowIso, registerClasses]
-  );
+    setMobileNavSlot(document.getElementById("admin-mobile-nav-slot"));
+  }, []);
 
   const navigateToTab = (nextTab: AdminTabKey) => {
     if (nextTab === tab && pendingTab == null) {
@@ -211,34 +211,10 @@ export default function AdminShell({
     setTab(nextTab);
     setPendingTab(nextTab);
     startTabTransition(() => {
-      router.push(nextTab === "students" ? "/admin?tab=students" : `/admin?tab=${nextTab}`);
+      router.push(nextTab === "home" ? "/admin" : `/admin?tab=${nextTab}`);
     });
   };
   const isTabLoading = isTabTransitionPending && pendingTab === tab;
-  const visibleChildrenData = useMemo(
-    () =>
-      childrenData.filter((child) =>
-        studentDirectoryView === "archived"
-          ? child.isArchived
-          : !child.isArchived
-      ),
-    [childrenData, studentDirectoryView]
-  );
-
-  const childPickerProps = {
-    children: visibleChildrenData,
-    recentChildren: visibleChildrenData.slice(0, 6).map((child) => child.id),
-    listHeading:
-      studentDirectoryView === "archived" ? "Archived Students" : "Current Students",
-    emptyMessage:
-      studentDirectoryView === "archived"
-        ? "No archived students found."
-        : "No current students found.",
-    onSelect: (child: Child) => {
-      router.push(`/admin/students/${encodeURIComponent(child.id)}`);
-    },
-  };
-
   const changeStudentDirectoryView = (nextView: StudentDirectoryView) => {
     setStudentDirectoryView(nextView);
     router.replace(
@@ -249,6 +225,7 @@ export default function AdminShell({
   };
 
   const cardTitle = useMemo(() => {
+    if (tab === "home") return "Admin Portal";
     if (tab === "students") return "Student Management";
     if (tab === "register") return "Class Register";
     if (tab === "summer-camp-register") return "Summer Camp Register";
@@ -264,6 +241,7 @@ export default function AdminShell({
   const isBirthdayPartiesTab = tab === "birthday-parties";
   const isCalendarEventsTab = tab === "calendar-events";
   const isFlatContentTab =
+    tab === "home" ||
     isStudentTab ||
     isRegisterTab ||
     isSummerCampRegisterTab ||
@@ -271,231 +249,7 @@ export default function AdminShell({
     isBirthdayPartiesTab ||
     isCalendarEventsTab ||
     tab === "waiting";
-
-  const formatWaitlistDate = (value: string) => {
-    if (!value) return "Unknown";
-    const parsed = new Date(value);
-    if (Number.isNaN(parsed.getTime())) return value;
-    return new Intl.DateTimeFormat("en-GB", {
-      year: "numeric",
-      month: "short",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-    }).format(parsed);
-  };
-
-  const formatDate = (value: string | null) => {
-    if (!value) return "Unknown";
-    const parsed = new Date(value);
-    if (Number.isNaN(parsed.getTime())) return value;
-    return new Intl.DateTimeFormat("en-GB", {
-      year: "numeric",
-      month: "short",
-      day: "2-digit",
-    }).format(parsed);
-  };
-
-  const formatBirthdayTimeRange = (startTime: string, endTime: string) => {
-    const formatOne = (value: string) => {
-      const [hourRaw, minuteRaw] = value.split(":");
-      const hour = Number.parseInt(hourRaw ?? "", 10);
-      const minute = Number.parseInt(minuteRaw ?? "", 10);
-      if (Number.isNaN(hour) || Number.isNaN(minute)) return value;
-      const date = new Date(Date.UTC(1970, 0, 1, hour, minute, 0, 0));
-      return new Intl.DateTimeFormat("en-GB", {
-        hour: "numeric",
-        minute: "2-digit",
-        hour12: true,
-        timeZone: "UTC",
-      })
-        .format(date)
-        .replace(":00", "")
-        .replace(" ", "")
-        .toLowerCase();
-    };
-
-    return `${formatOne(startTime)}-${formatOne(endTime)}`;
-  };
-
-  const getStripeSubscriptionUrl = (subscriptionId: string) =>
-    `https://dashboard.stripe.com/subscriptions/${encodeURIComponent(subscriptionId)}`;
-
-  const getStripeCustomerUrl = (customerId: string) =>
-    `https://dashboard.stripe.com/customers/${encodeURIComponent(customerId)}`;
-
-  const missedPaymentStatusOptions = useMemo(
-    () =>
-      Array.from(new Set(missedPaymentsRows.map((row) => row.status)))
-        .filter((status): status is "past_due" | "unpaid" => status === "past_due" || status === "unpaid")
-        .sort(),
-    [missedPaymentsRows]
-  );
-
-  const filteredMissedPaymentsRows = useMemo(() => {
-    const query = missedPaymentsQuery.trim().toLowerCase();
-    const rows = missedPaymentsRows.filter((row) => {
-      if (
-        missedPaymentsProgrammeFilter !== "all" &&
-        row.programme !== missedPaymentsProgrammeFilter
-      ) {
-        return false;
-      }
-      if (missedPaymentsStatusFilter !== "all" && row.status !== missedPaymentsStatusFilter) {
-        return false;
-      }
-      if (!query) return true;
-      return [
-        row.programme,
-        row.accountFullName,
-        row.email,
-        row.status,
-        row.subscriptionId,
-        row.customerId,
-        row.invoiceId,
-      ]
-        .join(" ")
-        .toLowerCase()
-        .includes(query);
-    });
-
-    rows.sort((a, b) => {
-      const aTime = a.invoiceCreated ? Date.parse(a.invoiceCreated) : 0;
-      const bTime = b.invoiceCreated ? Date.parse(b.invoiceCreated) : 0;
-      return missedPaymentsSort === "oldest" ? aTime - bTime : bTime - aTime;
-    });
-
-    return rows;
-  }, [
-    missedPaymentsProgrammeFilter,
-    missedPaymentsQuery,
-    missedPaymentsRows,
-    missedPaymentsSort,
-    missedPaymentsStatusFilter,
-  ]);
-
-  const [birthdayPartyQuery, setBirthdayPartyQuery] = useState("");
-  const [birthdayPartySubview, setBirthdayPartySubview] = useState<"bookings" | "availability">(
-    "bookings"
-  );
-
-  const filteredBirthdayPartyRows = useMemo(() => {
-    const query = birthdayPartyQuery.trim().toLowerCase();
-    return birthdayPartyBookingsRows.filter((row) => {
-      if (!query) return true;
-
-      return [
-        row.accountFullName,
-        row.email,
-        row.accTelNo,
-        row.birthdayChildFullName,
-        row.slotDate,
-      ]
-        .join(" ")
-        .toLowerCase()
-        .includes(query);
-    });
-  }, [birthdayPartyBookingsRows, birthdayPartyQuery]);
-
-  const birthdayPartySummary = useMemo(() => {
-    const nextPartyDate = filteredBirthdayPartyRows[0]?.slotDate ?? null;
-    return {
-      upcomingCount: filteredBirthdayPartyRows.length,
-      nextPartyDate,
-    };
-  }, [filteredBirthdayPartyRows]);
-
-  const missedPaymentsSummary = useMemo(() => {
-    const summary = {
-      totalRows: filteredMissedPaymentsRows.length,
-      recreationalCount: 0,
-      competitionCount: 0,
-      pastDueCount: 0,
-      unpaidCount: 0,
-      affectedAccounts: new Set<string>(),
-    };
-
-    filteredMissedPaymentsRows.forEach((row) => {
-      if (row.programme === "Recreational") summary.recreationalCount += 1;
-      if (row.programme === "Competition") summary.competitionCount += 1;
-      if (row.status === "past_due") summary.pastDueCount += 1;
-      if (row.status === "unpaid") summary.unpaidCount += 1;
-      if (row.email) summary.affectedAccounts.add(row.email.toLowerCase());
-    });
-
-    return {
-      ...summary,
-      affectedAccountCount: summary.affectedAccounts.size,
-    };
-  }, [filteredMissedPaymentsRows]);
-
-  const waitlistClassOptions = useMemo(
-    () =>
-      Array.from(new Set(waitlistRowsState.map((row) => row.className)))
-        .filter(Boolean)
-        .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" })),
-    [waitlistRowsState]
-  );
-
-  const filteredWaitlistRows = useMemo(() => {
-    const query = waitlistQuery.trim().toLowerCase();
-    const rows = waitlistRowsState.filter((row) => {
-      if (waitlistClassFilter !== "all" && row.className !== waitlistClassFilter) return false;
-      if (!query) return true;
-      return [
-        row.childName,
-        row.className,
-        row.accountEmail,
-        row.accountTelNo,
-        row.requestedOn,
-      ]
-        .join(" ")
-        .toLowerCase()
-        .includes(query);
-    });
-
-    rows.sort((a, b) => {
-      const aTime = Date.parse(a.requestedOn || "");
-      const bTime = Date.parse(b.requestedOn || "");
-      const aSafe = Number.isNaN(aTime) ? Number.MAX_SAFE_INTEGER : aTime;
-      const bSafe = Number.isNaN(bTime) ? Number.MAX_SAFE_INTEGER : bTime;
-      return waitlistSort === "oldest" ? aSafe - bSafe : bSafe - aSafe;
-    });
-
-    return rows;
-  }, [waitlistClassFilter, waitlistQuery, waitlistRowsState, waitlistSort]);
-
-  const removeFromWaitlist = async (row: WaitingRow) => {
-    const rowKey = `${row.childId}-${row.classId}`;
-    setWaitlistRemovingKey(rowKey);
-    setWaitlistActionError(null);
-    setWaitlistActionMessage(null);
-
-    try {
-      const response = await fetch("/api/admin/waitlist", {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ childId: row.childId, classId: row.classId }),
-      });
-
-      const payload = (await response.json().catch(() => null)) as { error?: string } | null;
-      if (!response.ok) {
-        throw new Error(payload?.error ?? "Could not remove waitlist entry.");
-      }
-
-      setWaitlistRowsState((prev) =>
-        prev.filter((entry) => !(entry.childId === row.childId && entry.classId === row.classId))
-      );
-      setWaitlistActionMessage(`${row.childName} removed from waitlist.`);
-      setWaitlistDeleteCandidate(null);
-    } catch (error) {
-      setWaitlistActionError(
-        error instanceof Error ? error.message : "Could not remove waitlist entry."
-      );
-    } finally {
-      setWaitlistRemovingKey(null);
-    }
-  };
+  const adminToolItems = navItems.filter((item) => item.key !== "home");
 
   useEffect(() => {
     if (!isMobileNavOpen) return;
@@ -548,43 +302,52 @@ export default function AdminShell({
     };
   }, [isMobileNavOpen]);
 
+  const mobileNavTrigger = (
+      <button
+        ref={mobileTriggerRef}
+        type="button"
+        onClick={() => setIsMobileNavOpen(true)}
+        className="inline-flex h-11 min-w-[82px] items-center justify-center gap-1.5 rounded-xl border border-black/10 bg-white px-3 text-[#2f2442] shadow-sm transition hover:bg-[#f7f4fb] active:bg-[#f1edf8] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6e2ac0]/40 sm:min-w-[92px] sm:gap-2 sm:px-4 xl:hidden"
+        aria-label="Open admin navigation"
+        aria-expanded={isMobileNavOpen}
+      >
+        <span className="text-xs font-bold sm:text-sm">Menu</span>
+        <svg
+          viewBox="0 0 24 24"
+          className="h-5 w-5"
+          aria-hidden="true"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+        >
+          <path d="M4 7h16" />
+          <path d="M4 12h16" />
+          <path d="M4 17h16" />
+        </svg>
+      </button>
+  );
+
   return (
     <div className={`${styles.page} select-text`}>
+      {mobileNavSlot ? createPortal(mobileNavTrigger, mobileNavSlot) : null}
+
       <header className={styles.pageHeader}>
         <div className={styles.accent} aria-hidden="true" />
-        <div className={`${styles.pageTitleRow} relative`}>
+        <div className={styles.pageTitleRow}>
           <h1 className={styles.pageTitle}>Admin Dashboard</h1>
-          <button
-            ref={mobileTriggerRef}
-            type="button"
-            onClick={() => setIsMobileNavOpen(true)}
-            className="absolute right-0 top-1/2 inline-flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-xl border border-black/10 bg-white text-[#2f2442] shadow-sm transition hover:bg-[#f7f4fb] active:bg-[#f1edf8] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6e2ac0]/40 md:hidden"
-            aria-label="Open admin navigation"
-            aria-expanded={isMobileNavOpen}
-          >
-            <svg
-              viewBox="0 0 24 24"
-              className="h-5 w-5"
-              aria-hidden="true"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-            >
-              <path d="M4 7h16" />
-              <path d="M4 12h16" />
-              <path d="M4 17h16" />
-            </svg>
-          </button>
         </div>
         <p className={styles.subheading}>
           Manage student records, class registers, and waiting lists
         </p>
       </header>
 
-      <div className={styles.settings} style={{ gap: "16px" }}>
+      <div
+        className={`${styles.settings} !grid-cols-[minmax(0,1fr)] xl:!grid-cols-[minmax(240px,280px)_minmax(0,1fr)]`}
+        style={{ gap: "16px" }}
+      >
         <nav
-          className={`${styles.settingsNav} hidden border-r border-[#6c35c3]/16 pr-4 md:block`}
+          className={`${styles.settingsNav} hidden border-r border-[#6c35c3]/16 pr-4 xl:block`}
           aria-label="Admin dashboard sections"
         >
           <ul>
@@ -613,615 +376,111 @@ export default function AdminShell({
                 : styles.card
             }
           >
-            <div className={isFlatContentTab ? "mb-3 border-b border-[#e6e0ee] pb-3" : styles.cardHeader}>
-              <div>
-                <h2 className={isFlatContentTab ? "text-base font-semibold text-[#2a203c]" : ""}>
-                  {cardTitle}
-                </h2>
+            {tab !== "home" ? (
+              <div className={isFlatContentTab ? "mb-3 border-b border-[#e6e0ee] pb-3" : styles.cardHeader}>
+                <div>
+                  <h2 className={isFlatContentTab ? "text-base font-semibold text-[#2a203c]" : ""}>
+                    {cardTitle}
+                  </h2>
+                </div>
               </div>
-            </div>
+            ) : null}
 
             {isTabLoading ? (
               <AdminPanelSkeleton />
             ) : (
               <>
-            {tab === "students" ? (
-              <div className="space-y-4">
-                <div className="flex flex-wrap items-center gap-2 border-b border-[#e6e0ee] pb-3">
-                  <button
-                    type="button"
-                    onClick={() => changeStudentDirectoryView("current")}
-                    aria-pressed={studentDirectoryView === "current"}
-                    className={[
-                      "inline-flex min-h-10 items-center justify-center border px-4 text-sm font-semibold transition",
-                      studentDirectoryView === "current"
-                        ? "border-[#6e2ac0] bg-[#f3ecfc] text-[#4f2b80]"
-                        : "border-[#ddd4ea] bg-white text-[#6f6384] hover:bg-[#f8f5fc]",
-                    ].join(" ")}
-                  >
-                    Current Students
-                    <span className="ml-2 text-xs opacity-70">
-                      {childrenData.filter((child) => !child.isArchived).length}
-                    </span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => changeStudentDirectoryView("archived")}
-                    aria-pressed={studentDirectoryView === "archived"}
-                    className={[
-                      "inline-flex min-h-10 items-center justify-center border px-4 text-sm font-semibold transition",
-                      studentDirectoryView === "archived"
-                        ? "border-[#6e2ac0] bg-[#f3ecfc] text-[#4f2b80]"
-                        : "border-[#ddd4ea] bg-white text-[#6f6384] hover:bg-[#f8f5fc]",
-                    ].join(" ")}
-                  >
-                    Archived Students
-                    <span className="ml-2 text-xs opacity-70">
-                      {childrenData.filter((child) => child.isArchived).length}
-                    </span>
-                  </button>
+            {tab === "home" ? (
+              <div>
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  {adminToolItems.map((item) => {
+                    const Icon = item.icon;
+                    return (
+                      <button
+                        key={`home-${item.key}`}
+                        type="button"
+                        onClick={() => navigateToTab(item.key)}
+                        className="group relative min-h-28 overflow-hidden rounded-xl border border-[#e6e0ee] bg-white p-4 text-left transition hover:border-[#cbb6ea] hover:bg-[#fcfaff] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6e2ac0]/35"
+                      >
+                        <span
+                          aria-hidden
+                          className="pointer-events-none absolute inset-y-3 left-0 w-[3px] rounded-r-full bg-[#6e2ac0] opacity-0 transition-opacity group-hover:opacity-100"
+                        />
+                        <span className="mb-3 inline-flex h-10 w-10 items-center justify-center rounded-lg border border-[#e2d8f0] bg-[#faf7ff] text-[#6e2ac0]">
+                          <Icon className="h-4 w-4" aria-hidden="true" />
+                        </span>
+                        <span className="block text-sm font-semibold text-[#24193a]">
+                          {item.label}
+                        </span>
+                        <span className="mt-1 block text-xs leading-5 text-[#6f6384]">
+                          Open this tool and load its latest admin data.
+                        </span>
+                      </button>
+                    );
+                  })}
                 </div>
-                {childrenLoadError ? (
-                  <div className={styles.errorBanner} role="alert">
-                    <span>{childrenLoadError}</span>
-                  </div>
-                ) : null}
-                {!childrenLoadError ? (
-                  <ChildPicker {...childPickerProps} />
-                ) : null}
               </div>
+            ) : null}
+
+            {tab === "students" ? (
+              <StudentsPanel
+                childrenData={childrenData}
+                loadError={childrenLoadError}
+                directoryView={studentDirectoryView}
+                onChangeDirectoryView={changeStudentDirectoryView}
+                onSelectChild={(child) => {
+                  router.push(`/admin/students/${encodeURIComponent(child.id)}`);
+                }}
+              />
             ) : null}
 
             {tab === "register" ? (
-              <>
-                {registerClassesError ? (
-                  <div className={styles.errorBanner} role="alert">
-                    <span>{registerClassesError}</span>
-                  </div>
-                ) : null}
-                {!registerClassesError ? (
-                  <ClassRegisterPicker
-                    sessions={registerSessions}
-                    referenceNowIso={referenceNowIso}
-                    onSelect={(session) => {
-                      const registerDate = session.startAt.slice(0, 10);
-                      router.push(
-                        `/admin/register/${encodeURIComponent(session.classId)}?date=${encodeURIComponent(registerDate)}`
-                      );
-                    }}
-                  />
-                ) : null}
-              </>
+              <RegisterPanel
+                referenceNowIso={referenceNowIso}
+                registerClasses={registerClasses}
+                loadError={registerClassesError}
+              />
             ) : null}
 
             {tab === "summer-camp-register" ? (
-              <>
-                {summerCampRegisterSessionsError ? (
-                  <div className={styles.errorBanner} role="alert">
-                    <span>{summerCampRegisterSessionsError}</span>
-                  </div>
-                ) : null}
-                {!summerCampRegisterSessionsError ? (
-                  <ClassRegisterPicker
-                    sessions={summerCampRegisterSessions}
-                    referenceNowIso={referenceNowIso}
-                    heading="Upcoming camp days"
-                    showHistorical={false}
-                    programmeOptions={["all"]}
-                    onSelect={(session) => {
-                      const registerDate = session.startAt.slice(0, 10);
-                      router.push(
-                        `/admin/summer-camp-register/${encodeURIComponent(registerDate)}?slug=${encodeURIComponent(session.classId)}`
-                      );
-                    }}
-                  />
-                ) : null}
-              </>
+              <SummerCampRegisterPanel
+                referenceNowIso={referenceNowIso}
+                sessions={summerCampRegisterSessions}
+                loadError={summerCampRegisterSessionsError}
+              />
             ) : null}
 
             {tab === "waiting" ? (
-              <div className="space-y-4">
-                {waitlistLoadError ? (
-                  <div className={styles.errorBanner} role="alert">
-                    <span>{waitlistLoadError}</span>
-                  </div>
-                ) : null}
-                {waitlistActionError ? (
-                  <div className={styles.errorBanner} role="alert">
-                    <span>{waitlistActionError}</span>
-                  </div>
-                ) : null}
-                {waitlistActionMessage ? (
-                  <div className="rounded-lg border border-[#d7c7ef] bg-[#f6f1ff] px-3 py-2 text-sm text-[#2a203c]">
-                    {waitlistActionMessage}
-                  </div>
-                ) : null}
-                {!waitlistLoadError ? (
-                  waitlistRowsState.length > 0 ? (
-                    <div className="space-y-3">
-                      <div className="flex flex-col gap-2 rounded-xl border border-[#e6e0ee] bg-white p-3 md:flex-row md:items-center md:justify-between">
-                        <div className="grid w-full grid-cols-1 gap-2 md:grid-cols-[minmax(0,1fr)_220px_220px]">
-                          <input
-                            type="text"
-                            value={waitlistQuery}
-                            onChange={(event) => setWaitlistQuery(event.target.value)}
-                            placeholder="Search child, class, email or phone"
-                            className="h-10 rounded-lg border border-[#d7c7ef] bg-white px-3 text-sm text-[#2a203c] outline-none ring-[#6e2ac0]/25 transition focus:ring-2"
-                          />
-                          <select
-                            value={waitlistClassFilter}
-                            onChange={(event) => setWaitlistClassFilter(event.target.value)}
-                            className="h-10 rounded-lg border border-[#d7c7ef] bg-white px-3 text-sm text-[#2a203c] outline-none ring-[#6e2ac0]/25 transition focus:ring-2"
-                          >
-                            <option value="all">All classes</option>
-                            {waitlistClassOptions.map((className) => (
-                              <option key={className} value={className}>
-                                {className}
-                              </option>
-                            ))}
-                          </select>
-                          <select
-                            value={waitlistSort}
-                            onChange={(event) =>
-                              setWaitlistSort(event.target.value === "newest" ? "newest" : "oldest")
-                            }
-                            className="h-10 rounded-lg border border-[#d7c7ef] bg-white px-3 text-sm text-[#2a203c] outline-none ring-[#6e2ac0]/25 transition focus:ring-2"
-                          >
-                            <option value="oldest">Oldest first</option>
-                            <option value="newest">Newest first</option>
-                          </select>
-                        </div>
-                      </div>
-
-                      <p className="text-sm text-[#2a203c]/80">
-                        Showing {filteredWaitlistRows.length} of {waitlistRowsState.length} entries.
-                      </p>
-
-                      <div className="hidden overflow-hidden rounded-xl border border-[#e6e0ee] md:block">
-                        <table className="min-w-full border-collapse">
-                          <thead className="bg-[#f6f1ff]">
-                            <tr className="text-left text-xs uppercase tracking-[0.08em] text-[#2a203c]/75">
-                              <th className="px-3 py-2 font-semibold">Student</th>
-                              <th className="px-3 py-2 font-semibold">Class</th>
-                              <th className="px-3 py-2 font-semibold">Date added</th>
-                              <th className="px-3 py-2 font-semibold">Email</th>
-                              <th className="px-3 py-2 font-semibold">Phone</th>
-                              <th className="px-3 py-2 text-right font-semibold">Actions</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-[#ece6f4] bg-white text-sm text-[#2a203c]">
-                            {filteredWaitlistRows.map((row) => {
-                              const rowKey = `${row.childId}-${row.classId}`;
-                              const isRemoving = waitlistRemovingKey === rowKey;
-                              return (
-                                <tr key={`${rowKey}-${row.requestedOn}`}>
-                                  <td className="px-3 py-3 font-semibold">{row.childName}</td>
-                                  <td className="px-3 py-3">{row.className}</td>
-                                  <td className="px-3 py-3">{formatWaitlistDate(row.requestedOn)}</td>
-                                  <td className="px-3 py-3">
-                                    {row.accountEmail || <span className="text-[#2a203c]/55">Not set</span>}
-                                  </td>
-                                  <td className="px-3 py-3">
-                                    {row.accountTelNo || <span className="text-[#2a203c]/55">Not set</span>}
-                                  </td>
-                                  <td className="px-3 py-3 text-right">
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        setWaitlistActionError(null);
-                                        setWaitlistDeleteCandidate(row);
-                                      }}
-                                      disabled={isRemoving}
-                                      className="inline-flex h-9 cursor-pointer items-center justify-center rounded-lg border border-[#dfcfe9] bg-white px-3 text-xs font-semibold text-[#6a1f35] transition hover:bg-[#fff4f7] disabled:cursor-not-allowed disabled:opacity-55"
-                                    >
-                                      {isRemoving ? "Removing..." : "Remove"}
-                                    </button>
-                                  </td>
-                                </tr>
-                              );
-                            })}
-                          </tbody>
-                        </table>
-                      </div>
-
-                      <div className="space-y-2 md:hidden">
-                        {filteredWaitlistRows.map((row) => {
-                          const rowKey = `${row.childId}-${row.classId}`;
-                          const isRemoving = waitlistRemovingKey === rowKey;
-                          return (
-                            <div key={`${rowKey}-${row.requestedOn}`} className="rounded-xl border border-[#e6e0ee] bg-white p-3">
-                              <div className="space-y-1.5 text-sm text-[#2a203c]">
-                                <p className="font-semibold">{row.childName}</p>
-                                <p>{row.className}</p>
-                                <p>{formatWaitlistDate(row.requestedOn)}</p>
-                                <p>{row.accountEmail || "Email not set"}</p>
-                                <p>{row.accountTelNo || "Phone not set"}</p>
-                              </div>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setWaitlistActionError(null);
-                                  setWaitlistDeleteCandidate(row);
-                                }}
-                                disabled={isRemoving}
-                                className="mt-3 inline-flex h-9 cursor-pointer items-center justify-center rounded-lg border border-[#dfcfe9] bg-white px-3 text-xs font-semibold text-[#6a1f35] transition hover:bg-[#fff4f7] disabled:cursor-not-allowed disabled:opacity-55"
-                              >
-                                {isRemoving ? "Removing..." : "Remove"}
-                              </button>
-                            </div>
-                          );
-                        })}
-                      </div>
-
-                      {filteredWaitlistRows.length === 0 ? (
-                        <p className="rounded-lg border border-[#e6e0ee] bg-white px-3 py-5 text-sm text-[#2a203c]/75">
-                          No waitlist entries match your current filters.
-                        </p>
-                      ) : null}
-                    </div>
-                  ) : (
-                    <p className="text-sm text-[#2a203c]/75">No children are currently on the waiting list.</p>
-                  )
-                ) : null}
-              </div>
+              <WaitlistPanel
+                initialRows={initialWaitlistRows}
+                loadError={waitlistLoadError}
+              />
             ) : null}
 
             {tab === "missed-payments" ? (
-              <div className="space-y-4">
-                {missedPaymentsLoadError ? (
-                  <div className={styles.errorBanner} role="alert">
-                    <span>{missedPaymentsLoadError}</span>
-                  </div>
-                ) : null}
-                {!missedPaymentsLoadError ? (
-                  missedPaymentsRows.length > 0 ? (
-                    <div className="space-y-3">
-                      <div className="rounded-xl border border-[#e6e0ee] bg-white p-3 text-sm text-[#2a203c]/78">
-                        This view is pulled directly from both Stripe accounts and grouped at
-                        account/email level rather than child level.
-                      </div>
-
-                      <div className="grid gap-3 md:grid-cols-1 xl:grid-cols-4">
-                        <div className="rounded-xl border border-[#e6e0ee] bg-white p-4">
-                          <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#6c35c3]">
-                            Affected accounts
-                          </p>
-                          <p className="mt-2 text-2xl font-black tracking-tight text-[#24193a]">
-                            {missedPaymentsSummary.affectedAccountCount}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="flex flex-col gap-2 rounded-xl border border-[#e6e0ee] bg-white p-3">
-                        <div className="grid w-full grid-cols-1 gap-2 xl:grid-cols-[minmax(0,1fr)_220px_180px_180px]">
-                          <input
-                            type="text"
-                            value={missedPaymentsQuery}
-                            onChange={(event) => setMissedPaymentsQuery(event.target.value)}
-                            placeholder="Search email, subscription, invoice or customer"
-                            className="h-10 rounded-lg border border-[#d7c7ef] bg-white px-3 text-sm text-[#2a203c] outline-none ring-[#6e2ac0]/25 transition focus:ring-2"
-                          />
-                          <select
-                            value={missedPaymentsProgrammeFilter}
-                            onChange={(event) =>
-                              setMissedPaymentsProgrammeFilter(
-                                event.target.value as "all" | "Recreational" | "Competition"
-                              )
-                            }
-                            className="h-10 rounded-lg border border-[#d7c7ef] bg-white px-3 text-sm text-[#2a203c] outline-none ring-[#6e2ac0]/25 transition focus:ring-2"
-                          >
-                            <option value="all">All programmes</option>
-                            <option value="Recreational">Recreational</option>
-                            <option value="Competition">Competition</option>
-                          </select>
-                          <select
-                            value={missedPaymentsStatusFilter}
-                            onChange={(event) =>
-                              setMissedPaymentsStatusFilter(
-                                event.target.value as "all" | "past_due" | "unpaid"
-                              )
-                            }
-                            className="h-10 rounded-lg border border-[#d7c7ef] bg-white px-3 text-sm text-[#2a203c] outline-none ring-[#6e2ac0]/25 transition focus:ring-2"
-                          >
-                            <option value="all">All statuses</option>
-                            {missedPaymentStatusOptions.map((status) => (
-                              <option key={status} value={status}>
-                                {status.replaceAll("_", " ")}
-                              </option>
-                            ))}
-                          </select>
-                          <select
-                            value={missedPaymentsSort}
-                            onChange={(event) =>
-                              setMissedPaymentsSort(event.target.value as "newest" | "oldest")
-                            }
-                            className="h-10 rounded-lg border border-[#d7c7ef] bg-white px-3 text-sm text-[#2a203c] outline-none ring-[#6e2ac0]/25 transition focus:ring-2"
-                          >
-                            <option value="newest">Newest invoice first</option>
-                            <option value="oldest">Oldest invoice first</option>
-                          </select>
-                        </div>
-
-                        <p className="text-sm text-[#2a203c]/80">
-                          Showing {filteredMissedPaymentsRows.length} of {missedPaymentsRows.length} late subscriptions.
-                        </p>
-                      </div>
-
-                      <div className="hidden overflow-hidden rounded-xl border border-[#e6e0ee] md:block">
-                        <table className="min-w-full border-collapse">
-                          <thead className="bg-[#f6f1ff]">
-                            <tr className="text-left text-xs uppercase tracking-[0.08em] text-[#2a203c]/75">
-                              <th className="px-3 py-2 font-semibold">Programme</th>
-                              <th className="px-3 py-2 font-semibold">Account</th>
-                              <th className="px-3 py-2 font-semibold">Payment status</th>
-                              <th className="px-3 py-2 font-semibold">Subscription</th>
-                              <th className="px-3 py-2 font-semibold">Latest invoice</th>
-                              <th className="px-3 py-2 font-semibold">Next attempt</th>
-                              <th className="px-3 py-2 font-semibold">Stripe</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-[#ece6f4] bg-white text-sm text-[#2a203c]">
-                            {filteredMissedPaymentsRows.map((row) => (
-                              <tr key={row.id}>
-                                <td className="px-3 py-3 font-semibold">{row.programme}</td>
-                                <td className="px-3 py-3">
-                                  <p className="font-semibold text-[#24193a]">{row.accountFullName}</p>
-                                  <p className="mt-0.5 text-[#5b526a]">
-                                    {row.accTelNo || "No contact number"}
-                                  </p>
-                                  <p className="mt-0.5 text-[#5b526a]">{row.email}</p>
-                                </td>
-                                <td className="px-3 py-3 uppercase">{row.status.replaceAll("_", " ")}</td>
-                                <td className="px-3 py-3 uppercase">
-                                  {row.subscriptionState.replaceAll("_", " ")}
-                                </td>
-                                <td className="px-3 py-3">{formatDate(row.invoiceCreated)}</td>
-                                <td className="px-3 py-3">
-                                  {formatDate(row.nextPaymentAttempt)}
-                                </td>
-                                <td className="px-3 py-3">
-                                  <div className="flex flex-col items-start gap-1.5">
-                                    <a
-                                      href={getStripeSubscriptionUrl(row.subscriptionId)}
-                                      target="_blank"
-                                      rel="noreferrer"
-                                      className="inline-flex min-h-9 items-center rounded-lg border border-[#d9ccef] bg-[#faf7ff] px-3 text-xs font-semibold text-[#5b2ca7] transition hover:border-[#cbb6ea] hover:bg-[#f4eeff] hover:text-[#49228c]"
-                                    >
-                                      View subscription
-                                    </a>
-                                    <a
-                                      href={getStripeCustomerUrl(row.customerId)}
-                                      target="_blank"
-                                      rel="noreferrer"
-                                      className="inline-flex min-h-9 items-center rounded-lg border border-[#d9ccef] bg-[#faf7ff] px-3 text-xs font-semibold text-[#5b2ca7] transition hover:border-[#cbb6ea] hover:bg-[#f4eeff] hover:text-[#49228c]"
-                                    >
-                                      View customer
-                                    </a>
-                                  </div>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-
-                      <div className="space-y-2 md:hidden">
-                        {filteredMissedPaymentsRows.map((row) => (
-                          <div key={row.id} className="rounded-xl border border-[#e6e0ee] bg-white p-3">
-                            <div className="space-y-1.5 text-sm text-[#2a203c]">
-                              <p className="font-semibold">{row.programme}</p>
-                              <p className="font-semibold text-[#24193a]">{row.accountFullName}</p>
-                              <p>{row.accTelNo || "No contact number"}</p>
-                              <p>{row.email}</p>
-                              <p className="uppercase">Payment: {row.status.replaceAll("_", " ")}</p>
-                              <p className="uppercase">
-                                Subscription: {row.subscriptionState.replaceAll("_", " ")}
-                              </p>
-                              <p>Invoice: {formatDate(row.invoiceCreated)}</p>
-                              <p>Next attempt: {formatDate(row.nextPaymentAttempt)}</p>
-                              <div className="grid grid-cols-1 gap-2 pt-2 sm:grid-cols-2">
-                                <a
-                                  href={getStripeSubscriptionUrl(row.subscriptionId)}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className="inline-flex min-h-10 items-center justify-center rounded-lg border border-[#d9ccef] bg-[#faf7ff] px-3 text-sm font-semibold text-[#5b2ca7] transition hover:border-[#cbb6ea] hover:bg-[#f4eeff] hover:text-[#49228c]"
-                                >
-                                  View subscription
-                                </a>
-                                <a
-                                  href={getStripeCustomerUrl(row.customerId)}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className="inline-flex min-h-10 items-center justify-center rounded-lg border border-[#d9ccef] bg-[#faf7ff] px-3 text-sm font-semibold text-[#5b2ca7] transition hover:border-[#cbb6ea] hover:bg-[#f4eeff] hover:text-[#49228c]"
-                                >
-                                  View customer
-                                </a>
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-
-                      {filteredMissedPaymentsRows.length === 0 ? (
-                        <p className="rounded-lg border border-[#e6e0ee] bg-white px-3 py-5 text-sm text-[#2a203c]/75">
-                          No missed payments match your current filters.
-                        </p>
-                      ) : null}
-                    </div>
-                  ) : (
-                    <p className="text-sm text-[#2a203c]/75">
-                      No late or missed subscription payments found in the configured Stripe accounts.
-                    </p>
-                  )
-                ) : null}
-              </div>
+              <MissedPaymentsPanel
+                rows={missedPaymentsRows}
+                loadError={missedPaymentsLoadError}
+              />
             ) : null}
 
             {tab === "birthday-parties" ? (
-              <div className="space-y-4">
-                <div className="inline-flex flex-wrap gap-2 rounded-xl border border-[#e6e0ee] bg-white p-1">
-                  <button
-                    type="button"
-                    onClick={() => setBirthdayPartySubview("bookings")}
-                    className={[
-                      "rounded-lg px-3 py-2 text-sm font-semibold transition",
-                      birthdayPartySubview === "bookings"
-                        ? "bg-[#6c35c3] text-white"
-                        : "text-[#5b2ca7] hover:bg-[#faf7ff]",
-                    ].join(" ")}
-                  >
-                    Upcoming parties
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setBirthdayPartySubview("availability")}
-                    className={[
-                      "rounded-lg px-3 py-2 text-sm font-semibold transition",
-                      birthdayPartySubview === "availability"
-                        ? "bg-[#6c35c3] text-white"
-                        : "text-[#5b2ca7] hover:bg-[#faf7ff]",
-                    ].join(" ")}
-                  >
-                    Manage availability
-                  </button>
-                </div>
-
-                {birthdayPartyBookingsLoadError ? (
-                  <div className={styles.errorBanner} role="alert">
-                    <span>{birthdayPartyBookingsLoadError}</span>
-                  </div>
-                ) : null}
-                {!birthdayPartyBookingsLoadError && birthdayPartySubview === "bookings" ? (
-                  birthdayPartyBookingsRows.length > 0 ? (
-                    <div className="space-y-3">
-                      <div className="grid gap-3 md:grid-cols-2">
-                        <div className="rounded-xl border border-[#e6e0ee] bg-white p-4">
-                          <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#6c35c3]">
-                            Upcoming parties
-                          </p>
-                          <p className="mt-2 text-2xl font-black tracking-tight text-[#24193a]">
-                            {birthdayPartySummary.upcomingCount}
-                          </p>
-                        </div>
-                        <div className="rounded-xl border border-[#e6e0ee] bg-white p-4">
-                          <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#6c35c3]">
-                            Next party date
-                          </p>
-                          <p className="mt-2 text-lg font-black tracking-tight text-[#24193a]">
-                            {formatDate(birthdayPartySummary.nextPartyDate)}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="flex flex-col gap-2 rounded-xl border border-[#e6e0ee] bg-white p-3">
-                        <div className="grid w-full grid-cols-1 gap-2">
-                          <input
-                            type="text"
-                            value={birthdayPartyQuery}
-                            onChange={(event) => setBirthdayPartyQuery(event.target.value)}
-                            placeholder="Search account, child, email or phone"
-                            className="h-10 rounded-lg border border-[#d7c7ef] bg-white px-3 text-sm text-[#2a203c] outline-none ring-[#6e2ac0]/25 transition focus:ring-2"
-                          />
-                        </div>
-
-                        <p className="text-sm text-[#2a203c]/80">
-                          Showing {filteredBirthdayPartyRows.length} of {birthdayPartyBookingsRows.length} upcoming birthday party bookings.
-                        </p>
-                      </div>
-
-                      <div className="space-y-3">
-                        {filteredBirthdayPartyRows.map((row) => (
-                          <button
-                            key={row.id}
-                            type="button"
-                            onClick={() => router.push(`/admin/birthday-parties/${encodeURIComponent(row.id)}`)}
-                            className="group relative w-full overflow-hidden rounded-xl border border-[#e6e0ee] bg-white p-4 text-left transition hover:border-[#cbb6ea]"
-                          >
-                            <span
-                              aria-hidden
-                              className="pointer-events-none absolute inset-0 origin-left scale-x-0 bg-[#f0e8fb] transition-transform duration-300 ease-out group-hover:scale-x-100"
-                            />
-                            <span
-                              aria-hidden
-                              className="pointer-events-none absolute inset-y-2 left-0 z-[1] w-[2px] rounded-full bg-[#6e2ac0] opacity-0 transition-opacity duration-200 group-hover:opacity-75"
-                            />
-                            <div className="relative z-[1] grid gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.1fr)_120px]">
-                              <div>
-                                <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[#6f6287]">
-                                  Party date
-                                </p>
-                                <p className="mt-1 font-semibold text-[#24193a]">{formatDate(row.slotDate)}</p>
-                                <p className="mt-0.5 text-sm text-[#5b526a]">
-                                  {formatBirthdayTimeRange(row.startTime, row.endTime)}
-                                </p>
-                              </div>
-                              <div>
-                                <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[#6f6287]">
-                                  Birthday child
-                                </p>
-                                <p className="mt-1 font-semibold text-[#24193a]">{row.birthdayChildFullName}</p>
-                                <p className="mt-0.5 text-sm text-[#5b526a]">
-                                  DOB: {formatDate(row.birthdayChildDateOfBirth)}
-                                </p>
-                                <p className="mt-1 text-sm text-[#5b526a]">
-                                  Turning{" "}
-                                  {typeof row.ageTurningAtParty === "number" ? row.ageTurningAtParty : "Unknown"}
-                                </p>
-                              </div>
-                              <div>
-                                <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[#6f6287]">
-                                  Account
-                                </p>
-                                <p className="mt-1 font-semibold text-[#24193a]">{row.accountFullName}</p>
-                                <p className="mt-0.5 text-sm text-[#5b526a]">
-                                  {row.accTelNo || "No contact number"}
-                                </p>
-                                <p className="mt-0.5 text-sm text-[#5b526a] break-all">
-                                  {row.email || "No email address"}
-                                </p>
-                              </div>
-                              <div className="lg:text-right">
-                                <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[#6f6287]">
-                                  Party size
-                                </p>
-                                <p className="mt-1 font-semibold text-[#24193a]">{row.partySize}</p>
-                              </div>
-                            </div>
-                          </button>
-                        ))}
-                      </div>
-
-                      {filteredBirthdayPartyRows.length === 0 ? (
-                        <p className="rounded-lg border border-[#e6e0ee] bg-white px-3 py-5 text-sm text-[#2a203c]/75">
-                          No birthday party bookings match your current filters.
-                        </p>
-                      ) : null}
-                    </div>
-                  ) : (
-                    <p className="text-sm text-[#2a203c]/75">
-                      There are no upcoming birthday party bookings right now.
-                    </p>
-                  )
-                ) : null}
-
-                {birthdayPartySubview === "availability" && !birthdayPartyAvailabilityLoadError ? (
-                  <BirthdayPartyAvailabilityManager initialSlots={birthdayPartyCalendarSlots} />
-                ) : birthdayPartySubview === "availability" ? (
-                  <div className={styles.errorBanner} role="alert">
-                    <span>{birthdayPartyAvailabilityLoadError}</span>
-                  </div>
-                ) : null}
-              </div>
+              <BirthdayPartiesPanel
+                bookingRows={birthdayPartyBookingsRows}
+                calendarSlots={birthdayPartyCalendarSlots}
+                bookingsLoadError={birthdayPartyBookingsLoadError}
+                availabilityLoadError={birthdayPartyAvailabilityLoadError}
+              />
             ) : null}
 
             {tab === "calendar-events" ? (
-              calendarEventsLoadError ? (
-                <div className={styles.errorBanner} role="alert">
-                  <span>{calendarEventsLoadError}</span>
-                </div>
-              ) : (
-                <CalendarEventsManager initialEvents={calendarEventsRows} />
-              )
+              <CalendarEventsPanel
+                initialEvents={calendarEventsRows}
+                initialHasMore={initialCalendarEventsHasMore}
+                initialNextOffset={initialCalendarEventsNextOffset}
+                initialFilterOptions={initialCalendarEventsFilterOptions}
+                loadError={calendarEventsLoadError}
+              />
             ) : null}
               </>
             )}
@@ -1233,7 +492,7 @@ export default function AdminShell({
         ? createPortal(
             <AnimatePresence>
               {isMobileNavOpen ? (
-                <div className="fixed inset-0 z-[90] md:hidden" aria-hidden={false}>
+                <div className="fixed inset-0 z-[90] xl:hidden" aria-hidden={false}>
                   <motion.button
                     type="button"
                     onClick={() => setIsMobileNavOpen(false)}
@@ -1307,79 +566,6 @@ export default function AdminShell({
             document.body,
           )
         : null}
-
-      <Dialog.Root
-        open={waitlistDeleteCandidate !== null}
-        onOpenChange={(open) => {
-          if (!open && !waitlistRemovingKey) {
-            setWaitlistDeleteCandidate(null);
-            setWaitlistActionError(null);
-          }
-        }}
-      >
-        <Dialog.Portal>
-          <Dialog.Overlay className="fixed inset-0 z-[100] bg-black/45" />
-          <Dialog.Content className="fixed inset-x-3 top-1/2 z-[101] max-h-[86vh] -translate-y-1/2 overflow-hidden border border-[#d8ceeb] bg-white shadow-2xl sm:left-1/2 sm:right-auto sm:w-[min(520px,calc(100vw-32px))] sm:-translate-x-1/2">
-            <div className="border-b border-[#e8e0f2] px-4 py-4 sm:px-5">
-              <div>
-                <Dialog.Title className="text-lg font-bold text-[#24193a]">
-                  Remove waitlist entry
-                </Dialog.Title>
-                <Dialog.Description className="mt-1 text-sm text-[#5f5177]">
-                  This will remove the student from the waiting list for this class.
-                </Dialog.Description>
-              </div>
-            </div>
-
-            <div className="px-4 py-4 sm:px-5">
-              <p className="text-sm text-[#342744]">
-                Remove{" "}
-                <span className="font-semibold text-[#24193a]">
-                  {waitlistDeleteCandidate?.childName ?? "this student"}
-                </span>{" "}
-                from{" "}
-                <span className="font-semibold text-[#24193a]">
-                  {waitlistDeleteCandidate?.className ?? "this class"}
-                </span>
-                ?
-              </p>
-              <p className="mt-2 text-sm text-[#6c607d]">
-                Warning, this action is permanent and cannot be undone.
-              </p>
-            </div>
-
-            <div className="border-t border-[#e8e0f2] px-4 py-4 sm:px-5">
-              <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-                <Dialog.Close asChild>
-                  <button
-                    type="button"
-                    disabled={waitlistRemovingKey !== null}
-                    className="h-10 border border-[#ddd4ea] bg-white px-4 text-sm font-semibold text-[#6f6384] hover:bg-[#faf7ff] disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    Cancel
-                  </button>
-                </Dialog.Close>
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (!waitlistDeleteCandidate) return;
-                    void removeFromWaitlist(waitlistDeleteCandidate);
-                  }}
-                  disabled={!waitlistDeleteCandidate || waitlistRemovingKey !== null}
-                  className={[
-                    "h-10 border px-4 text-sm font-semibold transition",
-                    waitlistDeleteCandidate && waitlistRemovingKey === null
-                      ? "cursor-pointer border-[#d93636] bg-[#d93636] text-white hover:bg-[#bd2d2d]"
-                      : "cursor-not-allowed border-[#eadada] bg-[#f8f6fb] text-[#b79a9a]",
-                  ].join(" ")}
-                >
-                  {waitlistRemovingKey !== null ? "Removing..." : "Remove entry"}
-                </button>
-              </div>
-            </div>
-          </Dialog.Content>
-        </Dialog.Portal>
-      </Dialog.Root>
 
     </div>
   );

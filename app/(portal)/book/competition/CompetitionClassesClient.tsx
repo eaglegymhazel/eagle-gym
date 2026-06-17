@@ -10,7 +10,6 @@ import {
 } from "@/lib/competitionBookingSelection";
 import DaySection from "../recreational/components/DaySection";
 import type { ClassCardItem, WeekdayGroup } from "../recreational/types";
-import { parseTimeToMinutes, WEEKDAY_ORDER } from "../recreational/utils";
 
 type CompetitionClassesClientProps = {
   childId: string;
@@ -43,12 +42,6 @@ export default function CompetitionClassesClient({
     allClasses.forEach((item) => map.set(item.id, item));
     return map;
   }, [allClasses]);
-  const optionBySelectionKey = useMemo(() => {
-    const map = new Map<string, ClassCardItem & { weekday: string }>();
-    allClasses.forEach((item) => map.set(item.selectionKey ?? item.id, item));
-    return map;
-  }, [allClasses]);
-
   const [selectedOptions, setSelectedOptions] = useState<CompetitionBookingSelection[]>(() =>
     initialSelections.filter((selection) => classById.has(selection.classId))
   );

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { AlertCircle, ArrowLeft, ArrowRight } from "lucide-react";
 import BookingGateway from "./BookingGateway";
@@ -22,43 +22,17 @@ type BookingClientShellProps = {
 
 export default function BookingClientShell({
   childId,
-  childName,
   children,
   competitionEligible,
 }: BookingClientShellProps) {
   const router = useRouter();
   const [pendingChildId, setPendingChildId] = useState<string | null>(null);
-  const [isSwitchingChild, setIsSwitchingChild] = useState(false);
-  const [dataLoadedForChildId, setDataLoadedForChildId] = useState<string | null>(
-    null
-  );
   const [summerCampWarning, setSummerCampWarning] = useState<string | null>(null);
-
-  useEffect(() => {
-    setDataLoadedForChildId(null);
-    const id = childId;
-    const timer = setTimeout(() => setDataLoadedForChildId(id), 0);
-    return () => clearTimeout(timer);
-  }, [childId]);
-
-  useEffect(() => {
-    if (!pendingChildId) {
-      setIsSwitchingChild(false);
-      return;
-    }
-    if (
-      childId === pendingChildId &&
-      dataLoadedForChildId === pendingChildId
-    ) {
-      setIsSwitchingChild(false);
-      setPendingChildId(null);
-    }
-  }, [childId, dataLoadedForChildId, pendingChildId]);
+  const isSwitchingChild = pendingChildId !== null && pendingChildId !== childId;
 
   const handleSelectChild = (newChildId: string) => {
     setSummerCampWarning(null);
     setPendingChildId(newChildId);
-    setIsSwitchingChild(true);
     window.location.replace(`/book?childId=${encodeURIComponent(newChildId)}`);
   };
 
@@ -108,7 +82,7 @@ export default function BookingClientShell({
       <div className="mb-6 mt-1">
         <BookingChildPicker
           childId={childId}
-          children={children}
+          childOptions={children}
           onSelectChild={handleSelectChild}
         />
       </div>

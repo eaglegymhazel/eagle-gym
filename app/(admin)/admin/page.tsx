@@ -20,7 +20,9 @@ import {
   type BirthdayPartyCalendarSlotSummary,
 } from "@/lib/server/birthdayPartyBookings";
 import {
-  getAdminCalendarEvents,
+  getAdminCalendarEventFilterOptions,
+  getAdminCalendarEventsPage,
+  type AdminCalendarEventFilterOptions,
   type AdminCalendarEventRow,
 } from "@/lib/server/adminCalendarEvents";
 import type { Child } from "@/components/admin/mockChildren";
@@ -28,6 +30,7 @@ import type { Session } from "@/components/admin/mockSessions";
 import type { RegisterClassTemplate } from "@/components/admin/sessionBuild";
 
 type AdminTabKey =
+  | "home"
   | "students"
   | "register"
   | "summer-camp-register"
@@ -49,7 +52,7 @@ function resolveAdminTab(tab: string | undefined): AdminTabKey {
     return tab;
   }
 
-  return "students";
+  return "home";
 }
 
 export default async function AdminPage({
@@ -68,6 +71,9 @@ export default async function AdminPage({
   let birthdayPartyBookingsRows: AdminBirthdayPartyBookingRow[] = [];
   let birthdayPartyCalendarSlots: BirthdayPartyCalendarSlotSummary[] = [];
   let calendarEventsRows: AdminCalendarEventRow[] = [];
+  let calendarEventsHasMore = false;
+  let calendarEventsNextOffset = 0;
+  let calendarEventsFilterOptions: AdminCalendarEventFilterOptions = { years: [] };
   let childrenLoadError: string | null = null;
   let registerClassesError: string | null = null;
   let summerCampRegisterSessionsError: string | null = null;
@@ -136,7 +142,14 @@ export default async function AdminPage({
 
   if (activeTab === "calendar-events") {
     try {
-      calendarEventsRows = await getAdminCalendarEvents();
+      const [calendarEventsPage, filterOptions] = await Promise.all([
+        getAdminCalendarEventsPage({ limit: 20 }),
+        getAdminCalendarEventFilterOptions(),
+      ]);
+      calendarEventsRows = calendarEventsPage.events;
+      calendarEventsHasMore = calendarEventsPage.hasMore;
+      calendarEventsNextOffset = calendarEventsPage.nextOffset;
+      calendarEventsFilterOptions = filterOptions;
     } catch (error) {
       calendarEventsLoadError =
         error instanceof Error ? error.message : "Unable to load calendar events.";
@@ -155,6 +168,9 @@ export default async function AdminPage({
         initialBirthdayPartyBookingsRows={birthdayPartyBookingsRows}
         initialBirthdayPartyCalendarSlots={birthdayPartyCalendarSlots}
         initialCalendarEventsRows={calendarEventsRows}
+        initialCalendarEventsHasMore={calendarEventsHasMore}
+        initialCalendarEventsNextOffset={calendarEventsNextOffset}
+        initialCalendarEventsFilterOptions={calendarEventsFilterOptions}
         initialChildrenLoadError={childrenLoadError}
         initialRegisterClassesError={registerClassesError}
         initialSummerCampRegisterSessionsError={summerCampRegisterSessionsError}

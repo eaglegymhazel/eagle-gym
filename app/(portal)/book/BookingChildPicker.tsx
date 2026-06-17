@@ -10,13 +10,13 @@ type ChildItem = {
 
 type BookingChildPickerProps = {
   childId: string;
-  children: ChildItem[];
+  childOptions: ChildItem[];
   onSelectChild: (childId: string) => void;
 };
 
 export default function BookingChildPicker({
   childId,
-  children,
+  childOptions,
   onSelectChild,
 }: BookingChildPickerProps) {
   const [open, setOpen] = useState(false);
@@ -45,11 +45,11 @@ export default function BookingChildPicker({
     };
   }, [open]);
 
-  const activeChild = children.find((child) => child.id === childId) ?? children[0];
+  const activeChild = childOptions.find((child) => child.id === childId) ?? childOptions[0];
   const activeName = activeChild
     ? `${activeChild.firstName ?? ""} ${activeChild.lastName ?? ""}`.trim()
     : "selected child";
-  const otherChildren = children.filter((child) => child.id !== childId);
+  const otherChildren = childOptions.filter((child) => child.id !== childId);
   const hasOtherChildren = otherChildren.length > 0;
 
   if (!hasOtherChildren) {

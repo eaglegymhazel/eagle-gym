@@ -1,14 +1,18 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AlertCircle, CalendarDays, Pencil, Plus, Save, Trash2, X } from "lucide-react";
 import type {
+  AdminCalendarEventFilterOptions,
   AdminCalendarEventRow,
   CalendarEventProgramme,
 } from "@/lib/server/adminCalendarEvents";
 
 type CalendarEventsManagerProps = {
   initialEvents: AdminCalendarEventRow[];
+  initialHasMore: boolean;
+  initialNextOffset: number;
+  initialFilterOptions: AdminCalendarEventFilterOptions;
 };
 
 type ProgrammeFilter = CalendarEventProgramme | "all";
@@ -363,8 +367,18 @@ function AddCalendarEventForm({
   );
 }
 
-export default function CalendarEventsManager({ initialEvents }: CalendarEventsManagerProps) {
+export default function CalendarEventsManager({
+  initialEvents,
+  initialHasMore,
+  initialNextOffset,
+  initialFilterOptions,
+}: CalendarEventsManagerProps) {
   const [events, setEvents] = useState(initialEvents);
+  const [hasMore, setHasMore] = useState(initialHasMore);
+  const [nextOffset, setNextOffset] = useState(initialNextOffset);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [isLoadingFilteredEvents, setIsLoadingFilteredEvents] = useState(false);
+  const [filterOptions, setFilterOptions] = useState(initialFilterOptions);
   const [filter, setFilter] = useState<ProgrammeFilter>("all");
   const [yearFilter, setYearFilter] = useState<number | "all">("all");
   const [monthFilter, setMonthFilter] = useState<MonthFilter>("all");
@@ -388,9 +402,80 @@ export default function CalendarEventsManager({ initialEvents }: CalendarEventsM
   }, [events, filter, monthFilter, yearFilter]);
 
   const yearOptions = useMemo(
-    () => Array.from(new Set(events.map((event) => event.year))).sort((a, b) => a - b),
-    [events]
+    () =>
+      Array.from(new Set([...filterOptions.years, ...events.map((event) => event.year)])).sort(
+        (a, b) => a - b
+      ),
+    [events, filterOptions.years]
   );
+
+  const buildCalendarEventsUrl = useCallback((offset: number) => {
+    const params = new URLSearchParams({
+      offset: String(offset),
+      limit: "20",
+    });
+    if (filter !== "all") params.set("programme", filter);
+    if (yearFilter !== "all") params.set("year", String(yearFilter));
+    if (monthFilter !== "all") params.set("month", String(monthFilter));
+    return `/api/admin/calendar-events?${params.toString()}`;
+  }, [filter, monthFilter, yearFilter]);
+
+  const mergeFilterOptions = (nextOptions?: AdminCalendarEventFilterOptions) => {
+    if (!nextOptions) return;
+    setFilterOptions((current) => ({
+      years: Array.from(new Set([...current.years, ...nextOptions.years])).sort((a, b) => a - b),
+    }));
+  };
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    const loadFilteredEvents = async () => {
+      setIsLoadingFilteredEvents(true);
+      setError(null);
+      setMessage(null);
+
+      try {
+        const response = await fetch(buildCalendarEventsUrl(0), {
+          method: "GET",
+          signal: controller.signal,
+        });
+        const result = (await response.json().catch(() => null)) as
+          | {
+              events?: AdminCalendarEventRow[];
+              hasMore?: boolean;
+              nextOffset?: number;
+              filterOptions?: AdminCalendarEventFilterOptions;
+              error?: string;
+            }
+          | null;
+
+        if (!response.ok || !Array.isArray(result?.events)) {
+          throw new Error(result?.error ?? "Could not load calendar events.");
+        }
+
+        setEvents(result.events);
+        setHasMore(result.hasMore === true);
+        setNextOffset(
+          typeof result.nextOffset === "number" ? result.nextOffset : result.events.length
+        );
+        mergeFilterOptions(result.filterOptions);
+      } catch (caughtError) {
+        if (caughtError instanceof DOMException && caughtError.name === "AbortError") return;
+        setError(
+          caughtError instanceof Error ? caughtError.message : "Could not load calendar events."
+        );
+      } finally {
+        if (!controller.signal.aborted) {
+          setIsLoadingFilteredEvents(false);
+        }
+      }
+    };
+
+    void loadFilteredEvents();
+
+    return () => controller.abort();
+  }, [buildCalendarEventsUrl]);
 
   const replaceEvent = (nextEvent: AdminCalendarEventRow) => {
     setEvents((prev) =>
@@ -398,6 +483,55 @@ export default function CalendarEventsManager({ initialEvents }: CalendarEventsM
         event.id === nextEvent.id && event.programme === nextEvent.programme ? nextEvent : event
       )
     );
+    setFilterOptions((current) => ({
+      years: Array.from(new Set([...current.years, nextEvent.year])).sort((a, b) => a - b),
+    }));
+  };
+
+  const handleLoadMore = async () => {
+    if (isLoadingMore || !hasMore) return;
+
+    setIsLoadingMore(true);
+    setError(null);
+    setMessage(null);
+
+    try {
+      const response = await fetch(buildCalendarEventsUrl(nextOffset), { method: "GET" });
+      const result = (await response.json().catch(() => null)) as
+        | {
+            events?: AdminCalendarEventRow[];
+            hasMore?: boolean;
+            nextOffset?: number;
+            filterOptions?: AdminCalendarEventFilterOptions;
+            error?: string;
+          }
+        | null;
+
+      if (!response.ok || !Array.isArray(result?.events)) {
+        throw new Error(result?.error ?? "Could not load more calendar events.");
+      }
+
+      setEvents((prev) => {
+        const seen = new Set(prev.map((event) => makeClientKey(event)));
+        const newEvents = result.events!.filter((event) => !seen.has(makeClientKey(event)));
+        return [...prev, ...newEvents];
+      });
+      setHasMore(result.hasMore === true);
+      setNextOffset(
+        typeof result.nextOffset === "number"
+          ? result.nextOffset
+          : nextOffset + result.events.length
+      );
+      mergeFilterOptions(result.filterOptions);
+    } catch (caughtError) {
+      setError(
+        caughtError instanceof Error
+          ? caughtError.message
+          : "Could not load more calendar events."
+      );
+    } finally {
+      setIsLoadingMore(false);
+    }
   };
 
   const startEditing = (event: AdminCalendarEventRow) => {
@@ -489,6 +623,7 @@ export default function CalendarEventsManager({ initialEvents }: CalendarEventsM
       setEvents((prev) =>
         prev.filter((row) => !(row.id === event.id && row.programme === event.programme))
       );
+      setNextOffset((current) => Math.max(0, current - 1));
       setDeleteCandidateKey(null);
       setMessage("Calendar event deleted.");
     } catch (caughtError) {
@@ -518,7 +653,13 @@ export default function CalendarEventsManager({ initialEvents }: CalendarEventsM
       ) : null}
 
       <AddCalendarEventForm
-        onEventAdded={(event) => setEvents((prev) => [...prev, event])}
+        onEventAdded={(event) => {
+          setEvents((prev) => [...prev, event]);
+          setNextOffset((current) => current + 1);
+          setFilterOptions((current) => ({
+            years: Array.from(new Set([...current.years, event.year])).sort((a, b) => a - b),
+          }));
+        }}
         setError={setError}
         setMessage={setMessage}
       />
@@ -528,6 +669,9 @@ export default function CalendarEventsManager({ initialEvents }: CalendarEventsM
           <div className="flex items-center gap-2">
             <CalendarDays className="h-4 w-4 text-[#6c35c3]" aria-hidden="true" />
             <h3 className="text-base font-bold text-[#24193a]">Calendar rows</h3>
+            {isLoadingFilteredEvents ? (
+              <span className="text-xs font-semibold text-[#6f6384]">Loading</span>
+            ) : null}
           </div>
           <div className="grid gap-2 sm:grid-cols-3">
             <select
@@ -800,6 +944,19 @@ export default function CalendarEventsManager({ initialEvents }: CalendarEventsM
           <p className="mt-4 rounded-lg border border-[#e6e0ee] bg-white px-3 py-5 text-sm text-[#2a203c]/75">
             No calendar events match this filter.
           </p>
+        ) : null}
+
+        {hasMore ? (
+          <div className="mt-4 flex justify-center border-t border-[#f0eaf7] pt-4">
+            <button
+              type="button"
+              onClick={() => void handleLoadMore()}
+              disabled={isLoadingMore}
+              className="inline-flex min-h-10 items-center justify-center rounded-lg border border-[#d9ccef] bg-[#faf7ff] px-4 text-sm font-semibold text-[#5b2ca7] transition hover:border-[#cbb6ea] hover:bg-[#f4eeff] disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {isLoadingMore ? "Loading..." : "Show more events"}
+            </button>
+          </div>
         ) : null}
       </div>
     </section>

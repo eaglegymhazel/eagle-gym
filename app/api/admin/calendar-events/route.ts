@@ -2,6 +2,10 @@ import { revalidatePath, revalidateTag } from "next/cache";
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { supabaseAdmin } from "@/lib/admin";
+import {
+  getAdminCalendarEventFilterOptions,
+  getAdminCalendarEventsPage,
+} from "@/lib/server/adminCalendarEvents";
 import { getWebAccountRoleForUser, isAdminRole } from "@/lib/server/webAccountRole";
 
 type CalendarEventProgramme = "recreational" | "competition";
@@ -164,6 +168,33 @@ function revalidateCalendar(programme: CalendarEventProgramme) {
 
 const RETURNING_SELECT =
   "id,eventDate:event_date,year,month,monthName:month_name,day,event,sourceFile:source_file,createdAt:created_at";
+
+export async function GET(request: NextRequest) {
+  try {
+    const adminResult = await ensureAdmin(request);
+    if ("error" in adminResult) return adminResult.error;
+    const { authContext, response } = adminResult;
+    if (response) return response;
+
+    const offset = Number.parseInt(request.nextUrl.searchParams.get("offset") ?? "0", 10);
+    const limit = Number.parseInt(request.nextUrl.searchParams.get("limit") ?? "20", 10);
+    const programme = parseProgramme(request.nextUrl.searchParams.get("programme"));
+    const year = Number.parseInt(request.nextUrl.searchParams.get("year") ?? "", 10);
+    const month = Number.parseInt(request.nextUrl.searchParams.get("month") ?? "", 10);
+    const page = await getAdminCalendarEventsPage({
+      offset: Number.isFinite(offset) ? offset : 0,
+      limit: Number.isFinite(limit) ? limit : 20,
+      programme: programme ?? undefined,
+      year: Number.isInteger(year) ? year : undefined,
+      month: Number.isInteger(month) && month >= 1 && month <= 12 ? month : undefined,
+    });
+    const filterOptions = await getAdminCalendarEventFilterOptions();
+
+    return authContext.applyCookies(NextResponse.json({ ok: true, ...page, filterOptions }));
+  } catch (error) {
+    return jsonError(error instanceof Error ? error.message : "Unknown error", 500);
+  }
+}
 
 export async function POST(request: NextRequest) {
   try {

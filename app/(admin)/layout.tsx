@@ -26,10 +26,7 @@ export default async function AdminLayout({
   }
 
   return (
-    <SiteShell
-      disableMobileNavMenu
-      mobileRightLink={{ href: "/", label: "Exit Admin Portal" }}
-    >
+    <SiteShell disableMobileNavMenu>
       <div className="pt-8">{children}</div>
     </SiteShell>
   );

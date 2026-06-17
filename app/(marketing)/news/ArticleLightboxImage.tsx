@@ -71,11 +71,13 @@ export default function ArticleLightboxImage({
             aria-label="Close image"
           />
 
-          <div className="relative z-10 flex max-h-[92vh] max-w-[96vw] items-center justify-center">
-            <img
+          <div className="relative z-10 flex h-[92vh] w-[96vw] items-center justify-center">
+            <Image
               src={src}
               alt={alt}
-              className="block max-h-[92vh] max-w-[96vw] object-contain shadow-[0_40px_90px_-45px_rgba(0,0,0,0.9)]"
+              fill
+              sizes="96vw"
+              className="object-contain drop-shadow-[0_40px_45px_rgba(0,0,0,0.45)]"
             />
 
             <button

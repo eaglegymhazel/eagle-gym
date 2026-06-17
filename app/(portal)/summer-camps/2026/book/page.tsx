@@ -52,7 +52,7 @@ export default async function SummerCampBookingPage({
     <SummerCampBookingClient
       camp={SUMMER_CAMP_2026}
       childId={selectedChild.id}
-      children={children}
+      childOptions={children}
       initialSelectedDayIds={selectedDayIds}
     />
   );

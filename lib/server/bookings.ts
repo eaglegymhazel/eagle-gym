@@ -50,33 +50,10 @@ export type AccountBillingSummary = {
 }
 
 const STRIPE_API_VERSION: Stripe.LatestApiVersion = '2026-01-28.clover'
-const SUBSCRIPTION_STATUS_PRIORITY: Record<string, number> = {
-  active: 5,
-  trialing: 4,
-  past_due: 3,
-  unpaid: 2,
-  incomplete: 1,
-  canceled: 0,
-  incomplete_expired: 0,
-  paused: 0,
-}
 
 function toIsoDateFromUnix(timestamp: number | null | undefined) {
   if (typeof timestamp !== 'number' || !Number.isFinite(timestamp)) return null
   return new Date(timestamp * 1000).toISOString()
-}
-
-function pickPreferredSubscription(
-  current: Stripe.Subscription | null,
-  candidate: Stripe.Subscription
-) {
-  if (!current) return candidate
-  const currentScore = SUBSCRIPTION_STATUS_PRIORITY[current.status] ?? -1
-  const candidateScore = SUBSCRIPTION_STATUS_PRIORITY[candidate.status] ?? -1
-  if (candidateScore !== currentScore) {
-    return candidateScore > currentScore ? candidate : current
-  }
-  return candidate.created > current.created ? candidate : current
 }
 
 async function getSubscriptionBillingSummary(

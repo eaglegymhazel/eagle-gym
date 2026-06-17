@@ -51,8 +51,11 @@ export default function BirthdayPartyReviewClient({
   const [hasAcceptedTerms, setHasAcceptedTerms] = useState(false);
 
   useEffect(() => {
-    const savedDraft = loadBirthdayPartyDraft();
-    setDraft(savedDraft);
+    const timer = window.setTimeout(() => {
+      setDraft(loadBirthdayPartyDraft());
+    }, 0);
+
+    return () => window.clearTimeout(timer);
   }, []);
 
   const resolvedDraft = useMemo(() => {

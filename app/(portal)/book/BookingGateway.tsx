@@ -1,7 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-
 type BookingGatewayProps = {
   childId: string;
   competitionEligible: boolean;
@@ -13,8 +11,6 @@ export default function BookingGateway({
   competitionEligible,
   isSwitchingChild,
 }: BookingGatewayProps) {
-  const router = useRouter();
-
   return (
     <div className="relative flex flex-col overflow-hidden rounded-[24px] md:flex-row">
       <div className="pointer-events-none absolute inset-0">

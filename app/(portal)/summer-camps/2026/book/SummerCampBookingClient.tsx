@@ -23,7 +23,7 @@ import {
 type SummerCampBookingClientProps = {
   camp: SummerCampConfig;
   childId: string;
-  children: Array<{
+  childOptions: Array<{
     id: string;
     firstName?: string | null;
     lastName?: string | null;
@@ -47,15 +47,15 @@ function formatWeekHeading(dateRange: string): string {
 export default function SummerCampBookingClient({
   camp,
   childId,
-  children,
+  childOptions,
   initialSelectedDayIds,
 }: SummerCampBookingClientProps) {
   const router = useRouter();
   const [selectedDayIds, setSelectedDayIds] = useState<string[]>(initialSelectedDayIds);
   const childName = useMemo(() => {
-    const child = children.find((item) => item.id === childId) ?? null;
+    const child = childOptions.find((item) => item.id === childId) ?? null;
     return `${child?.firstName ?? ""} ${child?.lastName ?? ""}`.trim() || "selected child";
-  }, [childId, children]);
+  }, [childId, childOptions]);
 
   const selectedSet = useMemo(() => new Set(selectedDayIds), [selectedDayIds]);
   const validationErrors = useMemo(

@@ -9,7 +9,7 @@ import {
 } from "framer-motion";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
 import Image from "next/image";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { GalleryCategory, GalleryImageItem } from "@/lib/sanity/gallery";
 
 const focusableSelector =
@@ -130,26 +130,22 @@ export default function GalleryClient({ images }: { images: GalleryImageItem[] }
     return images.filter((image) => image.category === activeCategory);
   }, [activeCategory, images]);
 
-  useEffect(() => {
-    setActiveIndex(null);
-  }, [activeCategory]);
-
   const activeImage =
     activeIndex === null ? null : filteredImages[activeIndex] ?? null;
 
-  const showPreviousImage = () => {
+  const showPreviousImage = useCallback(() => {
     setActiveIndex((current) =>
       current === null
         ? 0
         : (current - 1 + filteredImages.length) % filteredImages.length,
     );
-  };
+  }, [filteredImages.length]);
 
-  const showNextImage = () => {
+  const showNextImage = useCallback(() => {
     setActiveIndex((current) =>
       current === null ? 0 : (current + 1) % filteredImages.length,
     );
-  };
+  }, [filteredImages.length]);
 
   useEffect(() => {
     if (activeIndex === null) return;
@@ -208,7 +204,7 @@ export default function GalleryClient({ images }: { images: GalleryImageItem[] }
       document.body.style.overflow = previousOverflow;
       document.removeEventListener("keydown", handleKeyDown);
     };
-  }, [activeIndex, filteredImages.length]);
+  }, [activeIndex, showNextImage, showPreviousImage]);
 
   const handleTouchStart = (event: React.TouchEvent<HTMLDivElement>) => {
     const touch = event.touches[0];
@@ -262,7 +258,10 @@ export default function GalleryClient({ images }: { images: GalleryImageItem[] }
                     <button
                       key={category}
                       type="button"
-                      onClick={() => setActiveCategory(category)}
+                      onClick={() => {
+                        setActiveCategory(category);
+                        setActiveIndex(null);
+                      }}
                       className={[
                         "rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] transition-colors",
                         isActive
@@ -355,10 +354,13 @@ export default function GalleryClient({ images }: { images: GalleryImageItem[] }
                   layoutId={`gallery-image-${activeImage.id}`}
                   className="relative overflow-hidden shadow-[0_40px_90px_-45px_rgba(0,0,0,0.9)]"
                 >
-                  <img
+                  <Image
                     src={activeImage.src}
                     alt={activeImage.alt}
-                    className="block max-h-[90vh] max-w-full object-contain"
+                    width={activeImage.width}
+                    height={activeImage.height}
+                    sizes="96vw"
+                    className="block h-auto max-h-[90vh] w-auto max-w-full object-contain"
                   />
                   {activeImage.alt ? (
                     <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-[linear-gradient(180deg,rgba(18,10,34,0)_0%,rgba(18,10,34,0.82)_100%)] px-4 pb-4 pt-10 sm:px-5 sm:pb-5">

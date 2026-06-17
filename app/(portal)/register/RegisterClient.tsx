@@ -28,10 +28,7 @@ export default function RegisterClient() {
 
   useEffect(() => {
     if (resendCooldownUntil == null) return
-    if (resendCooldownUntil <= now) {
-      setResendCooldownUntil(null)
-      return
-    }
+    if (resendCooldownUntil <= now) return
 
     const timer = window.setInterval(() => {
       setNow(Date.now())
@@ -97,8 +94,10 @@ export default function RegisterClient() {
       return
     }
 
+    const cooldownStartedAt = Date.now()
     setRegistrationEmail(email.trim())
-    setResendCooldownUntil(Date.now() + RESEND_COOLDOWN_SECONDS * 1000)
+    setNow(cooldownStartedAt)
+    setResendCooldownUntil(cooldownStartedAt + RESEND_COOLDOWN_SECONDS * 1000)
     setSubmitting(false)
   }
 
@@ -122,8 +121,10 @@ export default function RegisterClient() {
       return
     }
 
+    const cooldownStartedAt = Date.now()
     setResendMessage(`A new confirmation email has been sent to ${registrationEmail}.`)
-    setResendCooldownUntil(Date.now() + RESEND_COOLDOWN_SECONDS * 1000)
+    setNow(cooldownStartedAt)
+    setResendCooldownUntil(cooldownStartedAt + RESEND_COOLDOWN_SECONDS * 1000)
     setResending(false)
   }
 
