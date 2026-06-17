@@ -36,17 +36,53 @@ type NavItem = {
   key: AdminTabKey;
   label: string;
   icon: typeof Users;
+  description?: string;
 };
 
 const navItems: NavItem[] = [
   { key: "home", label: "Admin Home", icon: LayoutDashboard },
-  { key: "students", label: "Student Management", icon: Users },
-  { key: "register", label: "Class Register", icon: ClipboardList },
-  { key: "summer-camp-register", label: "Summer Camp Register", icon: ClipboardList },
-  { key: "waiting", label: "Waiting List", icon: Clock3 },
-  { key: "missed-payments", label: "Missed Payments", icon: Clock3 },
-  { key: "birthday-parties", label: "Birthday Parties", icon: Gift },
-  { key: "calendar-events", label: "Calendar Events", icon: CalendarDays },
+  {
+    key: "students",
+    label: "Student Management",
+    icon: Users,
+    description: "Search student records, review profile details, update class bookings, and manage admin-only student settings.",
+  },
+  {
+    key: "register",
+    label: "Class Register",
+    icon: ClipboardList,
+    description: "Open weekly class registers to mark attendance and review who is booked into each recreational class.",
+  },
+  {
+    key: "summer-camp-register",
+    label: "Summer Camp Register",
+    icon: ClipboardList,
+    description: "View summer camp sessions, check booked children, and record attendance for each camp date.",
+  },
+  {
+    key: "waiting",
+    label: "Waiting List",
+    icon: Clock3,
+    description: "Review waiting list requests and keep track of families waiting for suitable class spaces.",
+  },
+  {
+    key: "missed-payments",
+    label: "Missed Payments",
+    icon: Clock3,
+    description: "Check failed or missing payment records so account issues can be followed up quickly.",
+  },
+  {
+    key: "birthday-parties",
+    label: "Birthday Parties",
+    icon: Gift,
+    description: "Manage party bookings, view booking details, and check availability for birthday party slots.",
+  },
+  {
+    key: "calendar-events",
+    label: "Calendar Events",
+    icon: CalendarDays,
+    description: "Add, edit, and filter recreational and competition calendar dates shown across the public site.",
+  },
 ];
 
 const CalendarEventsPanel = dynamic(() => import("./CalendarEventsPanel"), {
@@ -400,7 +436,7 @@ export default function AdminShell({
                         key={`home-${item.key}`}
                         type="button"
                         onClick={() => navigateToTab(item.key)}
-                        className="group relative min-h-28 overflow-hidden rounded-xl border border-[#e6e0ee] bg-white p-4 text-left transition hover:border-[#cbb6ea] hover:bg-[#fcfaff] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6e2ac0]/35"
+                        className="group relative min-h-40 overflow-hidden rounded-xl border border-[#e6e0ee] bg-white p-4 text-left transition hover:border-[#cbb6ea] hover:bg-[#fcfaff] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#6e2ac0]/35"
                       >
                         <span
                           aria-hidden
@@ -412,9 +448,11 @@ export default function AdminShell({
                         <span className="block text-sm font-semibold text-[#24193a]">
                           {item.label}
                         </span>
-                        <span className="mt-1 block text-xs leading-5 text-[#6f6384]">
-                          Open this tool and load its latest admin data.
-                        </span>
+                        {item.description ? (
+                          <span className="mt-2 block text-xs leading-5 text-[#6f6384]">
+                            {item.description}
+                          </span>
+                        ) : null}
                       </button>
                     );
                   })}
