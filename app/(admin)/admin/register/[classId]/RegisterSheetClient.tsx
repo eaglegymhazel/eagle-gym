@@ -84,6 +84,14 @@ function buildRegisterSignature(
     .join("|");
 }
 
+function getSaveErrorMessage(error: unknown): string {
+  const message = error instanceof Error ? error.message.trim() : "";
+  if (/^(load failed|failed to fetch|networkerror|network request failed)$/i.test(message)) {
+    return "Save request sent, but the confirmation response did not load. Refresh to confirm the register.";
+  }
+  return message || "Unable to save register.";
+}
+
 export default function RegisterSheetClient({
   classId,
   sessionDate,
@@ -288,7 +296,7 @@ export default function RegisterSheetClient({
       setLastSavedSignature(currentSignature);
     } catch (error) {
       setSaveState("error");
-      setSaveMessage(error instanceof Error ? error.message : "Unable to save register.");
+      setSaveMessage(getSaveErrorMessage(error));
     }
   };
 

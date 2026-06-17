@@ -89,6 +89,7 @@ export async function proxy(request: NextRequest) {
   }
 
   const hasOwnAuthCheck =
+    pathname.startsWith("/api/admin/") ||
     pathname.startsWith("/book") ||
     pathname.startsWith("/account") ||
     pathname.startsWith("/complete-profile") ||
