@@ -19,7 +19,6 @@ type NavItem = {
 };
 
 const timetableItems = [
-  { key: "class-timetable", href: "/timetable", label: "Class Timetable" },
   { key: "recreational-events", href: "/recreational-events-calendar", label: "Recreational Events" },
   { key: "competition-events", href: "/competition-events-calendar", label: "Competition Events" },
 ] as const satisfies ReadonlyArray<{
@@ -29,6 +28,7 @@ const timetableItems = [
 }>;
 
 const bookItems = [
+  { key: "class-timetable", href: "/timetable", label: "Class Timetable" },
   { key: "book-classes", href: "/book", label: "Book Classes" },
   { key: "birthday-parties", href: "/birthday-party", label: "Birthday Parties" },
 ] as const satisfies ReadonlyArray<{
@@ -48,7 +48,7 @@ const updateItems = [
 
 const navItems: NavItem[] = [
   { key: "book", href: "/book", label: "Book", icon: BookOpen, type: "book" as const, matchPrefix: "/book" },
-  { key: "timetables", href: "/timetable", label: "Timetables", icon: CalendarDays, type: "timetables" as const, matchPrefix: "/timetable" },
+  { key: "timetables", href: "/recreational-events-calendar", label: "Club Calendars", icon: CalendarDays, type: "timetables" as const, matchPrefix: "/recreational-events-calendar" },
   { key: "about", href: "/team", label: "About", icon: Info, type: "link" as const, matchPrefix: "/team" },
   { key: "updates", href: "/news", label: "News and Media", icon: Info, type: "updates" as const, matchPrefix: "/news" },
   { key: "contact", href: "/contact", label: "Contact Us", icon: Mail, type: "link" as const },
@@ -72,6 +72,7 @@ export default function Nav({
   const isLoggedIn = Boolean(user?.email);
   const resolvedBookItems = useMemo(
     () => [
+      { key: "class-timetable", href: "/timetable", label: "Class Timetable" },
       { key: "book-classes", href: isLoggedIn ? "/book" : "/login?redirect=/book", label: "Book Classes" },
       { key: "birthday-parties", href: "/birthday-party", label: "Birthday Parties" },
     ],
