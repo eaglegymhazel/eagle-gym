@@ -25,8 +25,8 @@ export default function SiteShell({
     >
       <div className="sticky top-0 z-50 bg-[#faf7fb]/95 backdrop-blur">
         <div className="mx-auto w-full max-w-6xl px-3 sm:px-4 lg:px-6">
-          <div className="relative flex w-full items-center gap-2 py-2 sm:gap-4 xl:min-h-[96px]">
-            <div className="shrink-0 xl:justify-self-start">
+          <div className="relative flex w-full items-center gap-2 py-2 sm:gap-4 md:min-h-[108px] xl:min-h-[96px]">
+            <div className="shrink-0 md:fixed md:left-4 md:top-2 md:z-[55] xl:left-6">
               <Link href="/" aria-label="Eagle Gymnastics Academy home">
                 <Image
                   src="/brand/new_logo1.png"
@@ -44,16 +44,16 @@ export default function SiteShell({
                 mobileRightLink={disableMobileNavMenu ? undefined : mobileRightLink}
               />
             </div>
-            <div className="absolute right-[6.25rem] top-1/2 -translate-y-1/2 sm:right-[7.75rem] xl:hidden">
+            <div className="absolute right-[6.25rem] top-1/2 -translate-y-1/2 sm:right-[7.75rem] md:fixed md:right-4 md:top-5 md:translate-y-0 xl:hidden">
               <LoginBadge />
             </div>
             {disableMobileNavMenu ? (
               <div
                 id="admin-mobile-nav-slot"
-                className="absolute right-3 top-1/2 z-[60] -translate-y-1/2 sm:right-4 xl:hidden"
+                className="absolute right-3 top-1/2 z-[60] -translate-y-1/2 sm:right-4 md:right-[13.25rem] xl:hidden"
               />
             ) : null}
-            <div className="hidden xl:absolute xl:-right-2 xl:top-1/2 xl:block xl:-translate-y-1/2">
+            <div className="hidden xl:fixed xl:right-6 xl:top-6 xl:block xl:translate-y-0">
               <LoginBadge />
             </div>
           </div>
