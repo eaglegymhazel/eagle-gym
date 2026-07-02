@@ -16,15 +16,27 @@ export default function ResetPasswordPage() {
   const [msg, setMsg] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [hasSession, setHasSession] = useState(false);
+  const [isRecoveryMode, setIsRecoveryMode] = useState(false);
   const [passwordValid, setPasswordValid] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
-    if (loading || !user || hasSession) return;
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    setIsRecoveryMode(params.get("mode") === "recovery");
+  }, []);
+
+  useEffect(() => {
+    if (loading || !user || hasSession || isRecoveryMode) return;
     if (typeof window !== "undefined" && window.location.hash) return;
     router.replace("/account");
-  }, [hasSession, loading, router, user]);
+  }, [hasSession, isRecoveryMode, loading, router, user]);
+
+  useEffect(() => {
+    if (!isRecoveryMode || !user) return;
+    setHasSession(true);
+  }, [isRecoveryMode, user]);
 
   useEffect(() => {
     let active = true;
@@ -67,7 +79,7 @@ export default function ResetPasswordPage() {
     const { error: resetError } = await supabase.auth.resetPasswordForEmail(
       email,
       {
-        redirectTo: `${window.location.origin}/auth/callback?next=/reset-password`,
+        redirectTo: `${window.location.origin}/auth/callback?next=/reset-password%3Fmode%3Drecovery`,
       }
     );
 
