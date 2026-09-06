@@ -21,6 +21,7 @@ export type AdminAssignedBadge = {
   completedAt: string | null;
   dateAwarded: string | null;
   datePaid: string | null;
+  dateGiven: string | null;
   skills: AdminBadgeSkill[];
 };
 
@@ -39,6 +40,7 @@ type AssignmentRow = {
   completed_at: string | null;
   date_awarded: string | null;
   date_paid: string | null;
+  date_given: string | null;
 };
 
 type BadgeDefinitionRow = {
@@ -76,7 +78,7 @@ export async function getAdminBadgeDataForChild(childId: string): Promise<{
     await Promise.all([
       supabaseAdmin
         .from("child_badge_assignments")
-        .select("id,child_id,badge_id,is_completed,completed_at,date_awarded,date_paid")
+        .select("id,child_id,badge_id,is_completed,completed_at,date_awarded,date_paid,date_given")
         .eq("child_id", childId),
       supabaseAdmin
         .from("badge_definitions")
@@ -173,6 +175,7 @@ export async function getAdminBadgeDataForChild(childId: string): Promise<{
         completedAt: assignment.completed_at,
         dateAwarded: assignment.date_awarded,
         datePaid: assignment.date_paid,
+        dateGiven: assignment.date_given,
         skills: badgeSkills.sort(sortSkills),
       } satisfies AdminAssignedBadge;
     })

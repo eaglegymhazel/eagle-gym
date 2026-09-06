@@ -141,22 +141,26 @@ export async function PATCH(request: NextRequest) {
       completed?: unknown;
       dateAwarded?: unknown;
       datePaid?: unknown;
+      dateGiven?: unknown;
+      markAllSkillsComplete?: unknown;
     };
     const assignmentId = typeof body.assignmentId === "string" ? body.assignmentId.trim() : "";
     const badgeSkillId = typeof body.badgeSkillId === "string" ? body.badgeSkillId.trim() : "";
+    const hasMarkAllComplete = body.markAllSkillsComplete === true;
     const hasSkillUpdate = badgeSkillId.length > 0 || typeof body.completed === "boolean";
     const hasAssignmentUpdate =
       Object.prototype.hasOwnProperty.call(body, "dateAwarded") ||
-      Object.prototype.hasOwnProperty.call(body, "datePaid");
+      Object.prototype.hasOwnProperty.call(body, "datePaid") ||
+      Object.prototype.hasOwnProperty.call(body, "dateGiven");
 
     if (!assignmentId) {
       return applyCookies(jsonError("assignmentId is required.", 400));
     }
 
-    if (!hasSkillUpdate && !hasAssignmentUpdate) {
+    if (!hasSkillUpdate && !hasAssignmentUpdate && !hasMarkAllComplete) {
       return applyCookies(
         jsonError(
-          "Provide either badgeSkillId/completed or one of dateAwarded/datePaid.",
+          "Provide either badgeSkillId/completed, markAllSkillsComplete, or one of dateAwarded/datePaid.",
           400
         )
       );
@@ -171,6 +175,63 @@ export async function PATCH(request: NextRequest) {
     if (assignmentError) return applyCookies(jsonError(assignmentError.message, 500));
     if (!assignment) return applyCookies(jsonError("Badge assignment not found.", 404));
     let assignmentIsCompleted = assignment.is_completed === true;
+
+    if (hasMarkAllComplete) {
+      if (hasSkillUpdate || hasAssignmentUpdate) {
+        return applyCookies(
+          jsonError("markAllSkillsComplete cannot be combined with other update fields.", 400)
+        );
+      }
+
+      const [
+        { data: badgeSkillRows, error: badgeSkillRowsError },
+        { data: existingProgressRows, error: existingProgressError },
+      ] = await Promise.all([
+        supabaseAdmin
+          .from("badge_skills")
+          .select("id")
+          .eq("badge_id", assignment.badge_id),
+        supabaseAdmin
+          .from("child_badge_skill_progress")
+          .select("badge_skill_id")
+          .eq("assignment_id", assignmentId),
+      ]);
+
+      if (badgeSkillRowsError) return applyCookies(jsonError(badgeSkillRowsError.message, 500));
+      if (existingProgressError) return applyCookies(jsonError(existingProgressError.message, 500));
+
+      const allSkillIds = (badgeSkillRows ?? []).map((skill) => skill.id);
+      if (allSkillIds.length === 0) {
+        return applyCookies(jsonError("This badge has no skills to mark complete.", 400));
+      }
+
+      const alreadyCompletedIds = new Set(
+        (existingProgressRows ?? []).map((progress) => progress.badge_skill_id)
+      );
+      const newProgressRows = allSkillIds
+        .filter((skillId) => !alreadyCompletedIds.has(skillId))
+        .map((skillId) => ({ assignment_id: assignmentId, badge_skill_id: skillId }));
+
+      if (newProgressRows.length > 0) {
+        const { error: insertError } = await supabaseAdmin
+          .from("child_badge_skill_progress")
+          .insert(newProgressRows);
+
+        if (insertError) return applyCookies(jsonError(insertError.message, 500));
+      }
+
+      const isCompleted = hasCompletedBadgeSkills(allSkillIds.length, allSkillIds.length);
+      assignmentIsCompleted = isCompleted;
+      const { error: updateError } = await supabaseAdmin
+        .from("child_badge_assignments")
+        .update({
+          is_completed: isCompleted,
+          completed_at: isCompleted ? new Date().toISOString() : null,
+        })
+        .eq("id", assignmentId);
+
+      if (updateError) return applyCookies(jsonError(updateError.message, 500));
+    }
 
     if (hasSkillUpdate) {
       if (!badgeSkillId || typeof body.completed !== "boolean") {
@@ -278,6 +339,7 @@ export async function PATCH(request: NextRequest) {
         completed_at?: string;
         date_awarded?: string | null;
         date_paid?: string | null;
+        date_given?: string | null;
       } = {};
 
       if (assignment.is_completed !== true) {
@@ -310,6 +372,20 @@ export async function PATCH(request: NextRequest) {
           assignmentPatch.date_paid = parsed.toISOString();
         } else {
           return applyCookies(jsonError("datePaid must be a valid date or null.", 400));
+        }
+      }
+
+      if (Object.prototype.hasOwnProperty.call(body, "dateGiven")) {
+        if (body.dateGiven === null || body.dateGiven === "") {
+          assignmentPatch.date_given = null;
+        } else if (typeof body.dateGiven === "string") {
+          const parsed = new Date(body.dateGiven);
+          if (Number.isNaN(parsed.getTime())) {
+            return applyCookies(jsonError("dateGiven must be a valid date or null.", 400));
+          }
+          assignmentPatch.date_given = parsed.toISOString();
+        } else {
+          return applyCookies(jsonError("dateGiven must be a valid date or null.", 400));
         }
       }
 

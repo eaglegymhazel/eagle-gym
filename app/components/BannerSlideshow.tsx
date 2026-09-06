@@ -25,10 +25,8 @@ export default function BannerSlideshow() {
   const { user } = useAuth();
   const [activeIndex, setActiveIndex] = useState(0);
   const isLoggedIn = Boolean(user?.email);
-  const showSummerCampPromo = pathname !== "/members";
   const showAffiliationBadges = pathname !== "/members";
   const primaryBookingHref = isLoggedIn ? "/book" : "/login?redirect=/book";
-  const summerCampHref = primaryBookingHref;
 
   useEffect(() => {
     const interval = window.setInterval(() => {
@@ -113,66 +111,6 @@ export default function BannerSlideshow() {
           </span>
         </Link>
       </div>
-
-      {showSummerCampPromo ? (
-        <>
-          <div className="absolute left-3 right-3 top-3 z-20 sm:hidden">
-            <div className="overflow-hidden rounded-[16px] border border-[#ffb7c3] bg-[linear-gradient(90deg,rgba(150,19,45,0.96)_0%,rgba(194,28,63,0.96)_50%,rgba(228,68,87,0.96)_100%)] bg-clip-padding px-2.5 py-2 text-white shadow-[0_16px_28px_-20px_rgba(92,16,32,0.68)] backdrop-blur-sm">
-              <div className="flex items-center justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="text-[9px] font-black uppercase tracking-[0.14em] text-white/78">
-                    Summer Camp 2026
-                  </p>
-                  <p className="mt-0.5 text-[12px] font-semibold leading-4 text-white">
-                    Bookings now available. 6th July to 31st July.
-                  </p>
-                </div>
-
-                <Link
-                  href={summerCampHref}
-                  className="group relative inline-flex h-8 shrink-0 items-center justify-center gap-1 overflow-hidden rounded-full border border-white/70 bg-[#fff4f6]/95 px-3 text-[9px] font-black uppercase tracking-[0.08em] text-[#991b3d] shadow-[0_10px_22px_-16px_rgba(92,16,32,0.48)] transition-[transform,border-color,box-shadow,background-size,color] duration-320 ease-out hover:-translate-y-[2px] hover:border-white/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
-                >
-                  <span className="relative z-10 whitespace-nowrap transition-colors duration-300 ease-out">
-                    Book Camp
-                  </span>
-                  <ArrowRight
-                    className="relative z-10 h-2.5 w-2.5 transition-[transform,color] duration-320 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:translate-x-0.5"
-                    aria-hidden="true"
-                  />
-                </Link>
-              </div>
-            </div>
-          </div>
-
-          <div className="absolute right-5 top-5 z-20 hidden w-[23rem] sm:block lg:right-8 lg:top-8 lg:w-[26rem]">
-            <div className="overflow-hidden rounded-[20px] border border-[#ffb7c3] bg-[linear-gradient(90deg,rgba(150,19,45,0.96)_0%,rgba(194,28,63,0.96)_50%,rgba(228,68,87,0.96)_100%)] bg-clip-padding px-4 py-3.5 text-white shadow-[0_18px_34px_-22px_rgba(92,16,32,0.68)] backdrop-blur-sm">
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
-                <div className="min-w-0">
-                  <p className="text-[11px] font-black uppercase tracking-[0.14em] text-white/78">
-                    Summer Camp 2026
-                  </p>
-                  <p className="mt-1 text-sm font-semibold leading-5 text-white sm:text-[15px]">
-                    Bookings now available. 6th July to 31st July.
-                  </p>
-                </div>
-
-                <Link
-                  href={summerCampHref}
-                  className="group relative inline-flex h-10 shrink-0 items-center justify-center gap-1.5 overflow-hidden rounded-full border border-white/70 bg-[#fff4f6]/95 bg-[linear-gradient(90deg,#a91f42,#c62855,#e44d6f)] [background-position:left_center] [background-repeat:no-repeat] [background-size:0%_100%] px-4 text-[11px] font-black uppercase tracking-[0.08em] text-[#991b3d] shadow-[0_10px_22px_-16px_rgba(92,16,32,0.48)] transition-[transform,border-color,box-shadow,background-size,color] duration-320 ease-out hover:-translate-y-[2px] hover:border-white/80 hover:[background-size:100%_100%] hover:shadow-[0_14px_28px_-18px_rgba(92,16,32,0.58)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/70 sm:px-4"
-                >
-                  <span className="relative z-10 transition-colors duration-300 ease-out group-hover:text-white">
-                    {isLoggedIn ? "Book Summer Camp" : "Login to Book"}
-                  </span>
-                  <ArrowRight
-                    className="relative z-10 h-3.5 w-3.5 transition-[transform,color] duration-320 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:translate-x-0.5 group-hover:text-white"
-                    aria-hidden="true"
-                  />
-                </Link>
-              </div>
-            </div>
-          </div>
-        </>
-      ) : null}
 
       {showAffiliationBadges ? (
         <>

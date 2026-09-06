@@ -90,8 +90,7 @@ export default function Nav({
   const isBookActive = useMemo(
     () =>
       bookItems.some((item) => pathname?.startsWith(item.href)) ||
-      pathname?.startsWith("/login") ||
-      pathname?.startsWith("/summer-camps/2026/book"),
+      pathname?.startsWith("/login"),
     [pathname]
   );
   const isUpdatesActive = useMemo(

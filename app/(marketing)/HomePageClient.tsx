@@ -20,7 +20,7 @@ const sections = [
     copy: "The Competition group, is for gymnasts who would like to compete at  floor and vault with the opportunity to progress into 4 piece competitions on the Bars, Beam, Floor and Vault. This section is invite only, once in the group there are many fun opportunities to take part in competitions, training days with other clubs and also a weekend training at Inverclyde national sports centre.",
     cta: "SIGN UP",
     href: "/login",
-    image: "/brand/vid1.MP4",
+    image: "/brand/vid1.png",
     tone: "bg-[#e9f6ff] text-[#2E2A33]",
   },
   {
