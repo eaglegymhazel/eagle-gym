@@ -97,13 +97,26 @@ export const getBootstrapAccount = cache(
     },
   })
 
-  const { data: account, error: accountError } = await serviceRole
+  const { data: webAccount, error: linkError } = await serviceRole
+    .from('web_accounts')
+    .select('account_id')
+    .eq('auth_user_id', data.user.id)
+    .maybeSingle()
+
+  if (linkError) throw new Error(linkError.message)
+  const isDevImpersonating = process.env.NODE_ENV !== 'production' && !!devImpersonateEmail
+  if (!isDevImpersonating && !webAccount?.account_id) return { status: 'missing' }
+
+  const accountQuery = serviceRole
     .from('Accounts')
     .select(
       'id,email,accFirstName,accLastName,accTelNo,accEmergencyTelNo,accAddress'
     )
-    .ilike('email', email ?? '')
-    .maybeSingle()
+  const { data: account, error: accountError } = await (
+    isDevImpersonating
+      ? accountQuery.ilike('email', email ?? '')
+      : accountQuery.eq('id', webAccount!.account_id)
+  ).maybeSingle()
 
   if (accountError) {
     throw new Error(accountError.message)
@@ -117,7 +130,7 @@ export const getBootstrapAccount = cache(
     status: 'existing',
     account: {
       id: account.id,
-      email: account.email ?? null,
+      email: data.user.email ?? null,
       accFirstName: account.accFirstName ?? null,
       accLastName: account.accLastName ?? null,
       accTelNo: account.accTelNo ?? null,

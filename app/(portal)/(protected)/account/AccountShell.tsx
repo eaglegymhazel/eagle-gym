@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation"
 import styles from "./account.module.css"
 import ChildrenClientPanel from "./_panels/ChildrenClientPanel"
 import ChildSelectModal from "./_components/ChildSelectModal"
+import AccountEmailPanel from "./_components/AccountEmailPanel"
 
 type AccountDetails = {
   id: string
@@ -825,6 +826,19 @@ export default function AccountShell() {
                     )}
                     {data.status === "existing" && (
                       <>
+                        <AccountEmailPanel
+                          key={data.account.id}
+                          initialEmail={data.account.email}
+                          disabled={!!data.devImpersonatedEmail}
+                          onConfirmed={async () => {
+                            const fresh = await loadBootstrap(false, () => true, true)
+                            if (fresh?.status === "existing") {
+                              setData((previous) => previous && !("error" in previous) && previous.status === "existing"
+                                ? { ...previous, account: fresh.account }
+                                : previous)
+                            }
+                          }}
+                        />
                         <dl className={styles.details}>
                           {rows.map((row) => (
                             <div key={row.label} className={styles.detailRow}>

@@ -495,6 +495,187 @@
   background: #ffffff;
 }
 
+.accountEmail {
+  --email-column-offset: 232px;
+  padding-bottom: 24px;
+  margin-bottom: 24px;
+  border-bottom: 1px solid #e5e0eb;
+  overflow-wrap: anywhere;
+}
+
+.accountEmail .detailRow {
+  align-items: center;
+}
+
+.accountEmail .detailRow dd {
+  min-width: 0;
+  margin: 0;
+}
+
+.emailSummary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px 20px;
+}
+
+.confirmedEmail {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.emailForm {
+  display: grid;
+  gap: 18px;
+  margin: 20px 0 0 var(--email-column-offset);
+  padding: 20px;
+  border: 1px solid #e5e0eb;
+  border-radius: 12px;
+  background: #faf8fc;
+}
+
+.emailField {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.emailForm label {
+  font-weight: 600;
+  font-size: 14px;
+  color: #2e2a33;
+}
+
+.emailForm .detailInput {
+  box-sizing: border-box;
+  min-width: 0;
+  min-height: 44px;
+  font-size: 16px;
+}
+
+.emailHelp {
+  margin: 0;
+  color: #62596d;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.emailInstructions {
+  margin: 18px 0 0 var(--email-column-offset);
+  padding: 16px 20px;
+  border: 1px solid #e5dcf1;
+  border-radius: 12px;
+  background: #f8f4fc;
+  color: #4b405b;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.emailInstructions p {
+  margin: 0 0 16px;
+}
+
+.emailInstructions .emailCheckMessage {
+  margin: 16px 0 0;
+}
+
+.emailButtons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.emailButton {
+  box-sizing: border-box;
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  max-width: 100%;
+  padding: 10px 16px;
+  border: 1px solid #d9c9ec;
+  border-radius: 8px;
+  background: #fff;
+  color: #6030a7;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.4;
+  text-align: center;
+  cursor: pointer;
+}
+
+.emailButton:hover:not(:disabled) {
+  border-color: #6c35c3;
+  background: #f6f1fc;
+}
+
+.emailButton:focus-visible {
+  outline: 2px solid #6c35c3;
+  outline-offset: 3px;
+}
+
+.emailButton:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.emailSubmit {
+  border-color: #128ccc;
+  background: #128ccc;
+  color: #fff;
+}
+
+.emailSubmit:hover:not(:disabled) {
+  border-color: #0f7bb3;
+  background: #0f7bb3;
+}
+
+.emailCancel {
+  border-color: #dcd6e3;
+  color: #62596d;
+}
+
+.accountEmail .emailNotice {
+  display: block;
+  margin: 16px 0 0 var(--email-column-offset);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+@media (max-width: 900px) {
+  .accountEmail {
+    --email-column-offset: 0px;
+  }
+
+  .emailSummary {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .emailForm {
+    padding: 18px;
+  }
+}
+
+@media (max-width: 480px) {
+  .emailButtons {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .emailButtons .emailButton {
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .emailForm,
+  .emailInstructions {
+    padding: 16px;
+  }
+}
+
 .detailInput:focus-visible {
   outline: 2px solid rgba(108, 53, 195, 0.35);
   outline-offset: 1px;

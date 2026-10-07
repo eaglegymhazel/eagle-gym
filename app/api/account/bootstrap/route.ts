@@ -151,58 +151,6 @@ export async function POST(request: NextRequest) {
 
     webAccount = webAccountData ?? null;
 
-    if (!webAccount) {
-      const { data: inserted, error: insertError } = await serviceRole
-        .from("web_accounts")
-        .insert({
-          auth_user_id: authUserId,
-          email,
-        })
-        .select("id,auth_user_id,email,account_id")
-        .maybeSingle();
-
-      if (insertError) {
-        const isDuplicateAuthUserInsert =
-          insertError.code === "23505" &&
-          insertError.message.includes("web_accounts_auth_user_id_key");
-
-        if (!isDuplicateAuthUserInsert) {
-          return applyCookies(
-            NextResponse.json({ error: insertError.message }, { status: 500 })
-          );
-        }
-
-        const { data: existingAfterDuplicate, error: existingAfterDuplicateError } =
-          await serviceRole
-            .from("web_accounts")
-            .select("id,auth_user_id,email,account_id")
-            .eq("auth_user_id", authUserId)
-            .maybeSingle();
-
-        if (existingAfterDuplicateError || !existingAfterDuplicate) {
-          return applyCookies(
-            NextResponse.json(
-              {
-                error:
-                  existingAfterDuplicateError?.message ??
-                  "Unable to load account link after duplicate insert.",
-              },
-              { status: 500 }
-            )
-          );
-        }
-
-        webAccount = existingAfterDuplicate;
-      } else {
-        webAccount = inserted ?? {
-          id: "",
-          auth_user_id: authUserId,
-          email,
-          account_id: null,
-        };
-      }
-    }
-
     let account = null;
 
     if (isDevImpersonating) {
@@ -251,64 +199,7 @@ export async function POST(request: NextRequest) {
       account = legacyAccount;
     }
 
-    if (!account && !webAccount.account_id) {
-      const { data: legacyAccount, error: legacyError } = await serviceRole
-        .from("Accounts")
-        .select(
-          "id,email,accFirstName,accLastName,accTelNo,accEmergencyTelNo,accAddress"
-        )
-        .ilike("email", email ?? "")
-        .maybeSingle();
-
-      if (legacyError) {
-        if (legacyError.code === "PGRST116") {
-          return applyCookies(
-            NextResponse.json(
-              { error: "Multiple accounts found for this email." },
-              { status: 409 }
-            )
-          );
-        }
-        return applyCookies(
-          NextResponse.json({ error: legacyError.message }, { status: 500 })
-        );
-      }
-
-      if (legacyAccount?.id) {
-        const { error: updateError } = await serviceRole
-          .from("web_accounts")
-          .update({ account_id: legacyAccount.id })
-          .eq("auth_user_id", authUserId);
-
-        if (updateError) {
-          return applyCookies(
-            NextResponse.json({ error: updateError.message }, { status: 500 })
-          );
-        }
-
-        account = legacyAccount;
-      } else {
-        return applyCookies(
-          NextResponse.json({
-            ok: true,
-            status: "missing",
-            account: null,
-            children: [],
-            medicalByChildId: {},
-            accountBookings: [],
-            accountBillingSummaries: [],
-            badgesByChildId: {},
-            childDetailsIncluded: false,
-            accountExists: false,
-            profileComplete: false,
-            nextRoute: "/account/setup",
-            devImpersonatedEmail: isDevImpersonating ? email ?? null : null,
-          })
-        );
-      }
-    }
-
-    if (!account) {
+    if (!account && webAccount?.account_id) {
       const { data: accountData, error: accountError } = await serviceRole
         .from("Accounts")
         .select(
@@ -403,7 +294,7 @@ export async function POST(request: NextRequest) {
           status: "existing",
           account: {
             id: account.id,
-            email: account.email,
+            email: data.user.email ?? null,
             accFirstName: account.accFirstName ?? null,
             accLastName: account.accLastName ?? null,
             accTelNo: account.accTelNo ?? null,

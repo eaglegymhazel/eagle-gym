@@ -1,10 +1,11 @@
 "use client";
 
-import { useMemo, useState, type ReactNode } from "react";
+import { useMemo, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import * as Dialog from "@radix-ui/react-dialog";
 import { ArrowLeft } from "lucide-react";
 import { hasCompletedBadgeSkills } from "@/lib/badgeCompletion";
+import { mergeAssignedBadge, optimisticSkillChange, type BadgeMutationResult } from "@/lib/badgeMutation";
 
 type StudentProfileTabsProps = {
   children: ReactNode;
@@ -48,9 +49,7 @@ type AdminBadgeDefinitionOption = {
   category: string | null;
 };
 
-type BadgeApiResponse = {
-  assignedBadges?: AdminAssignedBadge[];
-  availableBadges?: AdminBadgeDefinitionOption[];
+type BadgeApiResponse = BadgeMutationResult & {
   error?: string;
 };
 
@@ -64,17 +63,6 @@ function statusClass(status: "Not started" | "In progress" | "Complete"): string
   if (status === "Complete") return "border-[#bdddc9] bg-[#ebf7f0] text-[#1d6a3e]";
   if (status === "In progress") return "border-[#d9cfee] bg-[#f7f2ff] text-[#5a279f]";
   return "border-[#e5dfef] bg-[#fcfbfe] text-[#7f7591]";
-}
-
-function formatDate(value: string | null): string {
-  if (!value) return "";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "";
-  return date.toLocaleDateString("en-GB", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
 }
 
 function formatDateInputValue(value: string | null): string {
@@ -129,6 +117,7 @@ export default function StudentProfileTabs({
   const [assignError, setAssignError] = useState<string | null>(null);
   const [skillError, setSkillError] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const mutationInFlight = useRef(false);
 
   const completeCount = useMemo(
     () =>
@@ -211,7 +200,8 @@ export default function StudentProfileTabs({
 
   const assignBadge = async () => {
     const badgeId = selectedValue;
-    if (!badgeId || isAssigning || isMutating) return;
+    if (!badgeId || mutationInFlight.current) return;
+    mutationInFlight.current = true;
 
     setIsAssigning(true);
     setAssignError(null);
@@ -219,7 +209,7 @@ export default function StudentProfileTabs({
     try {
       const response = await fetch("/api/admin/child-badges", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "X-Badge-Response": "single" },
         body: JSON.stringify({ childId, badgeId }),
       });
       const payload = (await response.json()) as BadgeApiResponse;
@@ -228,8 +218,8 @@ export default function StudentProfileTabs({
         throw new Error(payload.error ?? "The badge could not be assigned.");
       }
 
-      const nextAssigned = payload.assignedBadges ?? [];
-      const nextAvailable = payload.availableBadges ?? [];
+      const nextAssigned = mergeAssignedBadge(assignedBadges, payload);
+      const nextAvailable = availableBadges.filter(badge => badge.id !== payload.assignedBadge?.badgeId);
       setAssignedBadges(nextAssigned);
       setAvailableBadges(nextAvailable);
       setSelectedBadgeId(nextAvailable[0]?.id ?? "");
@@ -244,6 +234,7 @@ export default function StudentProfileTabs({
     } catch (error) {
       setAssignError(error instanceof Error ? error.message : "The badge could not be assigned.");
     } finally {
+      mutationInFlight.current = false;
       setIsAssigning(false);
     }
   };
@@ -254,15 +245,18 @@ export default function StudentProfileTabs({
     completed: boolean
   ) => {
     const mutationKey = `${assignmentId}:${badgeSkillId}`;
-    if (savingSkillKey || isDeletingBadge) return;
+    if (mutationInFlight.current) return;
+    mutationInFlight.current = true;
+    const previousBadges = assignedBadges;
 
     setSavingSkillKey(mutationKey);
     setSkillError(null);
+    setAssignedBadges(optimisticSkillChange(previousBadges, assignmentId, badgeSkillId, completed));
 
     try {
       const response = await fetch("/api/admin/child-badges", {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "X-Badge-Response": "single" },
         body: JSON.stringify({ assignmentId, badgeSkillId, completed }),
       });
       const payload = (await response.json()) as BadgeApiResponse;
@@ -271,17 +265,19 @@ export default function StudentProfileTabs({
         throw new Error(payload.error ?? "The skill progress could not be saved.");
       }
 
-      setAssignedBadges(payload.assignedBadges ?? []);
-      setAvailableBadges(payload.availableBadges ?? []);
+      setAssignedBadges(mergeAssignedBadge(previousBadges, payload));
     } catch (error) {
+      setAssignedBadges(previousBadges);
       setSkillError(error instanceof Error ? error.message : "The skill progress could not be saved.");
     } finally {
+      mutationInFlight.current = false;
       setSavingSkillKey(null);
     }
   };
 
   const markAllSkillsComplete = async (assignmentId: string) => {
-    if (isMutating || isAssigning) return;
+    if (mutationInFlight.current) return;
+    mutationInFlight.current = true;
 
     setSavingMarkAllAssignmentId(assignmentId);
     setSkillError(null);
@@ -289,7 +285,7 @@ export default function StudentProfileTabs({
     try {
       const response = await fetch("/api/admin/child-badges", {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "X-Badge-Response": "single" },
         body: JSON.stringify({ assignmentId, markAllSkillsComplete: true }),
       });
       const payload = (await response.json()) as BadgeApiResponse;
@@ -298,13 +294,13 @@ export default function StudentProfileTabs({
         throw new Error(payload.error ?? "The badge skills could not be marked complete.");
       }
 
-      setAssignedBadges(payload.assignedBadges ?? []);
-      setAvailableBadges(payload.availableBadges ?? []);
+      setAssignedBadges(mergeAssignedBadge(assignedBadges, payload));
     } catch (error) {
       setSkillError(
         error instanceof Error ? error.message : "The badge skills could not be marked complete."
       );
     } finally {
+      mutationInFlight.current = false;
       setSavingMarkAllAssignmentId(null);
     }
   };
@@ -313,7 +309,8 @@ export default function StudentProfileTabs({
     assignmentId: string,
     updates: { dateAwarded?: string | null; datePaid?: string | null; dateGiven?: string | null }
   ) => {
-    if (savingSkillKey || savingAssignmentId || isDeletingBadge) return;
+    if (mutationInFlight.current) return;
+    mutationInFlight.current = true;
 
     setSavingAssignmentId(assignmentId);
     setSkillError(null);
@@ -321,7 +318,7 @@ export default function StudentProfileTabs({
     try {
       const response = await fetch("/api/admin/child-badges", {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "X-Badge-Response": "single" },
         body: JSON.stringify({ assignmentId, ...updates }),
       });
       const payload = (await response.json()) as BadgeApiResponse;
@@ -330,19 +327,20 @@ export default function StudentProfileTabs({
         throw new Error(payload.error ?? "Badge tracking fields could not be saved.");
       }
 
-      setAssignedBadges(payload.assignedBadges ?? []);
-      setAvailableBadges(payload.availableBadges ?? []);
+      setAssignedBadges(mergeAssignedBadge(assignedBadges, payload));
     } catch (error) {
       setSkillError(
         error instanceof Error ? error.message : "Badge tracking fields could not be saved."
       );
     } finally {
+      mutationInFlight.current = false;
       setSavingAssignmentId(null);
     }
   };
 
   const deleteAssignedBadge = async () => {
-    if (!deleteCandidate || isMutating || isAssigning) return;
+    if (!deleteCandidate || mutationInFlight.current) return;
+    mutationInFlight.current = true;
 
     setDeletingAssignmentId(deleteCandidate.assignmentId);
     setDeleteError(null);
@@ -350,7 +348,7 @@ export default function StudentProfileTabs({
     try {
       const response = await fetch("/api/admin/child-badges", {
         method: "DELETE",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "X-Badge-Response": "single" },
         body: JSON.stringify({ assignmentId: deleteCandidate.assignmentId }),
       });
       const payload = (await response.json()) as BadgeApiResponse;
@@ -359,9 +357,12 @@ export default function StudentProfileTabs({
         throw new Error(payload.error ?? "The badge assignment could not be deleted.");
       }
 
-      setAssignedBadges(payload.assignedBadges ?? []);
-      setAvailableBadges(payload.availableBadges ?? []);
-      setSelectedBadgeId((payload.availableBadges ?? [])[0]?.id ?? "");
+      setAssignedBadges(mergeAssignedBadge(assignedBadges, payload));
+      const nextAvailable = payload.availableBadge
+        ? [...availableBadges.filter(badge => badge.id !== payload.availableBadge!.id), payload.availableBadge]
+        : availableBadges;
+      setAvailableBadges(nextAvailable);
+      setSelectedBadgeId(nextAvailable[0]?.id ?? "");
       setExpandedByAssignmentId((prev) => {
         const next = { ...prev };
         delete next[deleteCandidate.assignmentId];
@@ -371,6 +372,7 @@ export default function StudentProfileTabs({
     } catch (error) {
       setDeleteError(error instanceof Error ? error.message : "The badge assignment could not be deleted.");
     } finally {
+      mutationInFlight.current = false;
       setDeletingAssignmentId(null);
     }
   };
