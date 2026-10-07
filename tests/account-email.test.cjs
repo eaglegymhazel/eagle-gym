@@ -64,6 +64,8 @@ function fixture(options = {}) {
     rpc: async (name, args) => {
       calls.rpc.push(name)
       calls.rpcArgs.push(args)
+      if (name === 'cancel_account_email_change' && !options.rpcError && !options.cancelError) status = { ...status, pendingEmail: null, pendingRequestedAt: null, pendingExpiresAt: null }
+      if (name === 'cancel_account_email_change' && options.cancelError) return { data: null, error: options.cancelError }
       return { data: options.rpcError ? null : status, error: options.rpcError ?? null }
     },
   }
@@ -76,6 +78,7 @@ function fixture(options = {}) {
   delete process.env.NEXT_PUBLIC_SITE_URL
   delete process.env.VERCEL_ENV
   return { calls, client, requestRoute: loadTs('app/api/account/email/route.ts', mocks),
+    passwordRoute: loadTs('app/api/auth/update-password/route.ts', mocks),
     profileRoute: loadTs('app/api/account/update/route.ts', mocks), callback: loadTs('app/auth/callback/route.ts', mocks) }
 }
 function request(pathname, body, headers = {}) {
@@ -91,6 +94,40 @@ test('email format, matching values and difference from confirmed address', () =
   assert.ok(emailHelpers.validateEmailChange('new@example.com', 'other@example.com', oldUser.email))
   assert.ok(emailHelpers.validateEmailChange(' OLD@example.com ', 'old@example.com', oldUser.email))
   assert.equal(emailHelpers.validateEmailChange(' NEW@example.com ', 'new@example.com', oldUser.email), null)
+})
+
+test('cancellation uses the authenticated RPC and the exact pending request, ignoring injected account IDs', async () => {
+  const pendingRequestedAt = '2026-10-07T12:00:00.123456+00:00'
+  const f = fixture({ status: { pendingEmail: newUser.email, pendingRequestedAt } })
+  const input = request('/api/account/email', { pendingEmail: newUser.email, pendingRequestedAt, userId: 'injected' })
+  const response = await f.requestRoute.DELETE(input)
+  assert.equal(response.status, 200)
+  assert.equal((await response.json()).pendingEmail, null)
+  assert.deepEqual(f.calls.rpcArgs.at(-1), { p_expected_email: newUser.email, p_expected_sent_at: pendingRequestedAt })
+  assert.deepEqual(f.calls.rpc, ['get_account_email_change_status', 'cancel_account_email_change'])
+  assert.equal(f.calls.update.length, 0)
+  assert.equal(response.headers.get('Cache-Control'), 'no-store')
+})
+
+test('cancellation rejects signed-out, cross-origin and malformed requests', async () => {
+  for (const [options, body, headers, expected] of [
+    [{ user: null }, {}, {}, 401],
+    [{}, {}, { origin: 'https://other.test' }, 403],
+    [{}, {}, {}, 400],
+    [{}, { pendingEmail: newUser.email, pendingRequestedAt: 'bad' }, {}, 400],
+  ]) {
+    const f = fixture(options)
+    assert.equal((await f.requestRoute.DELETE(request('/api/account/email', body, headers))).status, expected)
+    assert.ok(!f.calls.rpc.includes('cancel_account_email_change'))
+  }
+})
+
+test('a stale cancellation cannot claim success or change a newer request', async () => {
+  const f = fixture({ cancelError: { code: '40001' } })
+  const response = await f.requestRoute.DELETE(request('/api/account/email', { pendingEmail: newUser.email, pendingRequestedAt: '2026-10-07T12:00:00Z' }))
+  assert.equal(response.status, 409)
+  assert.match((await response.json()).error, /pending request changed/i)
+  assert.equal(f.calls.update.length, 0)
 })
 
 test('signed-out users cannot request a change', async () => {
@@ -290,4 +327,67 @@ test('existing callback errors and unsafe redirect targets are handled', async (
   for (const unsafe of ['https://evil.test', '//evil.test', '/\\evil.test', '/\nevil.test']) {
     assert.equal(emailHelpers.safeAuthNext(unsafe), '/reset-password')
   }
+})
+
+test('recovery token GET opens the password form without consuming the token or accepting an external next URL', async () => {
+  const f = fixture({ user: null })
+  const response = await f.callback.GET(request('/auth/callback?flow=password-recovery&type=recovery&token_hash=recovery-hash&next=https://other.test'))
+  assert.equal(response.headers.get('location'), origin + '/reset-password?mode=recovery&token_hash=recovery-hash')
+  assert.equal(f.calls.verify.length + f.calls.exchange.length, 0)
+})
+
+test('recovery PKCE callback exchanges the code, saves cookies and selects recovery mode', async () => {
+  const f = fixture()
+  const response = await f.callback.GET(request('/auth/callback?flow=password-recovery&code=valid-code'))
+  assert.equal(response.headers.get('location'), origin + '/reset-password?mode=recovery')
+  assert.deepEqual(f.calls.exchange, ['valid-code'])
+  assert.match(response.headers.get('set-cookie'), /sb-session=refreshed/)
+})
+
+test('failed, missing and ambiguous recovery callbacks show an explicit reset-link error', async () => {
+  for (const params of ['error=access_denied', 'error_code=otp_expired', '', 'token_hash=hash&code=code', 'code=expired']) {
+    const f = fixture({ exchangeError: { code: 'expired' } })
+    const response = await f.callback.GET(request('/auth/callback?flow=password-recovery&' + params))
+    assert.equal(response.headers.get('location'), origin + '/reset-password?error=recovery_link')
+  }
+})
+
+test('password reset verifies only a recovery token and updates the verified subject without touching account data', async () => {
+  const f = fixture({ verification: { data: { user: oldUser, session: { user: oldUser } }, error: null } })
+  const response = await f.passwordRoute.POST(request('/api/auth/update-password', { password: 'Good-password!123', tokenHash: 'recovery-hash', type: 'email_change', userId: 'injected' }))
+  assert.equal(response.status, 200)
+  assert.deepEqual(f.calls.verify, [{ token_hash: 'recovery-hash', type: 'recovery' }])
+  assert.deepEqual(f.calls.update, [[{ password: 'Good-password!123' }]])
+  assert.equal(f.calls.rpc.length, 0)
+  assert.match(response.headers.get('set-cookie'), /sb-session=confirmed/)
+  assert.equal(response.headers.get('Cache-Control'), 'no-store')
+})
+
+test('invalid reset tokens never fall back to changing an already signed-in account', async () => {
+  const f = fixture({ verification: { data: {}, error: { code: 'otp_expired' } } })
+  const response = await f.passwordRoute.POST(request('/api/auth/update-password', { password: 'Good-password!123', tokenHash: 'expired' }))
+  assert.equal(response.status, 400)
+  assert.equal((await response.json()).code, 'recovery_link')
+  assert.equal(f.calls.update.length, 0)
+})
+
+test('password reset rejects a mismatched verified subject, anonymous sessions, weak passwords and cross-origin submissions', async () => {
+  for (const [options, body, headers, status] of [
+    [{ verification: { data: { user: newUser, session: { user: newUser } }, error: null }, user: { ...oldUser, id: 'another-account' } }, { password: 'Good-password!123', tokenHash: 'hash' }, {}, 401],
+    [{ user: null }, { password: 'Good-password!123' }, {}, 401],
+    [{}, { password: 'weak', tokenHash: 'hash' }, {}, 400],
+    [{}, { password: 'Good-password!123' }, { origin: 'https://other.test' }, 403],
+  ]) {
+    const f = fixture(options)
+    const response = await f.passwordRoute.POST(request('/api/auth/update-password', body, headers))
+    assert.equal(response.status, status)
+    assert.equal(f.calls.update.length, 0)
+  }
+})
+
+test('a verified recovery session is retained when password policy rejects a consumed token update', async () => {
+  const f = fixture({ updateError: { message: 'Choose a different password' }, verification: { data: { user: oldUser, session: { user: oldUser } }, error: null } })
+  const response = await f.passwordRoute.POST(request('/api/auth/update-password', { password: 'Good-password!123', tokenHash: 'hash' }))
+  assert.equal((await response.json()).recoveryVerified, true)
+  assert.match(response.headers.get('set-cookie'), /sb-session=confirmed/)
 })

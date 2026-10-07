@@ -1,68 +1,39 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createServerClient, type CookieOptions } from "@supabase/ssr";
+import { createAuthRouteClient } from "@/lib/server/authRouteClient";
 import { validatePassword } from "@/lib/passwordPolicy";
 
 export async function POST(request: NextRequest) {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-  if (!supabaseUrl || !supabaseAnonKey) {
-    return NextResponse.json(
-      { error: "Supabase is not configured." },
-      { status: 500 }
-    );
+  if (request.headers.get("origin") !== request.nextUrl.origin) {
+    return NextResponse.json({ error: "Invalid request origin." }, { status: 403, headers: { "Cache-Control": "no-store" } });
   }
-
-  const { password } = await request.json();
-
-  if (!password || typeof password !== "string") {
-    return NextResponse.json(
-      { error: "Password is required." },
-      { status: 400 }
-    );
-  }
-
-  const validation = validatePassword(password);
-  if (!validation.isValid) {
-    return NextResponse.json(
-      { error: "Password does not meet requirements." },
-      { status: 400 }
-    );
-  }
-
-  const cookieStore = request.cookies;
-  const cookiesToPersist: Array<{
-    name: string;
-    value: string;
-    options?: CookieOptions;
-  }> = [];
-  const applyCookies = (response: NextResponse) => {
-    cookiesToPersist.forEach(({ name, value, options }) => {
-      response.cookies.set(name, value, options);
+  try {
+    const { supabase, applyCookies } = createAuthRouteClient(request);
+    const respond = (body: unknown, status = 200) => applyCookies(NextResponse.json(body, { status }));
+    const body = await request.json().catch(() => null);
+    if (typeof body?.password !== "string" || !validatePassword(body.password).isValid) {
+      return respond({ error: "Password does not meet requirements." }, 400);
+    }
+    let recoveredUserId: string | null = null;
+    if (body.tokenHash !== undefined) {
+      if (typeof body.tokenHash !== "string" || !body.tokenHash || body.tokenHash.length > 512) {
+        return respond({ error: "This reset link is invalid. Request a new password reset email.", code: "recovery_link" }, 400);
+      }
+      const { data, error } = await supabase.auth.verifyOtp({ token_hash: body.tokenHash, type: "recovery" });
+      if (error || !data.user || !data.session || data.session.user.id !== data.user.id) {
+        return respond({ error: "This reset link is invalid, expired or already used. Request a new password reset email.", code: "recovery_link" }, 400);
+      }
+      recoveredUserId = data.user.id;
+    }
+    const { data: auth, error: authError } = await supabase.auth.getUser();
+    if (authError || !auth.user || (recoveredUserId && auth.user.id !== recoveredUserId)) {
+      return respond({ error: "Unable to verify your reset session. Request a new password reset email.", code: "recovery_link" }, 401);
+    }
+    const { error } = await supabase.auth.updateUser({ password: body.password });
+    if (error) return respond({ error: error.message, ...(recoveredUserId ? { recoveryVerified: true } : {}) }, 400);
+    return respond({ ok: true });
+  } catch {
+    return NextResponse.json({ error: "Unable to update your password. Please try again." }, {
+      status: 500, headers: { "Cache-Control": "no-store" },
     });
-    return response;
-  };
-
-  const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
-    cookies: {
-      getAll() {
-        return cookieStore.getAll();
-      },
-      setAll(cookies: Array<{ name: string; value: string; options?: CookieOptions }>) {
-        cookies.forEach((cookie) => {
-          cookiesToPersist.push(cookie);
-        });
-      },
-    },
-  });
-
-  const { error } = await supabase.auth.updateUser({ password });
-
-  if (error) {
-    return applyCookies(
-      NextResponse.json({ error: error.message }, { status: 400 })
-    );
   }
-
-  return applyCookies(NextResponse.json({ ok: true }));
 }

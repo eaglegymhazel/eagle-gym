@@ -15,6 +15,68 @@ Keep Supabase Auth email confirmation and **Secure Email Change enabled**.
 Both the current and proposed addresses must be confirmed. The application
 does not alter Auth settings or use the admin update-user API.
 
+Pending request expiry and cancellation
+---------------------------------------
+
+The follow-up migration `sql/account_email_change_expiry.sql` is installed on
+the connected project as version `20261007142537`, name
+`account_email_change_expiry`. Do not reapply it there. For a new environment,
+apply it after the original migration and enable pg_cron first. No Supabase
+email provider, token lifetime or Secure Email Change setting is changed.
+
+Requests expire 48 hours after Auth's `email_change_sent_at`; a resend starts a
+fresh window and resets partial confirmation. The account page shows the expiry
+and a Cancel email change button. Confirmation links retain Supabase's existing,
+potentially shorter expiry. Supabase Cron runs `expire-account-email-changes`
+once daily at 03:00 UTC as postgres, including when users never visit the site.
+The follow-up `sql/account_email_change_daily_cleanup.sql` migration, named
+`account_email_change_daily_cleanup`, replaces the initial five-minute schedule
+on the same job. Apply it after the expiry migration in a new environment.
+Status reads also clear the caller's expired request immediately. Historical
+pending requests without a sent timestamp are treated as expired.
+
+A BEFORE email-update trigger rejects completion at or beyond the exact
+48-hour cutoff, even before the next scheduled cleanup. An unvisited expired
+request can remain stored until the daily run; opening Account Details clears
+it immediately. Clearing a request
+locks its Auth row and removes only its pending address, both email-change
+tokens, partial-confirmation state, email-change one-time tokens and associated
+PKCE flows. Active email, password, sessions, identities, signup/recovery tokens,
+account rows, IDs and relationships remain unchanged. Cleanup never creates
+accounts or matches legacy ownership by email.
+
+Cancellation is an authenticated, same-origin DELETE to `/api/account/email`.
+The authenticated RPC scopes it with `auth.uid()` and checks the displayed
+pending email and exact sent timestamp under a row lock. A stale cancellation
+cannot clear a newer resend. A completed change is never undone. Internal
+cleanup/scheduler functions have no application-role execute grants; the narrow
+self-cancellation RPC is authenticated-only. All functions have fixed empty
+search paths and qualified table references. Cron processes up to 1,000 expired
+requests per run and skips rows currently locked by confirmation/resend.
+
+Validation covered expiry before scheduled cleanup, unattended scheduled
+cleanup, missing timestamps, fresh/resend timing, partial cancellation,
+idempotency, stale/cross-account cancellation, recovery-token preservation,
+normal confirmation and unchanged stable account links. Migration and fixtures
+were tested in BEGIN/ROLLBACK before installation, then the fixtures were rerun
+with ROLLBACK after installation. No test records were retained. Application
+route/component and badge regression tests, targeted ESLint and the production
+build passed. The cron job was verified active and its first unattended run
+succeeded on 7 October 2026 at 15:30 Europe/London (14:30 UTC). Deploy the
+application changes to expose the new button.
+
+For manual preview testing, request a change, cancel it before and after one
+confirmation, then check the confirmed address and try the old links. Resend
+and complete a fresh two-mailbox request. Do not shorten the production policy
+or backdate real users for expiry testing; use the rollback-only SQL tests:
+
+    node --test tests/account-email.test.cjs tests/account-email-panel.test.cjs tests/admin-badges.test.cjs
+
+Run `sql/test_account_email_changes.sql` and
+`sql/test_account_email_change_expiry.sql` between BEGIN and ROLLBACK against
+the installed migrations. The scheduled cleanup is exercised transactionally;
+any changes to existing expired requests inside that test are rolled back too.
+
 In Auth URL Configuration, allow this exact callback for each application origin:
 
     https://YOUR-APPLICATION-ORIGIN/auth/callback?flow=email-change
@@ -66,7 +128,25 @@ the Change Email Address template and use the subject
 `Confirm your account email change | Eagle Gymnastics`. Its inline styles,
 fluid tables and hosted logo match the site's purple and navy branding. Both
 the button and fallback link use the callback above; neither verifies on GET.
+If `.RedirectTo` is empty, equals `.SiteURL`, or is the live homepage, the
+template selects the explicit live email-change callback instead. Valid full
+preview/local callbacks are retained. This fallback fixes newly generated
+emails only; updating a template/deployment cannot rewrite delivered emails.
 Preview it in Supabase and send a real test to check the target email client.
+
+If a delivered link looks like `https://www.eaglegymnastics.co.uk/&token_hash=...`,
+the template received the homepage as its redirect instead of the full callback.
+Appending `&token_hash` to a URL without a query string produces a pathname and
+a 404. First check that the exact www callback above is saved in Supabase's
+Redirect URLs on the same project used by the live app. Also check that both
+template links use the selected `$emailChangeCallback`, which retains full
+`.RedirectTo` values and substitutes the live callback for homepage defaults.
+The live app's updateUser call supplies the full
+callback. Request fresh confirmation emails from Account Details after fixing
+configuration; previously delivered links will not change. Do not fix this by
+changing the global Site URL to the email callback or replacing the separator
+alone. A token-free live request to the callback was verified to redirect to
+`/auth/email-change` and return HTTP 200.
 
 Supabase supplies the token hash appropriate to each recipient. Preserve both
 confirmation emails. Do not change the signup/recovery templates for this task.

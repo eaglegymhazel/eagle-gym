@@ -3,6 +3,8 @@ import { z } from "zod"
 export type AccountEmailStatus = {
   email: string | null
   pendingEmail: string | null
+  pendingRequestedAt: string | null
+  pendingExpiresAt: string | null
   canChange: boolean
   synchronised: boolean
 }

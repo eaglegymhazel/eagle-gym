@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { createAuthRouteClient } from "@/lib/server/authRouteClient"
 import { EMAIL_CHANGE_CALLBACK, normaliseEmail, validateEmailChange, type AccountEmailStatus } from "@/lib/accountEmail"
 
-async function handle(request: NextRequest, change: boolean) {
+async function handle(request: NextRequest, action: "status" | "change" | "cancel") {
   try {
     const { supabase, applyCookies } = createAuthRouteClient(request)
     const respond = (body: unknown, status = 200) => applyCookies(NextResponse.json(body, { status }))
@@ -14,10 +14,27 @@ async function handle(request: NextRequest, change: boolean) {
       return respond({ error: "Account email changes are not available yet. Please contact us." }, 503)
     }
     const status = data as AccountEmailStatus
-    if (!change) return respond(status)
+    if (action === "status") return respond(status)
 
     if (request.headers.get("origin") !== request.nextUrl.origin) {
       return respond({ error: "Invalid request origin." }, 403)
+    }
+    if (action === "cancel") {
+      const body = await request.json().catch(() => null)
+      if (typeof body?.pendingEmail !== "string" || !body.pendingEmail
+        || typeof body?.pendingRequestedAt !== "string" || !Number.isFinite(Date.parse(body.pendingRequestedAt))) {
+        return respond({ error: "Refresh your account before cancelling the pending email change." }, 400)
+      }
+      const { data: cancelled, error: cancelError } = await supabase.rpc("cancel_account_email_change", {
+        p_expected_email: body.pendingEmail, p_expected_sent_at: body.pendingRequestedAt,
+      })
+      if (cancelError || !cancelled) {
+        return respond({ error: cancelError?.code === "40001"
+          ? "The pending request changed. Refresh before cancelling."
+          : "Unable to cancel the pending email change. Please try again.",
+        }, cancelError?.code === "40001" ? 409 : 503)
+      }
+      return respond(cancelled)
     }
     if (!status.canChange || !status.email) {
       return respond({ error: "Your account link needs to be verified before changing email. Please contact us." }, 409)
@@ -62,5 +79,6 @@ async function handle(request: NextRequest, change: boolean) {
   }
 }
 
-export const GET = (request: NextRequest) => handle(request, false)
-export const POST = (request: NextRequest) => handle(request, true)
+export const GET = (request: NextRequest) => handle(request, "status")
+export const POST = (request: NextRequest) => handle(request, "change")
+export const DELETE = (request: NextRequest) => handle(request, "cancel")

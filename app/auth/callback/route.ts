@@ -14,7 +14,29 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(target)
   }
 
-  // Keep the existing signup/password recovery PKCE flow.
+  if (params.get("flow") === "password-recovery" || params.get("type") === "recovery") {
+    const failed = new URL("/reset-password?error=recovery_link", request.url)
+    const tokenHash = params.get("token_hash")
+    const code = params.get("code")
+    if (params.get("error") || params.get("error_code") || (tokenHash && code)) return NextResponse.redirect(failed)
+    if (tokenHash) {
+      // Recovery tokens are consumed only when a password is submitted.
+      const target = new URL("/reset-password?mode=recovery", request.url)
+      target.searchParams.set("token_hash", tokenHash)
+      return NextResponse.redirect(target)
+    }
+    if (!code) return NextResponse.redirect(failed)
+    try {
+      const { supabase, applyCookies } = createAuthRouteClient(request)
+      const { data, error } = await supabase.auth.exchangeCodeForSession(code)
+      return applyCookies(NextResponse.redirect(error || !data.session
+        ? failed : new URL("/reset-password?mode=recovery", request.url)))
+    } catch {
+      return NextResponse.redirect(failed)
+    }
+  }
+
+  // Keep the existing signup/legacy PKCE flow.
   const code = params.get("code")
   if (!code) return NextResponse.redirect(new URL("/login?error=missing_code", request.url))
   try {

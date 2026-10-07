@@ -17,6 +17,8 @@ export default function AccountEmailPanel({ initialEmail, disabled, onConfirmed 
   const [confirmation, setConfirmation] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
+  const [notice, setNotice] = useState<string | null>(null)
+  const [cancelling, setCancelling] = useState(false)
   const [signedOut, setSignedOut] = useState(false)
   const [busy, setBusy] = useState(false)
   const [checking, setChecking] = useState(false)
@@ -32,12 +34,17 @@ export default function AccountEmailPanel({ initialEmail, disabled, onConfirmed 
   const acceptStatus = useCallback(async (next: AccountEmailStatus) => {
     const changed = confirmedEmail.current !== next.email
     const completed = changed && !next.pendingEmail && next.synchronised && expectedEmail.current === next.email
+    if (expectedEmail.current && !next.pendingEmail && !changed) {
+      expectedEmail.current = null
+      setNotice("The pending email change has expired or been cancelled. Your account email is unchanged.")
+    }
     confirmedEmail.current = next.email
     if (next.pendingEmail) expectedEmail.current = next.pendingEmail
     setStatus(next)
     setSignedOut(false)
     if (!next.pendingEmail) setCheckMessage(null)
     if (completed) {
+      setNotice(null)
       expectedEmail.current = null
       setSuccess(`Your account email has changed to ${next.email}.`)
       setOpen(false)
@@ -119,6 +126,7 @@ export default function AccountEmailPanel({ initialEmail, disabled, onConfirmed 
     setBusy(true)
     setError(null)
     setSuccess(null)
+    setNotice(null)
     setCheckMessage(null)
     try {
       const response = await fetch("/api/account/email", {
@@ -147,6 +155,43 @@ export default function AccountEmailPanel({ initialEmail, disabled, onConfirmed 
     event.preventDefault()
     void requestChange(email, confirmation)
   }
+  const cancelChange = async () => {
+    if (inFlight.current || !status?.pendingEmail || !status.pendingRequestedAt) return
+    inFlight.current = true
+    requestVersion.current += 1
+    setBusy(true)
+    setCancelling(true)
+    setError(null)
+    setSuccess(null)
+    setNotice(null)
+    setCheckMessage(null)
+    try {
+      const response = await fetch("/api/account/email", {
+        method: "DELETE", credentials: "include", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pendingEmail: status.pendingEmail, pendingRequestedAt: status.pendingRequestedAt }),
+      })
+      const result = await response.json()
+      if (!response.ok) {
+        if (response.status === 401) setSignedOut(true)
+        throw new Error(result.error ?? "Unable to cancel the pending email change.")
+      }
+      await acceptStatus(result)
+      if (result.pendingEmail) {
+        setNotice("The pending request changed. Check its status before cancelling.")
+      } else if (result.email === status.email) {
+        setNotice("Email change cancelled. Your account email is unchanged. The old confirmation links can no longer be used.")
+      }
+      setOpen(false)
+      setEmail("")
+      setConfirmation("")
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unable to cancel the pending email change.")
+    } finally {
+      inFlight.current = false
+      setBusy(false)
+      setCancelling(false)
+    }
+  }
   const unavailable = disabled || busy || signedOut || !status?.canChange
 
   return (
@@ -167,16 +212,22 @@ export default function AccountEmailPanel({ initialEmail, disabled, onConfirmed 
         </div>
       </dl>
       {disabled && <p className={styles.emailNotice}>Email changes are unavailable while viewing another account.</p>}
+      {notice && <p className={styles.emailNotice} role="status">{notice}</p>}
       {status?.pendingEmail && <div className={styles.emailInstructions} role="status">
         <p>A change to <strong>{status.pendingEmail}</strong> is pending. Confirm the emails sent to both your current and new addresses. Your confirmed account email stays unchanged until both are confirmed. You can stay signed in.</p>
+        <p>This request expires after 48 hours{status.pendingExpiresAt && <>: <time dateTime={status.pendingExpiresAt}>{new Date(status.pendingExpiresAt).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" })}</time></>}. Confirmation links may expire sooner. Resending starts a fresh request and requires both confirmations again.</p>
         <div className={styles.emailButtons}>
           <button type="button" className={styles.emailButton} disabled={unavailable}
             onClick={() => void requestChange(status.pendingEmail!, status.pendingEmail!)}>
-            {busy ? "Sending…" : "Send confirmation emails again"}
+            {busy && !cancelling ? "Sending…" : "Send confirmation emails again"}
           </button>
           <button type="button" className={styles.emailButton} disabled={busy || checking} aria-busy={checking}
             onClick={() => void checkConfirmationStatus()}>
             {checking ? "Checking…" : "Check confirmation status"}
+          </button>
+          <button type="button" className={styles.emailButton} disabled={unavailable || !status.pendingRequestedAt}
+            aria-busy={cancelling} onClick={() => void cancelChange()}>
+            {cancelling ? "Cancelling…" : "Cancel email change"}
           </button>
         </div>
         {checkMessage && <p className={styles.emailCheckMessage} role="status">{checkMessage}</p>}

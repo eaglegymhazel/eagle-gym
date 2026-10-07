@@ -32,7 +32,7 @@ BEGIN
            (gen_random_uuid(), no_legacy_user_id, prefix || '-optional@example.invalid', NULL, 'member');
 
   -- Pending and first confirmation do not update ANY active email.
-  UPDATE auth.users SET email_change = new_email, email_change_confirm_status = 0 WHERE id = user_id;
+  UPDATE auth.users SET email_change = new_email, email_change_confirm_status = 0, email_change_sent_at = clock_timestamp() WHERE id = user_id;
   UPDATE auth.users SET email_change_confirm_status = 1 WHERE id = user_id;
   IF (SELECT email FROM auth.users WHERE id=user_id) IS DISTINCT FROM old_email
      OR (SELECT email FROM public.web_accounts WHERE id=web_id) IS DISTINCT FROM old_email
