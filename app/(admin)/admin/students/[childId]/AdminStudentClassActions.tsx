@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import type { RegisterClassTemplate } from "@/components/admin/sessionBuild";
+import LinkStripeSubscriptionControl from "./LinkStripeSubscriptionControl";
 import MoveRecreationalBookingControl from "./MoveRecreationalBookingControl";
 
 type ActiveStudentBooking = {
@@ -12,6 +13,7 @@ type ActiveStudentBooking = {
   bookingType: string | null;
   createdAt: string | null;
   stripeCustomerId: string | null;
+  stripeSubscriptionId: string | null;
   className: string | null;
   weekday: string | number | null;
   startTime: string | null;
@@ -459,6 +461,10 @@ export default function AdminStudentClassActions({
                 </div>
 
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center md:flex-shrink-0">
+                  {(booking.bookingType === "recreational" || booking.bookingType === "competition") && (
+                    <LinkStripeSubscriptionControl bookingId={booking.id} linkedSubscriptionId={booking.stripeSubscriptionId}
+                      bookingLabel={formatClassSummary(booking.className, booking.weekday, booking.startTime, booking.endTime)} />
+                  )}
                   {booking.bookingType === "recreational" && booking.classId ? (
                     <MoveRecreationalBookingControl
                       bookingId={booking.id}

@@ -252,6 +252,18 @@ export async function POST(req: Request) {
     });
     const appUrl = getAppUrl(req);
 
+    const bookingMetadata = {
+        childFirstName: (child.firstName ?? "").trim().slice(0, 500),
+        childLastName: (child.lastName ?? "").trim().slice(0, 500),
+        bookingType: "recreational",
+        bookingGroupId,
+        childId,
+        accountId: bookingContext.accountId,
+        classCount: String(quantity),
+        classIds: uniqueClassIds.join(","),
+        pricingTier,
+    };
+
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
       customer: stripeCustomerId,
@@ -260,15 +272,8 @@ export async function POST(req: Request) {
       expires_at: Math.floor(holdExpiresAt / 1000),
       success_url: `${appUrl}/booking/success?type=recreational&bookingGroupId=${encodeURIComponent(bookingGroupId)}`,
       cancel_url: `${appUrl}/book/recreational/review?childId=${encodeURIComponent(childId)}&classIds=${encodeURIComponent(uniqueClassIds.join(","))}`,
-      metadata: {
-        bookingType: "recreational",
-        bookingGroupId,
-        childId,
-        accountId: bookingContext.accountId,
-        classCount: String(quantity),
-        classIds: uniqueClassIds.join(","),
-        pricingTier,
-      },
+      metadata: bookingMetadata,
+      subscription_data: { metadata: bookingMetadata },
     });
 
     const { error: updateGroupError } = await supabaseAdmin

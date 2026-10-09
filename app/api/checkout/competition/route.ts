@@ -284,15 +284,9 @@ export async function POST(req: Request) {
     });
     const appUrl = getAppUrl(req);
 
-    const session = await stripe.checkout.sessions.create({
-      mode: "subscription",
-      customer: stripeCustomerId,
-      payment_method_types: ["card"],
-      line_items: [{ price: priceId, quantity: 1 }],
-      expires_at: Math.floor(holdExpiresAt / 1000),
-      success_url: `${appUrl}/booking/success?type=competition&bookingGroupId=${encodeURIComponent(bookingGroupId)}`,
-      cancel_url: `${appUrl}/book/competition/review?childId=${encodeURIComponent(draftRecord.childId)}&draftId=${encodeURIComponent(draftId)}`,
-      metadata: {
+    const bookingMetadata = {
+        childFirstName: (child.firstName ?? "").trim().slice(0, 500),
+        childLastName: (child.lastName ?? "").trim().slice(0, 500),
         bookingType: "competition",
         bookingGroupId,
         childId: draftRecord.childId,
@@ -301,7 +295,18 @@ export async function POST(req: Request) {
         totalHours: String(totalHours),
         stripePriceId: priceId,
         draftId: draftId || "",
-      },
+    };
+
+    const session = await stripe.checkout.sessions.create({
+      mode: "subscription",
+      customer: stripeCustomerId,
+      payment_method_types: ["card"],
+      line_items: [{ price: priceId, quantity: 1 }],
+      expires_at: Math.floor(holdExpiresAt / 1000),
+      success_url: `${appUrl}/booking/success?type=competition&bookingGroupId=${encodeURIComponent(bookingGroupId)}`,
+      cancel_url: `${appUrl}/book/competition/review?childId=${encodeURIComponent(draftRecord.childId)}&draftId=${encodeURIComponent(draftId)}`,
+      metadata: bookingMetadata,
+      subscription_data: { metadata: bookingMetadata },
     });
 
     const { error: updateGroupError } = await supabaseAdmin

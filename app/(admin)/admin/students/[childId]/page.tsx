@@ -45,6 +45,7 @@ type ActiveBookingRow = {
   bookingType: string | null;
   created_at: string | null;
   stripeCustomerId: string | null;
+  stripeSubscriptionId: string | null;
   Classes:
     | {
         className: string | null;
@@ -151,7 +152,7 @@ export default async function StudentProfilePage({ params }: StudentProfilePageP
     supabaseAdmin
       .from("Bookings")
       .select(
-        'id,childId,classId,bookingType,created_at,"stripeCustomerId",Classes(className,weekday,startTime,endTime,durationMinutes,ageMin,ageMax,capacity)'
+        'id,childId,classId,bookingType,created_at,"stripeCustomerId","stripeSubscriptionId",Classes(className,weekday,startTime,endTime,durationMinutes,ageMin,ageMax,capacity)'
       )
       .eq("childId", child.id)
       .eq("status", "active"),
@@ -177,6 +178,7 @@ export default async function StudentProfilePage({ params }: StudentProfilePageP
       bookingType: booking.bookingType,
       createdAt: booking.created_at ?? null,
       stripeCustomerId: booking.stripeCustomerId?.trim() || null,
+      stripeSubscriptionId: booking.stripeSubscriptionId?.trim() || null,
       className: cls?.className ?? null,
       weekday: cls?.weekday ?? null,
       startTime: cls?.startTime ?? null,
